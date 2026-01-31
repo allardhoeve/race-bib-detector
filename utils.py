@@ -1,11 +1,16 @@
 """Shared utility functions for bib number recognizer."""
 
+import json
 import re
 from pathlib import Path
 
+import cv2
+import numpy as np
+from PIL import Image
 import requests
 
 CACHE_DIR = Path(__file__).parent / "cache"
+BBOX_DIR = CACHE_DIR / "bounding"
 
 
 def clean_photo_url(url: str) -> dict:
@@ -51,3 +56,83 @@ def download_image_to_file(url: str, output_path: Path, timeout: int = 60) -> bo
     except Exception as e:
         print(f"\nError downloading {url}: {e}")
         return False
+
+
+def draw_bounding_boxes(image_data: bytes, detections: list[dict], output_path: Path) -> bool:
+    """Draw bounding boxes on an image and save it.
+
+    Args:
+        image_data: Original image bytes
+        detections: List of detection dicts with 'bib_number', 'confidence', 'bbox'
+        output_path: Where to save the annotated image
+
+    Returns:
+        True on success
+    """
+    try:
+        # Ensure output directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Load image
+        nparr = np.frombuffer(image_data, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+        if image is None:
+            return False
+
+        # Draw each detection
+        for det in detections:
+            bbox = det["bbox"]
+            bib_number = det["bib_number"]
+            confidence = det["confidence"]
+
+            # bbox is [[x1,y1], [x2,y2], [x3,y3], [x4,y4]] - a quadrilateral
+            pts = np.array(bbox, np.int32)
+            pts = pts.reshape((-1, 1, 2))
+
+            # Draw the polygon outline
+            cv2.polylines(image, [pts], isClosed=True, color=(0, 255, 0), thickness=3)
+
+            # Get top-left point for label
+            x_min = min(p[0] for p in bbox)
+            y_min = min(p[1] for p in bbox)
+
+            # Draw label background
+            label = f"{bib_number} ({confidence:.0%})"
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            font_scale = 0.8
+            thickness = 2
+            (text_width, text_height), baseline = cv2.getTextSize(label, font, font_scale, thickness)
+
+            # Position label above the box
+            label_y = max(y_min - 10, text_height + 10)
+            label_x = x_min
+
+            # Draw background rectangle for text
+            cv2.rectangle(
+                image,
+                (label_x, label_y - text_height - 5),
+                (label_x + text_width + 10, label_y + 5),
+                (0, 255, 0),
+                -1
+            )
+
+            # Draw text
+            cv2.putText(
+                image, label,
+                (label_x + 5, label_y),
+                font, font_scale, (0, 0, 0), thickness
+            )
+
+        # Save the annotated image
+        cv2.imwrite(str(output_path), image)
+        return True
+
+    except Exception as e:
+        print(f"Error drawing bounding boxes: {e}")
+        return False
+
+
+def get_bbox_path(cache_path: Path) -> Path:
+    """Get the bounding box image path for a given cache path."""
+    return BBOX_DIR / cache_path.name

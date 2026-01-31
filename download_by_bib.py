@@ -31,13 +31,13 @@ def download_by_bib(bib_numbers: list[str], output_dir: Path) -> dict:
     stats = {"found": len(photos), "downloaded": 0, "failed": 0}
 
     for photo in tqdm(photos, desc="Downloading"):
-        photo_id = photo["id"]
+        photo_hash = photo["photo_hash"]
         photo_url = photo["photo_url"]
         matched_bibs = photo["matched_bibs"]
 
-        # Create filename with bib numbers
+        # Create filename with bib numbers and photo hash
         bibs_str = matched_bibs.replace(",", "-")
-        filename = f"bib_{bibs_str}_{photo_id}.jpg"
+        filename = f"bib_{bibs_str}_{photo_hash}.jpg"
         output_path = output_dir / filename
 
         # Skip if already downloaded

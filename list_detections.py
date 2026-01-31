@@ -10,7 +10,7 @@ def main():
     parser = argparse.ArgumentParser(description="List photos and detected bibs")
     parser.add_argument("--cache", "-c", action="store_true",
                         help="Show cache file paths instead of URLs")
-    parser.add_argument("--id", type=int, help="Show details for a specific photo ID")
+    parser.add_argument("--hash", type=str, help="Show details for a specific photo hash")
     args = parser.parse_args()
 
     if not db.DB_PATH.exists():
@@ -21,31 +21,31 @@ def main():
     cursor = conn.cursor()
 
     # Show single photo details
-    if args.id:
+    if args.hash:
         cursor.execute("""
-            SELECT p.id, p.photo_url, p.cache_path,
+            SELECT p.photo_hash, p.photo_url, p.cache_path,
                    GROUP_CONCAT(bd.bib_number || ' (' || ROUND(bd.confidence, 2) || ')', ', ') as bibs
             FROM photos p
             LEFT JOIN bib_detections bd ON p.id = bd.photo_id
-            WHERE p.id = ?
+            WHERE p.photo_hash = ?
             GROUP BY p.id
-        """, (args.id,))
+        """, (args.hash,))
         row = cursor.fetchone()
         if row:
-            photo_id, photo_url, cache_path, bibs = row
-            print(f"Photo ID:    {photo_id}")
+            photo_hash, photo_url, cache_path, bibs = row
+            print(f"Photo Hash:  {photo_hash}")
             print(f"Bibs:        {bibs or '(none)'}")
             print(f"Cache:       {cache_path or '(not cached)'}")
             print(f"URL:         {photo_url}")
         else:
-            print(f"Photo ID {args.id} not found.")
+            print(f"Photo hash {args.hash} not found.")
         conn.close()
         return
 
     # Get all photos with their detected bibs
     cursor.execute("""
         SELECT
-            p.id,
+            p.photo_hash,
             p.photo_url,
             p.cache_path,
             GROUP_CONCAT(bd.bib_number || ' (' || ROUND(bd.confidence, 2) || ')', ', ') as bibs
@@ -62,18 +62,18 @@ def main():
         return
 
     if args.cache:
-        print(f"{'ID':<6} {'Bibs Detected':<40} {'Cache Path'}")
-        print("-" * 90)
-        for photo_id, photo_url, cache_path, bibs in rows:
+        print(f"{'Hash':<10} {'Bibs Detected':<40} {'Cache Path'}")
+        print("-" * 94)
+        for photo_hash, photo_url, cache_path, bibs in rows:
             bibs_str = bibs if bibs else "(none)"
             cache_display = cache_path if cache_path else "(not cached)"
-            print(f"{photo_id:<6} {bibs_str:<40} {cache_display}")
+            print(f"{photo_hash:<10} {bibs_str:<40} {cache_display}")
     else:
-        print(f"{'ID':<6} {'Bibs Detected':<40} {'Photo URL'}")
-        print("-" * 100)
-        for photo_id, photo_url, cache_path, bibs in rows:
+        print(f"{'Hash':<10} {'Bibs Detected':<40} {'Photo URL'}")
+        print("-" * 104)
+        for photo_hash, photo_url, cache_path, bibs in rows:
             bibs_str = bibs if bibs else "(none)"
-            print(f"{photo_id:<6} {bibs_str:<40} {photo_url}")
+            print(f"{photo_hash:<10} {bibs_str:<40} {photo_url}")
 
     # Summary stats
     cursor.execute("SELECT COUNT(*) FROM photos")

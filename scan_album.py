@@ -5,7 +5,6 @@ import argparse
 import hashlib
 import io
 import re
-import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -17,7 +16,29 @@ from playwright.sync_api import sync_playwright
 from tqdm import tqdm
 
 import db
-from utils import CACHE_DIR, clean_photo_url, download_image
+from utils import CACHE_DIR, clean_photo_url, download_image, draw_bounding_boxes, get_bbox_path
+
+
+def is_avatar_url(url: str) -> bool:
+    """Check if a URL is likely a user avatar rather than an album photo.
+
+    Avatars typically have:
+    - Small size parameters (=s32, =s48, =s64, =s96, etc.)
+    - Or contain 'AAAAALX' pattern (Google profile photos)
+    """
+    # Avatar URLs often have small 's' size parameter (square/avatar sizing)
+    # Album photos use 'w' parameter for width
+    if re.search(r'=s\d{1,3}(-|$|[a-z])', url):
+        # Small size like =s32, =s48, =s64, =s96 (avatars are typically < 200px)
+        match = re.search(r'=s(\d+)', url)
+        if match and int(match.group(1)) < 200:
+            return True
+
+    # Google profile photo URL pattern
+    if 'AAAAALX' in url:
+        return True
+
+    return False
 
 
 def extract_image_urls(page) -> list[dict]:
@@ -47,8 +68,11 @@ def extract_image_urls(page) -> list[dict]:
         if bg:
             urls.add(bg)
 
+    # Filter out avatar URLs before cleaning
+    photo_urls = [url for url in urls if not is_avatar_url(url)]
+
     # Clean up URLs - get base URL without size parameters
-    cleaned = [clean_photo_url(url) for url in urls]
+    cleaned = [clean_photo_url(url) for url in photo_urls]
 
     # Deduplicate by base_url
     seen = set()
@@ -150,6 +174,38 @@ def is_valid_bib_number(text: str) -> bool:
     return 1 <= num <= 9999
 
 
+def bbox_area(bbox: list) -> float:
+    """Calculate the area of a bounding box (quadrilateral)."""
+    # bbox is [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
+    # Use shoelace formula for polygon area
+    n = len(bbox)
+    area = 0.0
+    for i in range(n):
+        j = (i + 1) % n
+        area += bbox[i][0] * bbox[j][1]
+        area -= bbox[j][0] * bbox[i][1]
+    return abs(area) / 2.0
+
+
+def filter_small_detections(detections: list[dict], white_region_area: float,
+                            min_ratio: float = 0.10) -> list[dict]:
+    """Filter out detections that are too small relative to the white region.
+
+    A legitimate bib number (even single digit like "1") should occupy at least
+    ~10-15% of the white bib region. Tiny detections are usually noise.
+    """
+    if white_region_area <= 0:
+        return detections
+
+    filtered = []
+    for det in detections:
+        det_area = bbox_area(det["bbox"])
+        ratio = det_area / white_region_area
+        if ratio >= min_ratio:
+            filtered.append(det)
+    return filtered
+
+
 def detect_bib_numbers(reader: easyocr.Reader, image_data: bytes) -> list[dict]:
     """Detect bib numbers in an image using EasyOCR.
 
@@ -174,22 +230,29 @@ def detect_bib_numbers(reader: easyocr.Reader, image_data: bytes) -> list[dict]:
     if white_regions:
         # OCR only on candidate regions
         for (x, y, w, h) in white_regions:
+            region_area = w * h
             region = image_array[y:y+h, x:x+w]
             results = reader.readtext(region)
 
+            region_detections = []
             for bbox, text, confidence in results:
                 cleaned = text.strip().replace(" ", "")
 
                 if is_valid_bib_number(cleaned) and confidence > 0.4:
                     # Adjust bbox coordinates to full image
                     bbox_adjusted = [[int(p[0]) + x, int(p[1]) + y] for p in bbox]
-                    all_detections.append({
+                    region_detections.append({
                         "bib_number": cleaned,
                         "confidence": float(confidence),
                         "bbox": bbox_adjusted,
                     })
 
+            # Filter out tiny detections relative to this white region
+            filtered = filter_small_detections(region_detections, region_area)
+            all_detections.extend(filtered)
+
     # Also run OCR on full image as fallback (in case region detection missed something)
+    # For full image scan, we can't use white region filtering, so use higher confidence
     results = reader.readtext(image_array)
     for bbox, text, confidence in results:
         cleaned = text.strip().replace(" ", "")
@@ -301,6 +364,11 @@ def scan_album(album_url: str, skip_existing: bool = True) -> dict:
                 cache_image(image_data, cache_path)
 
             bibs = detect_bib_numbers(reader, image_data)
+
+            # Generate bounding box image if detections found
+            if bibs:
+                bbox_path = get_bbox_path(cache_path)
+                draw_bounding_boxes(image_data, bibs, bbox_path)
 
             # Save to database with cache path
             photo_id = db.insert_photo(
