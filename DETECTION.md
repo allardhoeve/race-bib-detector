@@ -27,6 +27,18 @@ Filtering criteria:
 - Minimum area (1000 px²)
 - Aspect ratio 0.5 to 4.0 (bibs are roughly square)
 - Relative size 0.1% to 30% of image
+- **Brightness validation**: median > 120, mean > 100
+
+#### Brightness Validation
+
+The brightness check prevents false positives from light text on dark backgrounds (e.g., "Adidas" logo on black pants being misread as "8"). Real bibs are predominantly white:
+
+| Region Type | Median Brightness | Mean Brightness |
+|-------------|-------------------|-----------------|
+| Real bib | ~150-165 | ~135-140 |
+| False positive (text on dark) | ~20-30 | ~60 |
+
+Thresholds (median > 120, mean > 100) are set conservatively below real bibs but well above false positives.
 
 ### Stage 2: OCR
 
@@ -77,7 +89,9 @@ filtered = filter_overlapping_detections(detections)
 ```
 
 When boxes overlap:
-- If one text is a substring of another ("6" vs "620"), keep the longer one
+- If one text is a substring of another ("6" vs "620"):
+  - Keep the longer one, UNLESS the shorter has significantly higher confidence (1.5x threshold)
+  - This handles cases like "600" (conf=1.0) vs "6600" (conf=0.5) where partial text was misread
 - Otherwise, keep the one with more digits
 - If same digit count, keep higher confidence
 

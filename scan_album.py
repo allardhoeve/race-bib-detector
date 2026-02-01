@@ -117,6 +117,10 @@ def scan_album(album_url: str, skip_existing: bool = True, limit: int | None = N
                 cache_path=str(cache_path)
             )
 
+            # Clear old detections when rescanning
+            if not skip_existing:
+                db.delete_bib_detections(conn, photo_id)
+
             for bib in bibs:
                 db.insert_bib_detection(
                     conn,
@@ -236,6 +240,10 @@ def scan_local_directory(directory: str, skip_existing: bool = True, limit: int 
                 conn, album_url, photo_url, thumbnail_url,
                 cache_path=db_cache_path
             )
+
+            # Clear old detections when rescanning
+            if not skip_existing:
+                db.delete_bib_detections(conn, photo_id)
 
             for bib in bibs:
                 db.insert_bib_detection(

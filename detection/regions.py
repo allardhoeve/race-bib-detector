@@ -50,6 +50,14 @@ def find_white_regions(image_array: np.ndarray, min_area: int = 1000) -> list[tu
         if relative_area < 0.001 or relative_area > 0.3:
             continue
 
+        # Validate region is predominantly white (not just scattered bright pixels)
+        # This filters out false positives like light text on dark backgrounds
+        region = gray[y:y+h, x:x+w]
+        median_brightness = np.median(region)
+        mean_brightness = np.mean(region)
+        if median_brightness < 120 or mean_brightness < 100:
+            continue
+
         # Add padding around the region
         padding = int(min(w, h) * 0.1)
         x = max(0, x - padding)

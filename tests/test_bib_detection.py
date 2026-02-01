@@ -281,3 +281,22 @@ class TestDatabase:
         result = cursor.fetchone()
 
         assert result["cache_path"] == "/new/cache/path.jpg"
+
+    def test_delete_bib_detections(self, temp_db):
+        """Test deleting all bib detections for a photo."""
+        photo_id = db.insert_photo(temp_db, "https://album", "https://photo/delete_test")
+        db.insert_bib_detection(temp_db, photo_id, "100", 0.9, [])
+        db.insert_bib_detection(temp_db, photo_id, "101", 0.8, [])
+
+        # Verify detections exist
+        cursor = temp_db.cursor()
+        cursor.execute("SELECT COUNT(*) FROM bib_detections WHERE photo_id = ?", (photo_id,))
+        assert cursor.fetchone()[0] == 2
+
+        # Delete detections
+        deleted = db.delete_bib_detections(temp_db, photo_id)
+        assert deleted == 2
+
+        # Verify detections are gone
+        cursor.execute("SELECT COUNT(*) FROM bib_detections WHERE photo_id = ?", (photo_id,))
+        assert cursor.fetchone()[0] == 0

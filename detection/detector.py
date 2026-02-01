@@ -90,13 +90,30 @@ def detect_bib_numbers(
             all_detections.extend(filtered)
 
     # Also run OCR on full image as fallback (in case region detection missed something)
-    # For full image scan, we can't use white region filtering, so use higher confidence
+    # For full image scan, we validate brightness to filter false positives
     results = reader.readtext(ocr_image)
+    gray_for_brightness = preprocess_result.resized_grayscale if preprocess_result.resized_grayscale is not None else preprocess_result.grayscale
     for bbox, text, confidence in results:
         cleaned = text.strip().replace(" ", "")
 
         if is_valid_bib_number(cleaned) and confidence > 0.5:  # Higher threshold for full image
             bbox_native = [[int(coord) for coord in point] for point in bbox]
+
+            # Check brightness of detected region to filter false positives
+            # (e.g., light text on dark backgrounds like Adidas logos)
+            x_coords = [p[0] for p in bbox_native]
+            y_coords = [p[1] for p in bbox_native]
+            x_min, x_max = max(0, min(x_coords)), min(gray_for_brightness.shape[1], max(x_coords))
+            y_min, y_max = max(0, min(y_coords)), min(gray_for_brightness.shape[0], max(y_coords))
+
+            if x_max > x_min and y_max > y_min:
+                region = gray_for_brightness[y_min:y_max, x_min:x_max]
+                median_brightness = np.median(region)
+                mean_brightness = np.mean(region)
+                # Skip dark regions with scattered bright pixels
+                if median_brightness < 120 or mean_brightness < 100:
+                    continue
+
             all_detections.append({
                 "bib_number": cleaned,
                 "confidence": float(confidence),

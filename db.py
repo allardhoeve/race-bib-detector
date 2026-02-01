@@ -94,6 +94,14 @@ def insert_bib_detection(
     return cursor.lastrowid
 
 
+def delete_bib_detections(conn: sqlite3.Connection, photo_id: int) -> int:
+    """Delete all bib detections for a photo. Returns count of deleted rows."""
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM bib_detections WHERE photo_id = ?", (photo_id,))
+    conn.commit()
+    return cursor.rowcount
+
+
 def get_photos_by_bib(conn: sqlite3.Connection, bib_numbers: list[str]) -> list[dict]:
     """Get all photos containing any of the specified bib numbers."""
     placeholders = ",".join("?" * len(bib_numbers))

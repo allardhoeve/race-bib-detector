@@ -84,15 +84,28 @@ def filter_overlapping_detections(
 
             # Detections overlap - decide which to keep
             bib1, bib2 = det1["bib_number"], det2["bib_number"]
+            conf1, conf2 = det1["confidence"], det2["confidence"]
 
             # Check substring relationship
+            # When one is substring of another, prefer longer UNLESS shorter has much higher confidence
+            # (e.g., "600" at 1.0 conf vs "6600" at 0.5 conf - prefer "600")
+            confidence_ratio_threshold = 1.5  # Higher confidence must be 1.5x better
+
             if is_substring_bib(bib1, bib2):
-                # bib1 is substring of bib2, remove bib1
-                to_remove.add(i)
+                # bib1 is substring of bib2
+                # Keep bib2 (longer) unless bib1 has significantly higher confidence
+                if conf1 > conf2 * confidence_ratio_threshold:
+                    to_remove.add(j)  # Remove longer, keep shorter high-confidence
+                else:
+                    to_remove.add(i)  # Remove shorter, keep longer
                 break
             elif is_substring_bib(bib2, bib1):
-                # bib2 is substring of bib1, remove bib2
-                to_remove.add(j)
+                # bib2 is substring of bib1
+                # Keep bib1 (longer) unless bib2 has significantly higher confidence
+                if conf2 > conf1 * confidence_ratio_threshold:
+                    to_remove.add(i)  # Remove longer, keep shorter high-confidence
+                else:
+                    to_remove.add(j)  # Remove shorter, keep longer
                 continue
 
             # No substring relationship - prefer more digits, then higher confidence

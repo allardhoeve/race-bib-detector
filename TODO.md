@@ -23,6 +23,7 @@
 
 ## In Progress
 
+[ ] There are a lot of hard-coded values, like the minimum median brightness and such. Move all functional values into a central global variable file so they are easily tweaked. Use all caps for globals and use descriptive names.
 
 
 
