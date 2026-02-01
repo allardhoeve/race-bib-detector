@@ -1,31 +1,36 @@
 # TODO
 
+
+## In Progress
+
+(empty)
+
 ## Completed
 
-1. ~~Create preprocessing module skeleton~~ DONE
+[x] ~~Create preprocessing module skeleton~~ DONE
    [x] Create a preprocessing/ module with pure, deterministic functions (no global state).
    [x] Document your philosophy and guidance (below) in STRUCTURE.md and PREPROCESSING.md.
    [x] Define a single PreprocessConfig object (or dict) that parameterizes all steps.
    [x] Define a run_pipeline(img, config) function that applies steps in order.
 
-2. ~~Implement image-level normalization~~ DONE
+[x] ~~Implement image-level normalization~~ DONE
    [x] Implement to_grayscale(img).
    [x] Implement resize_to_width(img, width) (preserve aspect ratio).
    [x] Add unit tests for grayscale + resize (shape, dtype, aspect ratio).
    [x] PreprocessResult includes scale_factor for coordinate mapping back to original.
    [x] Documentation in STRUCTURE.md and PREPROCESSING.md.
 
-3. ~~Integrate preprocessing into scan_album.py~~ DONE
+[x] ~~Integrate preprocessing into scan_album.py~~ DONE
    [x] Call run_pipeline() before OCR detection
    [x] Save preprocessed images (grayscale, resized) with linked filenames
    [x] Use coordinate mapping to convert detections back to original coordinates
    [x] Display grayscale with bounding boxes in web interface (new "Grayscale" tab)
 
-## In Progress
-
-[ ] Change the scan entrypoints to also allow the formats: 6dde41fd and 47. This should rescan only that photo. Document this. This helps with rescanning a single photo after changing the code.
-
-## Recently Completed
+[x] Change the scan entrypoints to also allow the formats: 6dde41fd and 47. This should rescan only that photo. Document this. This helps with rescanning a single photo after changing the code.
+    - Added `rescan_single_photo()` function to scan_album.py
+    - Added `get_photo_by_index()` and `get_photo_count()` to db.py
+    - CLI now accepts photo hash (8 hex chars) or 1-based index as source argument
+    - Example: `./scan_album.py 6dde41fd` or `./scan_album.py 47`
 
 [x] There are a lot of hard-coded values, like the minimum median brightness and such. Move all functional values into a central global variable file so they are easily tweaked. Use all caps for globals and use descriptive names.
     - Created `config.py` with all tunable parameters

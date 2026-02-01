@@ -37,3 +37,28 @@ Photos are identified by an 8-character **photo hash** (e.g., `298706ee`), not b
 - Discussing specific photos with users
 
 The hash is computed from the photo URL using SHA-256 (first 8 chars): `hashlib.sha256(photo_url.encode()).hexdigest()[:8]`
+
+## Rescanning Single Photos
+
+To rescan a single photo after making code changes, use:
+
+```bash
+# By photo hash (8 hex characters):
+venv/bin/python scan_album.py 6dde41fd
+
+# By 1-based index (photo number in database order):
+venv/bin/python scan_album.py 47
+```
+
+This is useful for testing detection changes on specific photos without rescanning the entire album.
+
+## Configuration
+
+All tunable detection parameters are centralized in `config.py`. Key values include:
+
+- `TARGET_WIDTH`: Image preprocessing width (default: 1280)
+- `WHITE_REGION_CONFIDENCE_THRESHOLD`: OCR confidence for white regions (default: 0.4)
+- `MEDIAN_BRIGHTNESS_THRESHOLD`: Brightness filter (default: 120)
+- `MIN_DETECTION_AREA_RATIO`: Minimum bib size relative to region (default: 0.10)
+
+See `config.py` for the full list of configurable values.

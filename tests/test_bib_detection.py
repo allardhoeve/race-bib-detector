@@ -432,3 +432,50 @@ class TestDatabase:
         # Verify detections are gone
         cursor.execute("SELECT COUNT(*) FROM bib_detections WHERE photo_id = ?", (photo_id,))
         assert cursor.fetchone()[0] == 0
+
+    def test_get_photo_by_index(self, temp_db):
+        """Test getting a photo by its 1-based index."""
+        # Insert 3 photos
+        db.insert_photo(temp_db, "https://album", "https://photo/first")
+        db.insert_photo(temp_db, "https://album", "https://photo/second")
+        db.insert_photo(temp_db, "https://album", "https://photo/third")
+
+        # Get photo at index 2 (1-based)
+        photo = db.get_photo_by_index(temp_db, 2)
+        assert photo is not None
+        assert photo["photo_url"] == "https://photo/second"
+
+        # Get first photo
+        photo = db.get_photo_by_index(temp_db, 1)
+        assert photo is not None
+        assert photo["photo_url"] == "https://photo/first"
+
+        # Get last photo
+        photo = db.get_photo_by_index(temp_db, 3)
+        assert photo is not None
+        assert photo["photo_url"] == "https://photo/third"
+
+        # Out of range
+        photo = db.get_photo_by_index(temp_db, 4)
+        assert photo is None
+
+        # Invalid index (0 or negative)
+        photo = db.get_photo_by_index(temp_db, 0)
+        assert photo is None
+        photo = db.get_photo_by_index(temp_db, -1)
+        assert photo is None
+
+    def test_get_photo_count(self, temp_db):
+        """Test counting photos in the database."""
+        # Initially empty
+        assert db.get_photo_count(temp_db) == 0
+
+        # Add photos
+        db.insert_photo(temp_db, "https://album", "https://photo/1")
+        assert db.get_photo_count(temp_db) == 1
+
+        db.insert_photo(temp_db, "https://album", "https://photo/2")
+        assert db.get_photo_count(temp_db) == 2
+
+        db.insert_photo(temp_db, "https://album", "https://photo/3")
+        assert db.get_photo_count(temp_db) == 3

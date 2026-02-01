@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Scan images for bib numbers using OCR.
 
-Supports two modes:
+Supports three modes:
 1. Google Photos album: Provide a URL to scan a shared album
 2. Local directory: Provide a path to scan local image files
+3. Single photo rescan: Provide a photo hash (e.g., 6dde41fd) or index (e.g., 47)
 """
 
 import argparse
@@ -278,13 +279,134 @@ def scan_local_directory(directory: str, skip_existing: bool = True, limit: int 
     return stats
 
 
+def rescan_single_photo(identifier: str) -> dict:
+    """Rescan a single photo by hash or index.
+
+    Args:
+        identifier: Either a photo hash (e.g., "6dde41fd") or 1-based index (e.g., "47")
+
+    Returns:
+        Stats dictionary with counts
+    """
+    conn = db.get_connection()
+
+    # Determine if identifier is a hash or index
+    if identifier.isdigit():
+        # It's an index
+        index = int(identifier)
+        photo = db.get_photo_by_index(conn, index)
+        total = db.get_photo_count(conn)
+        if not photo:
+            conn.close()
+            print(f"Error: Photo index {index} not found. Database has {total} photos.")
+            return {"photos_found": 0, "photos_scanned": 0, "photos_skipped": 0, "bibs_detected": 0}
+        print(f"Found photo {index}/{total}: {photo['photo_hash']}")
+    else:
+        # It's a hash (or partial hash)
+        photo = db.get_photo_by_hash(conn, identifier)
+        if not photo:
+            conn.close()
+            print(f"Error: Photo hash '{identifier}' not found.")
+            return {"photos_found": 0, "photos_scanned": 0, "photos_skipped": 0, "bibs_detected": 0}
+        print(f"Found photo: {photo['photo_hash']}")
+
+    stats = {
+        "photos_found": 1,
+        "photos_scanned": 0,
+        "photos_skipped": 0,
+        "bibs_detected": 0,
+    }
+
+    # Initialize EasyOCR
+    print("Initializing EasyOCR...")
+    reader = easyocr.Reader(["en"], gpu=False)
+
+    photo_url = photo["photo_url"]
+    is_local = photo_url.startswith("/") or photo_url.startswith("file://")
+
+    try:
+        if is_local:
+            # Local file
+            local_path = photo_url.replace("file://", "") if photo_url.startswith("file://") else photo_url
+            image_path = Path(local_path)
+            if not image_path.exists():
+                print(f"Error: Local file not found: {local_path}")
+                conn.close()
+                return stats
+
+            image_data = image_path.read_bytes()
+            with Image.open(image_path) as img:
+                orig_w, orig_h = img.size
+
+            # Create cache path from hash of file path
+            path_hash = hashlib.md5(str(image_path).encode()).hexdigest()[:12]
+            cache_path = CACHE_DIR / f"{path_hash}.jpg"
+            thumbnail_url = f"file://{image_path}"
+            album_url = photo["album_url"]
+        else:
+            # Remote image
+            cache_path = get_cache_path(photo_url)
+            image_data = load_from_cache(cache_path)
+
+            if image_data is None:
+                print("Downloading image...")
+                image_data = download_image(photo_url)
+                cache_image(image_data, cache_path)
+
+            decoded = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
+            orig_h, orig_w = decoded.shape[:2]
+            thumbnail_url = photo["thumbnail_url"]
+            album_url = photo["album_url"]
+
+        source = ImageSource(
+            photo_url=photo_url,
+            thumbnail_url=thumbnail_url,
+            image_data=image_data,
+            cache_path=cache_path,
+            original_size=(orig_w, orig_h),
+        )
+
+        print("Processing image...")
+        bibs_count = process_image(reader, conn, source, album_url, skip_existing=False)
+        stats["bibs_detected"] = bibs_count
+        stats["photos_scanned"] = 1
+
+        print(f"Detected {bibs_count} bib(s)")
+
+    except Exception as e:
+        print(f"Error processing photo: {e}")
+
+    conn.close()
+    return stats
+
+
+def is_photo_identifier(source: str) -> bool:
+    """Check if source looks like a photo hash or index.
+
+    Photo hashes are 8 hex characters. Indices are numeric.
+    """
+    # Check if it's a number (index)
+    if source.isdigit():
+        return True
+
+    # Check if it's an 8-character hex string (hash)
+    if len(source) == 8:
+        try:
+            int(source, 16)
+            return True
+        except ValueError:
+            pass
+
+    return False
+
+
 def main():
     parser = argparse.ArgumentParser(
-        description="Scan images for bib numbers. Supports Google Photos albums or local directories."
+        description="Scan images for bib numbers. Supports Google Photos albums, local directories, or single photo rescan."
     )
     parser.add_argument(
         "source",
-        help="URL of Google Photos album OR path to local directory"
+        help="URL of Google Photos album, path to local directory, photo hash (8 hex chars), or photo index (number)"
     )
     parser.add_argument(
         "--rescan",
@@ -300,15 +422,26 @@ def main():
 
     args = parser.parse_args()
 
-    # Determine if source is a URL or local path
+    # Determine if source is a URL, local path, or photo identifier
     source = args.source
     is_url = source.startswith("http://") or source.startswith("https://") or "photos.google.com" in source or "photos.app.goo.gl" in source
 
     if is_url:
         stats = scan_album(source, skip_existing=not args.rescan, limit=args.limit)
-    else:
-        # Treat as local directory
+    elif is_photo_identifier(source):
+        # Single photo rescan by hash or index
+        stats = rescan_single_photo(source)
+    elif Path(source).exists():
+        # Treat as local directory/file
         stats = scan_local_directory(source, skip_existing=not args.rescan, limit=args.limit)
+    else:
+        # Could be a hash that doesn't look like one, or invalid path
+        # Try as photo identifier first
+        if len(source) <= 8:
+            stats = rescan_single_photo(source)
+        else:
+            print(f"Error: '{source}' is not a valid URL, path, photo hash, or index.")
+            return
 
     print("\n" + "=" * 50)
     print("Scan Complete!")

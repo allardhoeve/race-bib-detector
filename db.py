@@ -135,6 +135,31 @@ def get_photo_by_hash(conn: sqlite3.Connection, photo_hash: str) -> Optional[dic
     return dict(row) if row else None
 
 
+def get_photo_by_index(conn: sqlite3.Connection, index: int) -> Optional[dict]:
+    """Get a photo by its 1-based index in the database order.
+
+    Args:
+        conn: Database connection
+        index: 1-based index (e.g., 1 for first photo, 47 for 47th photo)
+
+    Returns:
+        Photo dict or None if index out of range
+    """
+    if index < 1:
+        return None
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM photos ORDER BY id LIMIT 1 OFFSET ?", (index - 1,))
+    row = cursor.fetchone()
+    return dict(row) if row else None
+
+
+def get_photo_count(conn: sqlite3.Connection) -> int:
+    """Get the total number of photos in the database."""
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM photos")
+    return cursor.fetchone()[0]
+
+
 def migrate_add_photo_hash(conn: sqlite3.Connection) -> int:
     """Add photo_hash column to existing database and populate it. Returns count of migrated rows."""
     cursor = conn.cursor()
