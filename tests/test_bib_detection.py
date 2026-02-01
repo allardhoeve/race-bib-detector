@@ -90,7 +90,7 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        bibs = detect_bib_numbers(ocr_reader, image_data)
+        bibs, _ = detect_bib_numbers(ocr_reader, image_data)
         bib_numbers = [b["bib_number"] for b in bibs]
 
         assert "353" in bib_numbers, f"Expected bib 353, got: {bib_numbers}"
@@ -103,7 +103,7 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        bibs = detect_bib_numbers(ocr_reader, image_data)
+        bibs, _ = detect_bib_numbers(ocr_reader, image_data)
         bib_numbers = [b["bib_number"] for b in bibs]
 
         assert "622" in bib_numbers, f"Expected bib 622, got: {bib_numbers}"
@@ -116,7 +116,7 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        bibs = detect_bib_numbers(ocr_reader, image_data)
+        bibs, _ = detect_bib_numbers(ocr_reader, image_data)
         bib_numbers = [b["bib_number"] for b in bibs]
 
         # Check that at least some of the expected bibs are detected
@@ -134,7 +134,7 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        bibs = detect_bib_numbers(ocr_reader, image_data)
+        bibs, _ = detect_bib_numbers(ocr_reader, image_data)
 
         # Should not detect the specific bib numbers from our race photos
         # (OCR may find some numbers in any image, but not race-specific ones)
@@ -150,7 +150,7 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        bibs = detect_bib_numbers(ocr_reader, image_data)
+        bibs, grayscale = detect_bib_numbers(ocr_reader, image_data)
 
         assert len(bibs) > 0, "Expected at least one detection"
         for bib in bibs:
@@ -158,6 +158,10 @@ class TestBibDetection:
             assert 0 <= bib["confidence"] <= 1
             assert "bbox" in bib
             assert "bib_number" in bib
+
+        # Check that grayscale image is returned
+        assert grayscale is not None
+        assert grayscale.ndim == 2  # Should be 2D grayscale
 
 
 class TestDatabase:

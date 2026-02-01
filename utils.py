@@ -10,7 +10,7 @@ from PIL import Image
 import requests
 
 CACHE_DIR = Path(__file__).parent / "cache"
-BBOX_DIR = CACHE_DIR / "bounding"
+GRAY_BBOX_DIR = CACHE_DIR / "gray_bounding"
 
 
 def clean_photo_url(url: str) -> dict:
@@ -58,11 +58,20 @@ def download_image_to_file(url: str, output_path: Path, timeout: int = 60) -> bo
         return False
 
 
-def draw_bounding_boxes(image_data: bytes, detections: list[dict], output_path: Path) -> bool:
-    """Draw bounding boxes on an image and save it.
+def get_gray_bbox_path(cache_path: Path) -> Path:
+    """Get the grayscale bounding box image path for a given cache path."""
+    return GRAY_BBOX_DIR / cache_path.name
+
+
+def draw_bounding_boxes_on_gray(
+    gray_image: np.ndarray,
+    detections: list[dict],
+    output_path: Path,
+) -> bool:
+    """Draw bounding boxes on a grayscale image and save it.
 
     Args:
-        image_data: Original image bytes
+        gray_image: Grayscale image as numpy array (2D or 3D single channel)
         detections: List of detection dicts with 'bib_number', 'confidence', 'bbox'
         output_path: Where to save the annotated image
 
@@ -73,12 +82,11 @@ def draw_bounding_boxes(image_data: bytes, detections: list[dict], output_path: 
         # Ensure output directory exists
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Load image
-        nparr = np.frombuffer(image_data, np.uint8)
-        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-
-        if image is None:
-            return False
+        # Convert grayscale to BGR for colored annotations
+        if gray_image.ndim == 2:
+            image = cv2.cvtColor(gray_image, cv2.COLOR_GRAY2BGR)
+        else:
+            image = gray_image.copy()
 
         # Draw each detection
         for det in detections:
@@ -90,7 +98,7 @@ def draw_bounding_boxes(image_data: bytes, detections: list[dict], output_path: 
             pts = np.array(bbox, np.int32)
             pts = pts.reshape((-1, 1, 2))
 
-            # Draw the polygon outline
+            # Draw the polygon outline (green on grayscale stands out)
             cv2.polylines(image, [pts], isClosed=True, color=(0, 255, 0), thickness=3)
 
             # Get top-left point for label
@@ -129,10 +137,5 @@ def draw_bounding_boxes(image_data: bytes, detections: list[dict], output_path: 
         return True
 
     except Exception as e:
-        print(f"Error drawing bounding boxes: {e}")
+        print(f"Error drawing bounding boxes on grayscale: {e}")
         return False
-
-
-def get_bbox_path(cache_path: Path) -> Path:
-    """Get the bounding box image path for a given cache path."""
-    return BBOX_DIR / cache_path.name

@@ -6,7 +6,7 @@ from pathlib import Path
 from flask import Flask, render_template_string, send_from_directory, abort
 
 from db import get_connection, migrate_add_photo_hash
-from utils import BBOX_DIR
+from utils import GRAY_BBOX_DIR
 
 app = Flask(__name__)
 
@@ -332,20 +332,33 @@ HTML_TEMPLATE = """
                 {% if photo.cache_path %}
                 <div class="image-tabs">
                     <div class="image-tab active" onclick="showImage('original')">Original</div>
-                    <div class="image-tab {% if not photo.has_bbox %}disabled{% endif %}" onclick="showImage('bbox')" {% if not photo.has_bbox %}style="opacity: 0.4; cursor: not-allowed;"{% endif %}>
-                        Bounding Boxes {% if not photo.has_bbox %}(none){% endif %}
+                    <div class="image-tab {% if not photo.has_gray_bbox %}disabled{% endif %}" onclick="showImage('bbox')" {% if not photo.has_gray_bbox %}style="opacity: 0.4; cursor: not-allowed;"{% endif %}>
+                        Bounding Boxes {% if not photo.has_gray_bbox %}(none){% endif %}
                     </div>
                 </div>
                 {% endif %}
 
                 <div class="image-container">
-                    {% if photo.cache_path %}
+                    {% if photo.is_local %}
+                    <div id="view-original" class="image-view active">
+                        <img src="/local/{{ photo.photo_hash }}" alt="Photo {{ current }}">
+                    </div>
+                    <div id="view-bbox" class="image-view">
+                        {% if photo.has_gray_bbox %}
+                        <img src="/cache/gray_bounding/{{ photo.cache_filename }}" alt="Photo {{ current }} with bounding boxes">
+                        {% else %}
+                        <div style="padding: 100px; text-align: center; color: #8892b0;">
+                            <p>No bounding box image available</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% elif photo.cache_path %}
                     <div id="view-original" class="image-view active">
                         <img src="/cache/{{ photo.cache_filename }}" alt="Photo {{ current }}">
                     </div>
                     <div id="view-bbox" class="image-view">
-                        {% if photo.has_bbox %}
-                        <img src="/cache/bounding/{{ photo.cache_filename }}" alt="Photo {{ current }} with bounding boxes">
+                        {% if photo.has_gray_bbox %}
+                        <img src="/cache/gray_bounding/{{ photo.cache_filename }}" alt="Photo {{ current }} with bounding boxes">
                         {% else %}
                         <div style="padding: 100px; text-align: center; color: #8892b0;">
                             <p>No bounding box image available</p>
@@ -423,8 +436,8 @@ HTML_TEMPLATE = """
 
     <script>
         function showImage(view) {
-            // Don't switch to bbox if not available
-            if (view === 'bbox' && !{{ 'true' if photo.has_bbox else 'false' }}) {
+            // Don't switch to unavailable views
+            if (view === 'bbox' && !{{ 'true' if photo.has_gray_bbox else 'false' }}) {
                 return;
             }
 
@@ -543,15 +556,32 @@ def get_photo_with_bibs(photo_hash):
 
     photo = dict(photo_row)
 
-    # Extract just the filename from cache_path
-    if photo['cache_path']:
-        photo['cache_filename'] = Path(photo['cache_path']).name
-        # Check if bounding box image exists
-        bbox_path = BBOX_DIR / photo['cache_filename']
-        photo['has_bbox'] = bbox_path.exists()
+    # Determine if this is a local file or cached remote image
+    photo_url = photo['photo_url']
+    is_local = photo_url.startswith('/') or photo_url.startswith('file://')
+
+    if is_local:
+        # Local file - use photo_url directly
+        # Clean up file:// prefix if present
+        local_path = photo_url.replace('file://', '') if photo_url.startswith('file://') else photo_url
+        photo['is_local'] = True
+        photo['local_path'] = local_path
+        photo['cache_filename'] = Path(photo['cache_path']).name if photo['cache_path'] else None
     else:
-        photo['cache_filename'] = None
-        photo['has_bbox'] = False
+        # Remote image - use cache
+        photo['is_local'] = False
+        photo['local_path'] = None
+        if photo['cache_path']:
+            photo['cache_filename'] = Path(photo['cache_path']).name
+        else:
+            photo['cache_filename'] = None
+
+    # Check if grayscale bounding box image exists
+    if photo['cache_filename']:
+        gray_bbox_path = GRAY_BBOX_DIR / photo['cache_filename']
+        photo['has_gray_bbox'] = gray_bbox_path.exists()
+    else:
+        photo['has_gray_bbox'] = False
 
     # Get bib detections for this photo
     cursor.execute(
@@ -617,10 +647,34 @@ def serve_cache(filename):
     return send_from_directory(CACHE_DIR, filename)
 
 
-@app.route('/cache/bounding/<filename>')
-def serve_bbox(filename):
-    """Serve bounding box images."""
-    return send_from_directory(BBOX_DIR, filename)
+@app.route('/local/<photo_hash>')
+def serve_local(photo_hash):
+    """Serve local image files by their photo hash."""
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT photo_url FROM photos WHERE photo_hash = ?", (photo_hash,))
+    row = cursor.fetchone()
+    conn.close()
+
+    if not row:
+        abort(404)
+
+    photo_url = row[0]
+    # Handle file:// prefix if present
+    local_path = photo_url.replace('file://', '') if photo_url.startswith('file://') else photo_url
+
+    # Verify path exists and is a file
+    path = Path(local_path)
+    if not path.is_file():
+        abort(404)
+
+    return send_from_directory(path.parent, path.name)
+
+
+@app.route('/cache/gray_bounding/<filename>')
+def serve_gray_bbox(filename):
+    """Serve grayscale bounding box images."""
+    return send_from_directory(GRAY_BBOX_DIR, filename)
 
 
 def main():
