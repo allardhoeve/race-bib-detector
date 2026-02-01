@@ -11,6 +11,12 @@ import easyocr
 import numpy as np
 from PIL import Image
 
+from config import (
+    WHITE_REGION_CONFIDENCE_THRESHOLD,
+    FULL_IMAGE_CONFIDENCE_THRESHOLD,
+    MEDIAN_BRIGHTNESS_THRESHOLD,
+    MEAN_BRIGHTNESS_THRESHOLD,
+)
 from preprocessing import run_pipeline, PreprocessConfig
 
 from .regions import find_white_regions
@@ -76,7 +82,7 @@ def detect_bib_numbers(
             for bbox, text, confidence in results:
                 cleaned = text.strip().replace(" ", "")
 
-                if is_valid_bib_number(cleaned) and confidence > 0.4:
+                if is_valid_bib_number(cleaned) and confidence > WHITE_REGION_CONFIDENCE_THRESHOLD:
                     # Adjust bbox coordinates to full OCR image (before scaling back)
                     bbox_adjusted = [[int(p[0]) + x, int(p[1]) + y] for p in bbox]
                     region_detections.append({
@@ -96,7 +102,7 @@ def detect_bib_numbers(
     for bbox, text, confidence in results:
         cleaned = text.strip().replace(" ", "")
 
-        if is_valid_bib_number(cleaned) and confidence > 0.5:  # Higher threshold for full image
+        if is_valid_bib_number(cleaned) and confidence > FULL_IMAGE_CONFIDENCE_THRESHOLD:
             bbox_native = [[int(coord) for coord in point] for point in bbox]
 
             # Check brightness of detected region to filter false positives
@@ -111,7 +117,7 @@ def detect_bib_numbers(
                 median_brightness = np.median(region)
                 mean_brightness = np.mean(region)
                 # Skip dark regions with scattered bright pixels
-                if median_brightness < 120 or mean_brightness < 100:
+                if median_brightness < MEDIAN_BRIGHTNESS_THRESHOLD or mean_brightness < MEAN_BRIGHTNESS_THRESHOLD:
                     continue
 
             all_detections.append({

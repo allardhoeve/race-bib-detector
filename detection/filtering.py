@@ -4,6 +4,13 @@ Detection filtering functions.
 Filters for removing false positives and duplicate detections.
 """
 
+from config import (
+    MIN_DETECTION_AREA_RATIO,
+    IOU_OVERLAP_THRESHOLD,
+    COVERAGE_OVERLAP_THRESHOLD,
+    SUBSTRING_CONFIDENCE_RATIO,
+)
+
 from .bbox import bbox_area, bbox_iou, bbox_overlap_ratio
 from .validation import is_substring_bib
 
@@ -11,7 +18,7 @@ from .validation import is_substring_bib
 def filter_small_detections(
     detections: list[dict],
     white_region_area: float,
-    min_ratio: float = 0.10,
+    min_ratio: float | None = None,
 ) -> list[dict]:
     """Filter out detections that are too small relative to the white region.
 
@@ -26,6 +33,9 @@ def filter_small_detections(
     Returns:
         Filtered list of detections.
     """
+    if min_ratio is None:
+        min_ratio = MIN_DETECTION_AREA_RATIO
+
     if white_region_area <= 0:
         return detections
 
@@ -40,8 +50,8 @@ def filter_small_detections(
 
 def filter_overlapping_detections(
     detections: list[dict],
-    iou_threshold: float = 0.3,
-    overlap_threshold: float = 0.7,
+    iou_threshold: float | None = None,
+    overlap_threshold: float | None = None,
 ) -> list[dict]:
     """Filter overlapping detections, keeping the longer/better one.
 
@@ -61,6 +71,11 @@ def filter_overlapping_detections(
     Returns:
         Filtered list of detections.
     """
+    if iou_threshold is None:
+        iou_threshold = IOU_OVERLAP_THRESHOLD
+    if overlap_threshold is None:
+        overlap_threshold = COVERAGE_OVERLAP_THRESHOLD
+
     if len(detections) <= 1:
         return detections
 
@@ -89,12 +104,11 @@ def filter_overlapping_detections(
             # Check substring relationship
             # When one is substring of another, prefer longer UNLESS shorter has much higher confidence
             # (e.g., "600" at 1.0 conf vs "6600" at 0.5 conf - prefer "600")
-            confidence_ratio_threshold = 1.5  # Higher confidence must be 1.5x better
 
             if is_substring_bib(bib1, bib2):
                 # bib1 is substring of bib2
                 # Keep bib2 (longer) unless bib1 has significantly higher confidence
-                if conf1 > conf2 * confidence_ratio_threshold:
+                if conf1 > conf2 * SUBSTRING_CONFIDENCE_RATIO:
                     to_remove.add(j)  # Remove longer, keep shorter high-confidence
                 else:
                     to_remove.add(i)  # Remove shorter, keep longer
@@ -102,7 +116,7 @@ def filter_overlapping_detections(
             elif is_substring_bib(bib2, bib1):
                 # bib2 is substring of bib1
                 # Keep bib1 (longer) unless bib2 has significantly higher confidence
-                if conf2 > conf1 * confidence_ratio_threshold:
+                if conf2 > conf1 * SUBSTRING_CONFIDENCE_RATIO:
                     to_remove.add(i)  # Remove longer, keep shorter high-confidence
                 else:
                     to_remove.add(j)  # Remove shorter, keep longer

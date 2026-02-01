@@ -23,8 +23,13 @@
 
 ## In Progress
 
-[ ] There are a lot of hard-coded values, like the minimum median brightness and such. Move all functional values into a central global variable file so they are easily tweaked. Use all caps for globals and use descriptive names.
 [ ] Change the scan entrypoints to also allow the formats: 6dde41fd and 47. This should rescan only that photo. Document this. This helps with rescanning a single photo after changing the code.
+
+## Recently Completed
+
+[x] There are a lot of hard-coded values, like the minimum median brightness and such. Move all functional values into a central global variable file so they are easily tweaked. Use all caps for globals and use descriptive names.
+    - Created `config.py` with all tunable parameters
+    - Updated detection/, preprocessing/, utils.py, and scan_album.py to use config values
 
 
 

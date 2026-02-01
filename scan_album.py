@@ -60,7 +60,7 @@ def process_image(
     Returns:
         Number of bibs detected
     """
-    preprocess_config = PreprocessConfig(target_width=1280)
+    preprocess_config = PreprocessConfig()  # Uses TARGET_WIDTH from config
     bibs, ocr_grayscale = detect_bib_numbers(reader, source.image_data, preprocess_config)
 
     # Generate grayscale bounding box image and snippets if detections found

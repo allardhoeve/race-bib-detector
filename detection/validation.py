@@ -6,9 +6,11 @@ Functions for validating whether detected text represents a valid bib number.
 
 import re
 
+from config import MIN_BIB_NUMBER, MAX_BIB_NUMBER
+
 
 def is_valid_bib_number(text: str) -> bool:
-    """Check if text is a valid bib number (1-9999, no leading zeros).
+    """Check if text is a valid bib number (no leading zeros).
 
     Args:
         text: Text to validate.
@@ -19,8 +21,11 @@ def is_valid_bib_number(text: str) -> bool:
     # Remove whitespace
     cleaned = text.strip().replace(" ", "")
 
-    # Must be 1-4 digits
-    if not re.match(r"^\d{1,4}$", cleaned):
+    # Calculate max digits from MAX_BIB_NUMBER
+    max_digits = len(str(MAX_BIB_NUMBER))
+
+    # Must be 1 to max_digits digits
+    if not re.match(rf"^\d{{1,{max_digits}}}$", cleaned):
         return False
 
     # Must not start with 0 (except for "0" itself, which is invalid for bibs)
@@ -29,7 +34,7 @@ def is_valid_bib_number(text: str) -> bool:
 
     # Must be in valid range
     num = int(cleaned)
-    return 1 <= num <= 9999
+    return MIN_BIB_NUMBER <= num <= MAX_BIB_NUMBER
 
 
 def is_substring_bib(short_bib: str, long_bib: str) -> bool:

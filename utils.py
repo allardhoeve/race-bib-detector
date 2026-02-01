@@ -9,6 +9,8 @@ import numpy as np
 from PIL import Image
 import requests
 
+from config import PHOTO_URL_WIDTH, THUMBNAIL_URL_WIDTH, SNIPPET_PADDING_RATIO
+
 CACHE_DIR = Path(__file__).parent / "cache"
 GRAY_BBOX_DIR = CACHE_DIR / "gray_bounding"
 SNIPPETS_DIR = CACHE_DIR / "snippets"
@@ -25,8 +27,8 @@ def clean_photo_url(url: str) -> dict:
 
     return {
         "base_url": base_url,
-        "photo_url": base_url + "=w2048",  # Reasonable size for OCR
-        "thumbnail_url": base_url + "=w400",
+        "photo_url": base_url + f"=w{PHOTO_URL_WIDTH}",
+        "thumbnail_url": base_url + f"=w{THUMBNAIL_URL_WIDTH}",
     }
 
 
@@ -98,7 +100,7 @@ def save_bib_snippet(
     image: np.ndarray,
     bbox: list,
     output_path: Path,
-    padding_ratio: float = 0.15,
+    padding_ratio: float | None = None,
 ) -> bool:
     """Save a cropped snippet of a detected bib region.
 
@@ -106,11 +108,14 @@ def save_bib_snippet(
         image: Source image (RGB or grayscale numpy array)
         bbox: Bounding box as [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
         output_path: Where to save the snippet
-        padding_ratio: Extra padding around the bounding box (0.15 = 15%)
+        padding_ratio: Extra padding around the bounding box (defaults to SNIPPET_PADDING_RATIO)
 
     Returns:
         True on success
     """
+    if padding_ratio is None:
+        padding_ratio = SNIPPET_PADDING_RATIO
+
     try:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 

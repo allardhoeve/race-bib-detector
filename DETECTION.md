@@ -145,12 +145,14 @@ Resizing to a fixed width ensures consistent kernel behavior for region detectio
 
 ## Confidence Thresholds
 
-| Context | Threshold |
-|---------|-----------|
-| White region OCR | 0.4 |
-| Full image OCR | 0.5 |
-| Size ratio | 0.10 |
-| IoU overlap | 0.3 |
-| Coverage overlap | 0.7 |
+| Context | Threshold | Config Variable |
+|---------|-----------|-----------------|
+| White region OCR | 0.4 | `WHITE_REGION_CONFIDENCE_THRESHOLD` |
+| Full image OCR | 0.5 | `FULL_IMAGE_CONFIDENCE_THRESHOLD` |
+| Size ratio | 0.10 | `MIN_DETECTION_AREA_RATIO` |
+| IoU overlap | 0.3 | `IOU_OVERLAP_THRESHOLD` |
+| Coverage overlap | 0.7 | `COVERAGE_OVERLAP_THRESHOLD` |
 
 Higher thresholds for full-image scan reduce false positives where we lack the white region context.
+
+All configurable values are defined in `config.py` for easy tuning.

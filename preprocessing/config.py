@@ -10,6 +10,8 @@ from typing import Optional
 
 import numpy as np
 
+from config import TARGET_WIDTH, MIN_TARGET_WIDTH, MAX_TARGET_WIDTH
+
 
 @dataclass(frozen=True)
 class PreprocessConfig:
@@ -29,7 +31,7 @@ class PreprocessConfig:
     """
 
     # Normalization settings
-    target_width: Optional[int] = 1280
+    target_width: Optional[int] = TARGET_WIDTH
 
     # Type normalization
     grayscale_dtype: np.dtype = field(default_factory=lambda: np.dtype(np.uint8))
@@ -44,15 +46,15 @@ class PreprocessConfig:
         if self.target_width is not None:
             if self.target_width <= 0:
                 raise ValueError(f"target_width must be positive, got {self.target_width}")
-            if self.target_width < 256:
+            if self.target_width < MIN_TARGET_WIDTH:
                 raise ValueError(
                     f"target_width={self.target_width} is too small for reliable OCR. "
-                    "Minimum recommended is 256, typical is 1024-1600."
+                    f"Minimum recommended is {MIN_TARGET_WIDTH}, typical is 1024-1600."
                 )
-            if self.target_width > 4096:
+            if self.target_width > MAX_TARGET_WIDTH:
                 raise ValueError(
                     f"target_width={self.target_width} is very large and may cause "
-                    "performance issues. Maximum recommended is 4096."
+                    f"performance issues. Maximum recommended is {MAX_TARGET_WIDTH}."
                 )
 
         # Validate dtypes are numpy-compatible
