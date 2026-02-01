@@ -6,41 +6,145 @@ This document describes the architecture and organization of the Google Photos B
 
 ```
 google-photos-startnumber-recognizer/
-├── scan_album.py          # Main entry point for album scanning
-├── web_viewer.py          # Web UI for browsing detections
-├── list_detections.py     # CLI to list detected bib numbers
-├── download_by_bib.py     # Download photos by bib number
-├── db.py                  # Database operations
-├── utils.py               # Shared utilities
-├── schema.sql             # Database schema
-├── preprocessing/         # Image preprocessing module
-│   ├── __init__.py        # Module exports
-│   ├── config.py          # Configuration dataclass
-│   ├── normalization.py   # Grayscale, resize operations
-│   └── pipeline.py        # Main run_pipeline() function
+├── scan_album.py           # Main CLI entry point for scanning
+├── web_viewer.py           # Thin wrapper to run web interface
+├── db.py                   # Database operations
+├── utils.py                # Shared utilities (bounding box drawing)
+├── schema.sql              # Database schema
+│
+├── preprocessing/          # Image preprocessing module
+│   ├── __init__.py         # Module exports
+│   ├── config.py           # PreprocessConfig, PreprocessResult
+│   ├── normalization.py    # to_grayscale, resize_to_width
+│   └── pipeline.py         # run_pipeline()
+│
+├── detection/              # Bib number detection module
+│   ├── __init__.py         # Module exports
+│   ├── bbox.py             # Bounding box geometry utilities
+│   ├── validation.py       # Bib number validation
+│   ├── regions.py          # White region detection
+│   ├── filtering.py        # Detection filtering
+│   └── detector.py         # Main detect_bib_numbers()
+│
+├── sources/                # Image source adapters
+│   ├── __init__.py         # Module exports
+│   ├── google_photos.py    # Google Photos album scraping
+│   ├── local.py            # Local directory scanning
+│   └── cache.py            # Image caching utilities
+│
+├── web/                    # Web interface module
+│   ├── __init__.py         # Module exports
+│   ├── app.py              # Flask application
+│   └── templates.py        # HTML templates
+│
 ├── tests/
 │   ├── test_bib_detection.py
 │   ├── test_preprocessing.py
-│   └── samples/           # Sample images for testing
-├── cache/                 # Downloaded image cache
-└── bibs.db                # SQLite database
+│   └── samples/            # Sample images for testing
+│
+├── cache/                  # Downloaded/processed image cache
+│   └── gray_bounding/      # Grayscale images with bounding boxes
+│
+└── bibs.db                 # SQLite database
 ```
 
-## Module Design Principles
+## Module Design Philosophy
 
-### Preprocessing Module (`preprocessing/`)
+All modules follow these principles:
 
-The preprocessing module follows these design principles:
+### 1. Pure Functions
 
-1. **Pure Functions**: All operations are pure functions `(input) -> output` with no mutation of original arrays. This makes testing straightforward and behavior predictable.
+Operations are pure functions `(input) -> output` with no mutation of original data:
 
-2. **Immutable Configuration**: `PreprocessConfig` is a frozen dataclass. All parameters are validated early, and helpful error messages guide users to fix issues.
+```python
+# Good: Pure function returns new data
+gray = to_grayscale(rgb_image)
+bibs = filter_overlapping_detections(detections)
 
-3. **Type Normalization**: Consistent dtypes throughout. Grayscale images use `uint8` by default, matching OpenCV conventions.
+# Original data is never modified
+```
 
-4. **Coordinate Mapping**: `PreprocessResult` includes scale factors and helper methods to map detections from resized images back to original coordinates.
+### 2. Early Validation
 
-See [PREPROCESSING.md](PREPROCESSING.md) for detailed preprocessing documentation.
+Parameters are validated early with helpful error messages:
+
+```python
+config = PreprocessConfig(target_width=50)
+config.validate()  # Raises: "target_width=50 is too small..."
+```
+
+### 3. Clear Separation of Concerns
+
+Each module has a single responsibility:
+
+| Module | Responsibility |
+|--------|---------------|
+| `preprocessing/` | Image normalization (grayscale, resize) |
+| `detection/` | Bib number detection and filtering |
+| `sources/` | Image acquisition from various sources |
+| `web/` | User interface |
+| `scan_album.py` | Orchestration and CLI |
+
+## Module Details
+
+### preprocessing/
+
+Prepares images for OCR by normalizing size and format.
+
+- **config.py**: `PreprocessConfig` (immutable settings), `PreprocessResult` (pipeline output)
+- **normalization.py**: `to_grayscale()`, `resize_to_width()`
+- **pipeline.py**: `run_pipeline()` - applies all preprocessing steps
+
+See [PREPROCESSING.md](PREPROCESSING.md) for detailed documentation.
+
+### detection/
+
+Detects and validates bib numbers in images.
+
+- **bbox.py**: Geometry utilities (`bbox_area`, `bbox_iou`, `bbox_overlap_ratio`)
+- **validation.py**: `is_valid_bib_number()`, `is_substring_bib()`
+- **regions.py**: `find_white_regions()` - finds candidate bib areas
+- **filtering.py**: `filter_small_detections()`, `filter_overlapping_detections()`
+- **detector.py**: `detect_bib_numbers()` - main entry point
+
+### sources/
+
+Adapters for different image sources.
+
+- **google_photos.py**: `extract_images_from_album()` - scrapes shared albums
+- **local.py**: `scan_local_images()` - finds images in a directory
+- **cache.py**: `get_cache_path()`, `cache_image()`, `load_from_cache()`
+
+### web/
+
+Flask-based web interface for browsing results.
+
+- **app.py**: `create_app()`, `main()` - Flask routes and server
+- **templates.py**: HTML templates as string constants
+
+## Data Flow
+
+```
+┌─────────────┐     ┌──────────────┐     ┌─────────────┐
+│   sources/  │────▶│ preprocessing│────▶│  detection/ │
+│             │     │              │     │             │
+│ Google      │     │ grayscale    │     │ OCR         │
+│ Photos      │     │ resize       │     │ filtering   │
+│ Local dir   │     │              │     │ validation  │
+└─────────────┘     └──────────────┘     └─────────────┘
+                                               │
+                                               ▼
+                                         ┌─────────────┐
+                                         │     db      │
+                                         │   bibs.db   │
+                                         └─────────────┘
+                                               │
+                                               ▼
+                                         ┌─────────────┐
+                                         │    web/     │
+                                         │   viewer    │
+                                         └─────────────┘
+```
 
 ## Photo Identification
 
@@ -50,7 +154,7 @@ Photos are identified by an 8-character **photo hash** derived from the photo UR
 
 The SQLite database (`bibs.db`) contains:
 
-- `photos`: Photo metadata (URL, thumbnail, cache path)
+- `photos`: Photo metadata (URL, thumbnail, cache path, photo_hash)
 - `bib_detections`: Detected bib numbers with confidence and bounding boxes
 
 See `schema.sql` for the full schema definition.

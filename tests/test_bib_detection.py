@@ -12,7 +12,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import db
-from scan_album import detect_bib_numbers, is_valid_bib_number
+from detection import detect_bib_numbers, is_valid_bib_number
 
 SAMPLES_DIR = Path(__file__).parent / "samples"
 
