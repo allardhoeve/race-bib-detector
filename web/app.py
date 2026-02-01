@@ -2,16 +2,19 @@
 Flask application for the bib scanner web interface.
 """
 
+import json
 from pathlib import Path
 
 from flask import Flask, render_template_string, send_from_directory, abort
 
 from db import get_connection, migrate_add_photo_hash
+from utils import compute_bbox_hash
 from .templates import HTML_TEMPLATE, EMPTY_TEMPLATE
 
 # Paths
 CACHE_DIR = Path(__file__).parent.parent / "cache"
 GRAY_BBOX_DIR = CACHE_DIR / "gray_bounding"
+SNIPPETS_DIR = CACHE_DIR / "snippets"
 
 
 def create_app() -> Flask:
@@ -96,6 +99,11 @@ def create_app() -> Flask:
         """Serve grayscale bounding box images."""
         return send_from_directory(GRAY_BBOX_DIR, filename)
 
+    @app.route('/cache/snippets/<filename>')
+    def serve_snippet(filename):
+        """Serve bib snippet images."""
+        return send_from_directory(SNIPPETS_DIR, filename)
+
     return app
 
 
@@ -160,6 +168,23 @@ def get_photo_with_bibs(photo_hash: str) -> tuple[dict | None, list[dict]]:
         (photo['id'],)
     )
     bibs = [dict(row) for row in cursor.fetchall()]
+
+    # Add snippet paths for each bib (using bbox hash for unique identification)
+    if photo['cache_filename']:
+        cache_stem = Path(photo['cache_filename']).stem
+        for bib in bibs:
+            # Parse bbox from JSON and compute hash
+            bbox = json.loads(bib['bbox_json']) if bib['bbox_json'] else None
+            if bbox:
+                bbox_hash = compute_bbox_hash(bbox)
+                snippet_filename = f"{cache_stem}_bib{bib['bib_number']}_{bbox_hash}.jpg"
+                snippet_path = SNIPPETS_DIR / snippet_filename
+                bib['snippet_filename'] = snippet_filename if snippet_path.exists() else None
+            else:
+                bib['snippet_filename'] = None
+
+    # Check if any snippets exist for this photo
+    photo['has_snippets'] = any(bib.get('snippet_filename') for bib in bibs)
 
     conn.close()
     return photo, bibs

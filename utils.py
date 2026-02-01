@@ -11,6 +11,7 @@ import requests
 
 CACHE_DIR = Path(__file__).parent / "cache"
 GRAY_BBOX_DIR = CACHE_DIR / "gray_bounding"
+SNIPPETS_DIR = CACHE_DIR / "snippets"
 
 
 def clean_photo_url(url: str) -> dict:
@@ -61,6 +62,95 @@ def download_image_to_file(url: str, output_path: Path, timeout: int = 60) -> bo
 def get_gray_bbox_path(cache_path: Path) -> Path:
     """Get the grayscale bounding box image path for a given cache path."""
     return GRAY_BBOX_DIR / cache_path.name
+
+
+def compute_bbox_hash(bbox: list) -> str:
+    """Compute a short hash from a bounding box for unique identification.
+
+    Args:
+        bbox: Bounding box as [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
+
+    Returns:
+        8-character hash string
+    """
+    import hashlib
+    bbox_str = str(bbox)
+    return hashlib.sha256(bbox_str.encode()).hexdigest()[:8]
+
+
+def get_snippet_path(cache_path: Path, bib_number: str, bbox: list) -> Path:
+    """Get the snippet image path for a detected bib.
+
+    Args:
+        cache_path: Path to the cached photo
+        bib_number: The detected bib number
+        bbox: Bounding box coordinates (used to generate unique hash)
+
+    Returns:
+        Path to the snippet image file
+    """
+    stem = cache_path.stem
+    bbox_hash = compute_bbox_hash(bbox)
+    return SNIPPETS_DIR / f"{stem}_bib{bib_number}_{bbox_hash}.jpg"
+
+
+def save_bib_snippet(
+    image: np.ndarray,
+    bbox: list,
+    output_path: Path,
+    padding_ratio: float = 0.15,
+) -> bool:
+    """Save a cropped snippet of a detected bib region.
+
+    Args:
+        image: Source image (RGB or grayscale numpy array)
+        bbox: Bounding box as [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
+        output_path: Where to save the snippet
+        padding_ratio: Extra padding around the bounding box (0.15 = 15%)
+
+    Returns:
+        True on success
+    """
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Get bounding rectangle from quadrilateral
+        x_coords = [p[0] for p in bbox]
+        y_coords = [p[1] for p in bbox]
+        x_min, x_max = min(x_coords), max(x_coords)
+        y_min, y_max = min(y_coords), max(y_coords)
+
+        # Add padding
+        width = x_max - x_min
+        height = y_max - y_min
+        pad_x = int(width * padding_ratio)
+        pad_y = int(height * padding_ratio)
+
+        # Ensure we stay within image bounds
+        img_height, img_width = image.shape[:2]
+        x_min = max(0, x_min - pad_x)
+        y_min = max(0, y_min - pad_y)
+        x_max = min(img_width, x_max + pad_x)
+        y_max = min(img_height, y_max + pad_y)
+
+        # Crop the region
+        snippet = image[y_min:y_max, x_min:x_max]
+
+        # Convert to BGR if needed for cv2
+        if len(snippet.shape) == 2:
+            # Grayscale
+            cv2.imwrite(str(output_path), snippet)
+        elif snippet.shape[2] == 3:
+            # RGB -> BGR for cv2
+            cv2.imwrite(str(output_path), cv2.cvtColor(snippet, cv2.COLOR_RGB2BGR))
+        else:
+            cv2.imwrite(str(output_path), snippet)
+
+        return True
+
+    except Exception as e:
+        print(f"Error saving bib snippet: {e}")
+        return False
 
 
 def draw_bounding_boxes_on_gray(

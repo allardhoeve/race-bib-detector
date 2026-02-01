@@ -163,6 +163,138 @@ class TestBibDetection:
         assert grayscale is not None
         assert grayscale.ndim == 2  # Should be 2D grayscale
 
+    def test_detect_four_bibs_hvv3729(self, ocr_reader):
+        """Test detection of 4 bibs in HVV_3729 (photo 0ba02f00).
+
+        This photo has 4 visible bib numbers: 539, 526, 527, 535.
+        Each detection should have a unique bbox that can be used for snippet naming.
+        """
+        image_path = SAMPLES_DIR / "HVV_3729.jpg"
+        assert image_path.exists(), f"Sample image not found: {image_path}"
+
+        with open(image_path, "rb") as f:
+            image_data = f.read()
+
+        bibs, grayscale = detect_bib_numbers(ocr_reader, image_data)
+        bib_numbers = [b["bib_number"] for b in bibs]
+
+        # Should detect all 4 bibs
+        expected = {"539", "526", "527", "535"}
+        detected = set(bib_numbers)
+
+        assert expected == detected, f"Expected {expected}, got {detected}"
+
+        # Each bib should have a unique bbox (for snippet naming)
+        bboxes = [str(b["bbox"]) for b in bibs]
+        assert len(bboxes) == len(set(bboxes)), "Bounding boxes should be unique"
+
+    def test_detect_three_bibs_hvv3730(self, ocr_reader):
+        """Test detection of 3 bibs in HVV_3730 (photo 3069f311).
+
+        This photo has 5-6 people but only 3 clear bib numbers: 539, 540, 526.
+        Some bibs are obscured or at difficult angles.
+        """
+        image_path = SAMPLES_DIR / "HVV_3730.jpg"
+        assert image_path.exists(), f"Sample image not found: {image_path}"
+
+        with open(image_path, "rb") as f:
+            image_data = f.read()
+
+        bibs, grayscale = detect_bib_numbers(ocr_reader, image_data)
+        bib_numbers = [b["bib_number"] for b in bibs]
+
+        # Should detect the 3 clear bibs
+        expected = {"539", "540", "526"}
+        detected = set(bib_numbers)
+
+        assert expected == detected, f"Expected {expected}, got {detected}"
+
+
+class TestSnippetGeneration:
+    """Tests for bib snippet generation and naming."""
+
+    def test_snippet_path_uses_bbox_hash(self):
+        """Test that snippet paths use bbox hash for unique naming."""
+        from utils import get_snippet_path, compute_bbox_hash
+        from pathlib import Path
+
+        cache_path = Path("/cache/abc123.jpg")
+        bbox1 = [[100, 100], [200, 100], [200, 150], [100, 150]]
+        bbox2 = [[300, 100], [400, 100], [400, 150], [300, 150]]
+
+        path1 = get_snippet_path(cache_path, "123", bbox1)
+        path2 = get_snippet_path(cache_path, "123", bbox2)
+
+        # Same bib number but different bbox should give different paths
+        assert path1 != path2
+
+        # Path should contain the bib number
+        assert "_bib123_" in path1.name
+        assert "_bib123_" in path2.name
+
+        # Path should contain bbox hash
+        hash1 = compute_bbox_hash(bbox1)
+        hash2 = compute_bbox_hash(bbox2)
+        assert hash1 in path1.name
+        assert hash2 in path2.name
+
+    def test_bbox_hash_is_deterministic(self):
+        """Test that bbox hash is deterministic for the same input."""
+        from utils import compute_bbox_hash
+
+        bbox = [[100, 200], [300, 200], [300, 400], [100, 400]]
+
+        hash1 = compute_bbox_hash(bbox)
+        hash2 = compute_bbox_hash(bbox)
+
+        assert hash1 == hash2
+        assert len(hash1) == 8  # 8-character hash
+
+    def test_snippet_count_matches_detection_count(self, ocr_reader):
+        """Test that snippet generation creates one snippet per detection."""
+        import tempfile
+        import shutil
+        from pathlib import Path
+        from PIL import Image
+        import io
+        from utils import compute_bbox_hash, save_bib_snippet
+        from preprocessing import run_pipeline, PreprocessConfig
+
+        image_path = SAMPLES_DIR / "HVV_3729.jpg"
+        with open(image_path, "rb") as f:
+            image_data = f.read()
+
+        bibs, grayscale = detect_bib_numbers(ocr_reader, image_data)
+
+        # Get original image dimensions to compute scale factor
+        with Image.open(io.BytesIO(image_data)) as img:
+            orig_w, orig_h = img.size
+        gray_h, gray_w = grayscale.shape[:2]
+        scale = gray_w / orig_w
+
+        # Create temp directory for snippets
+        temp_dir = Path(tempfile.mkdtemp())
+        try:
+            # Save snippets using the same logic as scan_album.py
+            # Note: bboxes from detect_bib_numbers are in original coords,
+            # so we need to scale them to match the grayscale image
+            for bib in bibs:
+                # Scale bbox to grayscale coordinates
+                scaled_bbox = [
+                    [int(p[0] * scale), int(p[1] * scale)]
+                    for p in bib["bbox"]
+                ]
+                bbox_hash = compute_bbox_hash(bib["bbox"])
+                snippet_filename = f"test_photo_bib{bib['bib_number']}_{bbox_hash}.jpg"
+                snippet_path = temp_dir / snippet_filename
+                save_bib_snippet(grayscale, scaled_bbox, snippet_path)
+
+            # Count saved snippets
+            snippets = list(temp_dir.glob("*.jpg"))
+            assert len(snippets) == len(bibs), f"Expected {len(bibs)} snippets, got {len(snippets)}"
+        finally:
+            shutil.rmtree(temp_dir)
+
 
 class TestDatabase:
     """Tests for database operations."""

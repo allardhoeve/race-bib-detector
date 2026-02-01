@@ -114,6 +114,51 @@ HTML_TEMPLATE = """
             display: block;
         }
 
+        .snippets-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            padding: 20px;
+            justify-content: center;
+            background: #0a0a0a;
+            min-height: 200px;
+        }
+
+        .snippet-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .snippet-card:hover {
+            transform: scale(1.05);
+            border-color: #64ffda;
+        }
+
+        .snippet-card img {
+            max-width: 200px;
+            max-height: 150px;
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto;
+        }
+
+        .snippet-label {
+            margin-top: 10px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #64ffda;
+        }
+
+        .snippet-conf {
+            font-size: 0.9rem;
+            font-weight: 400;
+            color: #8892b0;
+        }
+
         .sidebar {
             width: 320px;
             flex-shrink: 0;
@@ -309,12 +354,17 @@ HTML_TEMPLATE = """
                 width: 100%;
             }
         }
+        
+        h1 a {
+            text-decoration: none;
+            color: white;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Bib Number Scanner</h1>
+            <h1><a href="/">Bib Number Scanner</a></h1>
             <p class="subtitle">Photo {{ current }} of {{ total }}</p>
         </header>
 
@@ -325,6 +375,9 @@ HTML_TEMPLATE = """
                     <div class="image-tab active" onclick="showImage('original')">Original</div>
                     <div class="image-tab {% if not photo.has_gray_bbox %}disabled{% endif %}" onclick="showImage('bbox')" {% if not photo.has_gray_bbox %}style="opacity: 0.4; cursor: not-allowed;"{% endif %}>
                         Bounding Boxes {% if not photo.has_gray_bbox %}(none){% endif %}
+                    </div>
+                    <div class="image-tab {% if not photo.has_snippets %}disabled{% endif %}" onclick="showImage('snippets')" {% if not photo.has_snippets %}style="opacity: 0.4; cursor: not-allowed;"{% endif %}>
+                        Snippets {% if not photo.has_snippets %}(none){% endif %}
                     </div>
                 </div>
                 {% endif %}
@@ -343,6 +396,24 @@ HTML_TEMPLATE = """
                         </div>
                         {% endif %}
                     </div>
+                    <div id="view-snippets" class="image-view">
+                        {% if photo.has_snippets %}
+                        <div class="snippets-grid">
+                            {% for bib in bibs %}
+                            {% if bib.snippet_filename %}
+                            <div class="snippet-card">
+                                <img src="/cache/snippets/{{ bib.snippet_filename }}" alt="Bib {{ bib.bib_number }}">
+                                <div class="snippet-label">{{ bib.bib_number }} <span class="snippet-conf">({{ "%.0f"|format(bib.confidence * 100) }}%)</span></div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div style="padding: 100px; text-align: center; color: #8892b0;">
+                            <p>No snippets available</p>
+                        </div>
+                        {% endif %}
+                    </div>
                     {% elif photo.cache_path %}
                     <div id="view-original" class="image-view active">
                         <img src="/cache/{{ photo.cache_filename }}" alt="Photo {{ current }}">
@@ -353,6 +424,24 @@ HTML_TEMPLATE = """
                         {% else %}
                         <div style="padding: 100px; text-align: center; color: #8892b0;">
                             <p>No bounding box image available</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div id="view-snippets" class="image-view">
+                        {% if photo.has_snippets %}
+                        <div class="snippets-grid">
+                            {% for bib in bibs %}
+                            {% if bib.snippet_filename %}
+                            <div class="snippet-card">
+                                <img src="/cache/snippets/{{ bib.snippet_filename }}" alt="Bib {{ bib.bib_number }}">
+                                <div class="snippet-label">{{ bib.bib_number }} <span class="snippet-conf">({{ "%.0f"|format(bib.confidence * 100) }}%)</span></div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div style="padding: 100px; text-align: center; color: #8892b0;">
+                            <p>No snippets available</p>
                         </div>
                         {% endif %}
                     </div>
@@ -419,7 +508,7 @@ HTML_TEMPLATE = """
                 </div>
 
                 <div class="keyboard-hint">
-                    Use <kbd>←</kbd> <kbd>→</kbd> arrow keys to navigate
+                    <kbd>←</kbd> <kbd>→</kbd> navigate &nbsp;|&nbsp; <kbd>B</kbd> bounding boxes &nbsp;|&nbsp; <kbd>S</kbd> snippets
                 </div>
             </div>
         </div>
@@ -431,10 +520,15 @@ HTML_TEMPLATE = """
             if (view === 'bbox' && !{{ 'true' if photo.has_gray_bbox else 'false' }}) {
                 return;
             }
+            if (view === 'snippets' && !{{ 'true' if photo.has_snippets else 'false' }}) {
+                return;
+            }
 
             // Update tabs
             document.querySelectorAll('.image-tab').forEach(tab => tab.classList.remove('active'));
-            event.target.classList.add('active');
+            const tabIndex = {'original': 0, 'bbox': 1, 'snippets': 2}[view];
+            const tabs = document.querySelectorAll('.image-tab');
+            if (tabs[tabIndex]) tabs[tabIndex].classList.add('active');
 
             // Update views
             document.querySelectorAll('.image-view').forEach(v => v.classList.remove('active'));
@@ -448,13 +542,20 @@ HTML_TEMPLATE = """
                 window.location.href = '/photo/{{ next_hash }}';
             } else if (e.key === 'b' || e.key === 'B') {
                 // Toggle bounding box view with 'b' key
-                const bboxTab = document.querySelectorAll('.image-tab')[1];
-                const originalTab = document.querySelectorAll('.image-tab')[0];
-                if (bboxTab && !bboxTab.style.opacity) {
+                if ({{ 'true' if photo.has_gray_bbox else 'false' }}) {
                     if (document.getElementById('view-bbox').classList.contains('active')) {
-                        originalTab.click();
+                        showImage('original');
                     } else {
-                        bboxTab.click();
+                        showImage('bbox');
+                    }
+                }
+            } else if (e.key === 's' || e.key === 'S') {
+                // Toggle snippets view with 's' key
+                if ({{ 'true' if photo.has_snippets else 'false' }}) {
+                    if (document.getElementById('view-snippets').classList.contains('active')) {
+                        showImage('original');
+                    } else {
+                        showImage('snippets');
                     }
                 }
             }
