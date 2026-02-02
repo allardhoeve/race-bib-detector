@@ -9,21 +9,8 @@ These are suggestions identified during a code review. The codebase has excellen
 #### ~~Extract `scale_bounding_boxes()` utility~~ DONE
 Added `scale_bbox()` and `scale_detections()` functions to `detection/bbox.py`. Updated `detector.py` and `scan_album.py` to use them. Added unit tests.
 
-#### Split `process_image()` into focused functions
-**Location:** `scan_album.py:74-126`
-
-This 53-line function handles too many responsibilities:
-1. Gets image dimensions
-2. Runs detection
-3. Scales bounding boxes
-4. Saves visualization artifacts
-5. Saves snippet images
-6. Saves to database
-
-Split into:
-- `run_detection()` - detection logic only
-- `save_detection_artifacts()` - grayscale bbox images, snippets
-- `save_detections_to_db()` - database operations
+#### ~~Split `process_image()` into focused functions~~ DONE
+Extracted `save_detection_artifacts()` and `save_detections_to_db()` from `process_image()`. The main function is now a simple orchestrator that calls detection, saves artifacts, and saves to DB.
 
 #### Extract overlapping detection decision logic
 **Location:** `detection/filtering.py:51-140`
