@@ -79,6 +79,48 @@ class TestBibValidation:
         assert is_valid_bib_number("4 2")  # spaces removed
 
 
+class TestBboxScaling:
+    """Tests for bounding box scaling utilities."""
+
+    def test_scale_bbox(self):
+        """Test that scale_bbox scales coordinates correctly."""
+        from detection import scale_bbox
+        bbox = [[100, 200], [300, 200], [300, 400], [100, 400]]
+        scaled = scale_bbox(bbox, 0.5)
+        assert scaled == [[50, 100], [150, 100], [150, 200], [50, 200]]
+
+    def test_scale_bbox_factor_greater_than_one(self):
+        """Test scaling up with factor > 1."""
+        from detection import scale_bbox
+        bbox = [[10, 20], [30, 20], [30, 40], [10, 40]]
+        scaled = scale_bbox(bbox, 2.0)
+        assert scaled == [[20, 40], [60, 40], [60, 80], [20, 80]]
+
+    def test_scale_detections(self):
+        """Test that scale_detections scales all bbox in detections."""
+        from detection import scale_detections
+        detections = [
+            {"bib_number": "123", "confidence": 0.9, "bbox": [[100, 100], [200, 100], [200, 200], [100, 200]]},
+            {"bib_number": "456", "confidence": 0.8, "bbox": [[300, 300], [400, 300], [400, 400], [300, 400]]},
+        ]
+        scaled = scale_detections(detections, 0.5)
+        assert scaled[0]["bbox"] == [[50, 50], [100, 50], [100, 100], [50, 100]]
+        assert scaled[1]["bbox"] == [[150, 150], [200, 150], [200, 200], [150, 200]]
+        # Ensure other fields are preserved
+        assert scaled[0]["bib_number"] == "123"
+        assert scaled[0]["confidence"] == 0.9
+
+    def test_scale_detections_does_not_mutate_original(self):
+        """Test that scale_detections returns new dicts."""
+        from detection import scale_detections
+        original = [{"bib_number": "123", "confidence": 0.9, "bbox": [[100, 100], [200, 100], [200, 200], [100, 200]]}]
+        scaled = scale_detections(original, 0.5)
+        # Original should be unchanged
+        assert original[0]["bbox"] == [[100, 100], [200, 100], [200, 200], [100, 200]]
+        # Scaled should be different
+        assert scaled[0]["bbox"] == [[50, 50], [100, 50], [100, 100], [50, 100]]
+
+
 class TestBibDetection:
     """Tests for bib number detection from images."""
 

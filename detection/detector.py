@@ -22,6 +22,7 @@ from preprocessing import run_pipeline, PreprocessConfig
 from .regions import find_white_regions
 from .validation import is_valid_bib_number
 from .filtering import filter_small_detections, filter_overlapping_detections
+from .bbox import scale_bbox
 
 
 def detect_bib_numbers(
@@ -141,10 +142,7 @@ def detect_bib_numbers(
     # Map bounding boxes back to original image coordinates if we resized
     if scale_factor != 1.0:
         for det in final_detections:
-            det["bbox"] = [
-                [int(p[0] * scale_factor), int(p[1] * scale_factor)]
-                for p in det["bbox"]
-            ]
+            det["bbox"] = scale_bbox(det["bbox"], scale_factor)
 
     # Return detections and the grayscale image used (at OCR resolution for visualization)
     return final_detections, ocr_grayscale

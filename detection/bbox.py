@@ -119,3 +119,37 @@ def bbox_overlap_ratio(bbox1: list, bbox2: list) -> float:
     # Use the smaller box's area as denominator
     smaller_area = min(rect_area(rect1), rect_area(rect2))
     return intersection / smaller_area if smaller_area > 0 else 0.0
+
+
+def scale_bbox(bbox: list, factor: float) -> list:
+    """Scale a bounding box by a factor.
+
+    Args:
+        bbox: List of [x, y] points defining the quadrilateral.
+        factor: Scale factor to apply to all coordinates.
+
+    Returns:
+        New bounding box with scaled coordinates (as integers).
+    """
+    return [[int(p[0] * factor), int(p[1] * factor)] for p in bbox]
+
+
+def scale_detections(detections: list[dict], factor: float) -> list[dict]:
+    """Scale bounding boxes in a list of detections.
+
+    Creates copies of the detection dicts with scaled bbox coordinates.
+    Does not modify the original detections.
+
+    Args:
+        detections: List of detection dicts, each with a 'bbox' key.
+        factor: Scale factor to apply to all bbox coordinates.
+
+    Returns:
+        New list of detection dicts with scaled bboxes.
+    """
+    scaled = []
+    for det in detections:
+        scaled_det = det.copy()
+        scaled_det["bbox"] = scale_bbox(det["bbox"], factor)
+        scaled.append(scaled_det)
+    return scaled

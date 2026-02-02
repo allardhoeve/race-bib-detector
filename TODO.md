@@ -1,11 +1,134 @@
 # TODO
 
+## Suggestions (Code Review)
 
-## In Progress
+These are suggestions identified during a code review. The codebase has excellent separation of concerns and follows a pure-functions philosophy well. The main areas for improvement are reducing duplication, breaking down some overly-large functions, and consolidating mixed-purpose modules.
 
-(empty)
+### High Priority
+
+#### ~~Extract `scale_bounding_boxes()` utility~~ DONE
+Added `scale_bbox()` and `scale_detections()` functions to `detection/bbox.py`. Updated `detector.py` and `scan_album.py` to use them. Added unit tests.
+
+#### Split `process_image()` into focused functions
+**Location:** `scan_album.py:74-126`
+
+This 53-line function handles too many responsibilities:
+1. Gets image dimensions
+2. Runs detection
+3. Scales bounding boxes
+4. Saves visualization artifacts
+5. Saves snippet images
+6. Saves to database
+
+Split into:
+- `run_detection()` - detection logic only
+- `save_detection_artifacts()` - grayscale bbox images, snippets
+- `save_detections_to_db()` - database operations
+
+#### Extract overlapping detection decision logic
+**Location:** `detection/filtering.py:51-140`
+
+The `filter_overlapping_detections()` function is 90 lines with deeply nested logic and multiple conditions for deciding which detection to keep (substring vs count vs confidence).
+
+Extract decision logic into:
+- `decide_which_to_remove(det1, det2)` → returns which index to remove
+- `choose_between_overlapping(det1, det2)` → returns winner
+
+This would make the algorithm more readable and testable.
+
+#### Split `utils.py` into focused modules
+**Location:** `utils.py`
+
+This file mixes unrelated utilities:
+- URL manipulation (`clean_photo_url`, `get_full_res_url`)
+- Image downloading (`download_image`, `download_image_to_file`)
+- Image manipulation (`save_bib_snippet`, `draw_bounding_boxes_on_gray`)
+- Bounding box utilities (`compute_bbox_hash`, `get_snippet_path`)
+
+Split into:
+- `url_utils.py` - URL manipulation
+- `image_utils.py` - Image download/manipulation
+- `bbox_utils.py` - Bounding box operations
+
+### Medium Priority
+
+#### Remove duplication in scan_album.py image iteration
+**Location:** `scan_album.py:206-217`, `239-251`
+
+Code duplication in `scan_album()` and `scan_local_directory()` - both define nearly identical `make_images()` and `fetch_factory()` generators. Extract a generic factory function or decorator.
+
+#### Consolidate grayscale image reference logic
+**Location:** `detection/detector.py:60-62`, `100-101`
+
+The logic for choosing which grayscale image to use for brightness checking is duplicated. Define once at the top of the function.
+
+#### Extract brightness check utility
+**Location:** `detection/regions.py:69-72`, `detector.py` (similar)
+
+Brightness threshold logic is checked in similar ways in multiple places:
+```python
+median_brightness = np.median(region)
+mean_brightness = np.mean(region)
+if median_brightness < MEDIAN_BRIGHTNESS_THRESHOLD or mean_brightness < MEAN_BRIGHTNESS_THRESHOLD:
+    continue
+```
+
+Extract into `is_bright_enough(region)` in `detection/validation.py`.
+
+#### Simplify web UI data loading
+**Location:** `web/app.py:120-190`
+
+The `get_photo_with_bibs()` function is 70 lines with complex branching. Split into:
+- `load_photo_metadata(photo_hash)`
+- `determine_image_source(photo)`
+- `load_bib_detections(photo_id)`
+- `enrich_detections_with_snippets(bibs, cache_filename)`
+
+### Low Priority
+
+#### Create Detection dataclass
+Current detections are dicts with string keys. A structured dataclass would provide:
+- Type safety (can use mypy)
+- Self-documenting code
+- Methods for common operations (`scale_bbox()`, etc.)
+- Easier IDE autocomplete
+
+```python
+@dataclass
+class Detection:
+    bib_number: str
+    confidence: float
+    bbox: list[list[float]]
+    region_type: str  # 'white_region' or 'full_image'
+```
+
+#### Add structured logging
+**Location:** Multiple entry points
+
+When operations fail, users get minimal context. Add:
+- `--verbose` flag for full tracebacks
+- Structured logging with context
+- Save error logs to file for review
+
+#### Document hash inconsistency
+**Location:** `db.py:15` vs `utils.py:23`
+
+Two different hashing approaches exist:
+- Photo identification: SHA256, 8 chars (`db.py`)
+- Cache file naming: MD5, 12 chars (`utils.py`)
+
+Add docstrings explaining when to use which.
+
+### Testing Gaps
+
+- No integration tests for full pipeline
+- No tests for web UI routes
+- No tests for sources module (Google Photos, local scanning)
+- No tests for edge cases (corrupt images, invalid URLs)
 
 ## Completed
+
+[x] Go through the code, identify places where the code, the structure of the code, or core ideas need changing. Add these suggestions (as suggestions) to TODO.md, with descriptions.
 
 [x] ~~Create preprocessing module skeleton~~ DONE
    [x] Create a preprocessing/ module with pure, deterministic functions (no global state).
