@@ -159,6 +159,29 @@ HTML_TEMPLATE = """
             color: #8892b0;
         }
 
+        .candidates-legend {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.5);
+            font-size: 0.85rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-passed {
+            color: #4ade80;
+        }
+
+        .legend-rejected {
+            color: #f87171;
+        }
+
         .sidebar {
             width: 320px;
             flex-shrink: 0;
@@ -373,8 +396,11 @@ HTML_TEMPLATE = """
                 {% if photo.cache_path %}
                 <div class="image-tabs">
                     <div class="image-tab active" onclick="showImage('original')">Original</div>
+                    <div class="image-tab {% if not photo.has_candidates %}disabled{% endif %}" onclick="showImage('candidates')" {% if not photo.has_candidates %}style="opacity: 0.4; cursor: not-allowed;"{% endif %}>
+                        Candidates {% if not photo.has_candidates %}(none){% endif %}
+                    </div>
                     <div class="image-tab {% if not photo.has_gray_bbox %}disabled{% endif %}" onclick="showImage('bbox')" {% if not photo.has_gray_bbox %}style="opacity: 0.4; cursor: not-allowed;"{% endif %}>
-                        Bounding Boxes {% if not photo.has_gray_bbox %}(none){% endif %}
+                        Detections {% if not photo.has_gray_bbox %}(none){% endif %}
                     </div>
                     <div class="image-tab {% if not photo.has_snippets %}disabled{% endif %}" onclick="showImage('snippets')" {% if not photo.has_snippets %}style="opacity: 0.4; cursor: not-allowed;"{% endif %}>
                         Snippets {% if not photo.has_snippets %}(none){% endif %}
@@ -386,6 +412,20 @@ HTML_TEMPLATE = """
                     {% if photo.is_local %}
                     <div id="view-original" class="image-view active">
                         <img src="/local/{{ photo.photo_hash }}" alt="Photo {{ current }}">
+                    </div>
+                    <div id="view-candidates" class="image-view">
+                        {% if photo.has_candidates %}
+                        <img src="/cache/candidates/{{ photo.cache_filename }}" alt="Photo {{ current }} with candidates">
+                        <div class="candidates-legend">
+                            <span class="legend-item legend-passed">● Passed</span>
+                            <span class="legend-item legend-rejected">● Rejected</span>
+                        </div>
+                        {% else %}
+                        <div style="padding: 100px; text-align: center; color: #8892b0;">
+                            <p>No candidates image available</p>
+                            <p style="margin-top: 10px; font-size: 0.8rem;">Rescan this photo to generate candidates visualization</p>
+                        </div>
+                        {% endif %}
                     </div>
                     <div id="view-bbox" class="image-view">
                         {% if photo.has_gray_bbox %}
@@ -417,6 +457,20 @@ HTML_TEMPLATE = """
                     {% elif photo.cache_path %}
                     <div id="view-original" class="image-view active">
                         <img src="/cache/{{ photo.cache_filename }}" alt="Photo {{ current }}">
+                    </div>
+                    <div id="view-candidates" class="image-view">
+                        {% if photo.has_candidates %}
+                        <img src="/cache/candidates/{{ photo.cache_filename }}" alt="Photo {{ current }} with candidates">
+                        <div class="candidates-legend">
+                            <span class="legend-item legend-passed">● Passed</span>
+                            <span class="legend-item legend-rejected">● Rejected</span>
+                        </div>
+                        {% else %}
+                        <div style="padding: 100px; text-align: center; color: #8892b0;">
+                            <p>No candidates image available</p>
+                            <p style="margin-top: 10px; font-size: 0.8rem;">Rescan this photo to generate candidates visualization</p>
+                        </div>
+                        {% endif %}
                     </div>
                     <div id="view-bbox" class="image-view">
                         {% if photo.has_gray_bbox %}
@@ -508,7 +562,7 @@ HTML_TEMPLATE = """
                 </div>
 
                 <div class="keyboard-hint">
-                    <kbd>←</kbd> <kbd>→</kbd> navigate &nbsp;|&nbsp; <kbd>B</kbd> bounding boxes &nbsp;|&nbsp; <kbd>S</kbd> snippets
+                    <kbd>←</kbd> <kbd>→</kbd> navigate &nbsp;|&nbsp; <kbd>O</kbd> original &nbsp;|&nbsp; <kbd>C</kbd> candidates &nbsp;|&nbsp; <kbd>D</kbd> detections &nbsp;|&nbsp; <kbd>S</kbd> snippets
                 </div>
             </div>
         </div>
@@ -517,6 +571,9 @@ HTML_TEMPLATE = """
     <script>
         function showImage(view) {
             // Don't switch to unavailable views
+            if (view === 'candidates' && !{{ 'true' if photo.has_candidates else 'false' }}) {
+                return;
+            }
             if (view === 'bbox' && !{{ 'true' if photo.has_gray_bbox else 'false' }}) {
                 return;
             }
@@ -526,7 +583,7 @@ HTML_TEMPLATE = """
 
             // Update tabs
             document.querySelectorAll('.image-tab').forEach(tab => tab.classList.remove('active'));
-            const tabIndex = {'original': 0, 'bbox': 1, 'snippets': 2}[view];
+            const tabIndex = {'original': 0, 'candidates': 1, 'bbox': 2, 'snippets': 3}[view];
             const tabs = document.querySelectorAll('.image-tab');
             if (tabs[tabIndex]) tabs[tabIndex].classList.add('active');
 
@@ -540,8 +597,20 @@ HTML_TEMPLATE = """
                 window.location.href = '/photo/{{ prev_hash }}';
             } else if (e.key === 'ArrowRight' && {{ 'true' if has_next else 'false' }}) {
                 window.location.href = '/photo/{{ next_hash }}';
-            } else if (e.key === 'b' || e.key === 'B') {
-                // Toggle bounding box view with 'b' key
+            } else if (e.key === 'o' || e.key === 'O') {
+                // Return to original view with 'o' key
+                showImage('original');
+            } else if (e.key === 'c' || e.key === 'C') {
+                // Toggle candidates view with 'c' key
+                if ({{ 'true' if photo.has_candidates else 'false' }}) {
+                    if (document.getElementById('view-candidates').classList.contains('active')) {
+                        showImage('original');
+                    } else {
+                        showImage('candidates');
+                    }
+                }
+            } else if (e.key === 'd' || e.key === 'D') {
+                // Toggle detections/bbox view with 'd' key
                 if ({{ 'true' if photo.has_gray_bbox else 'false' }}) {
                     if (document.getElementById('view-bbox').classList.contains('active')) {
                         showImage('original');

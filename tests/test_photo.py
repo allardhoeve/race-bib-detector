@@ -1,0 +1,284 @@
+"""Tests for the Photo and ImagePaths dataclasses."""
+
+from pathlib import Path
+
+from photo import Photo, ImagePaths, compute_photo_hash
+
+
+class TestComputePhotoHash:
+    """Tests for compute_photo_hash function."""
+
+    def test_returns_8_chars(self):
+        """Hash should always be 8 characters."""
+        result = compute_photo_hash("http://example.com/photo.jpg")
+        assert len(result) == 8
+
+    def test_hex_characters_only(self):
+        """Hash should contain only hex characters."""
+        result = compute_photo_hash("http://example.com/photo.jpg")
+        assert all(c in "0123456789abcdef" for c in result)
+
+    def test_deterministic(self):
+        """Same URL should always produce same hash."""
+        url = "http://example.com/photo.jpg"
+        assert compute_photo_hash(url) == compute_photo_hash(url)
+
+    def test_different_urls_different_hashes(self):
+        """Different URLs should produce different hashes."""
+        hash1 = compute_photo_hash("http://example.com/photo1.jpg")
+        hash2 = compute_photo_hash("http://example.com/photo2.jpg")
+        assert hash1 != hash2
+
+
+class TestPhoto:
+    """Tests for Photo dataclass."""
+
+    def test_auto_computes_hash(self):
+        """Photo should auto-compute hash if not provided."""
+        photo = Photo(
+            photo_url="http://example.com/photo.jpg",
+            album_url="http://example.com/album",
+        )
+        assert photo.photo_hash is not None
+        assert len(photo.photo_hash) == 8
+
+    def test_uses_provided_hash(self):
+        """Photo should use provided hash if given."""
+        photo = Photo(
+            photo_url="http://example.com/photo.jpg",
+            album_url="http://example.com/album",
+            photo_hash="custom12",
+        )
+        assert photo.photo_hash == "custom12"
+
+    def test_is_local_false_for_google_photos(self):
+        """Google Photos source should not be local."""
+        photo = Photo(
+            photo_url="http://photos.google.com/photo.jpg",
+            album_url="http://photos.google.com/album",
+            source_type="google_photos",
+        )
+        assert photo.is_local is False
+
+    def test_is_local_true_for_local_file(self):
+        """Local file source should be local."""
+        photo = Photo(
+            photo_url="/path/to/photo.jpg",
+            album_url="/path/to",
+            source_type="local_file",
+        )
+        assert photo.is_local is True
+
+
+class TestPhotoFromUrl:
+    """Tests for Photo.from_url factory method."""
+
+    def test_creates_google_photos_source(self):
+        """from_url should create photo with google_photos source type."""
+        photo = Photo.from_url(
+            photo_url="http://photos.google.com/photo.jpg",
+            album_url="http://photos.google.com/album",
+        )
+        assert photo.source_type == "google_photos"
+        assert photo.is_local is False
+
+    def test_sets_thumbnail_url(self):
+        """from_url should set thumbnail_url if provided."""
+        photo = Photo.from_url(
+            photo_url="http://photos.google.com/photo.jpg",
+            album_url="http://photos.google.com/album",
+            thumbnail_url="http://photos.google.com/thumb.jpg",
+        )
+        assert photo.thumbnail_url == "http://photos.google.com/thumb.jpg"
+
+
+class TestPhotoFromLocalPath:
+    """Tests for Photo.from_local_path factory method."""
+
+    def test_creates_local_file_source(self):
+        """from_local_path should create photo with local_file source type."""
+        photo = Photo.from_local_path(
+            file_path="/photos/vacation/img001.jpg",
+            directory="/photos/vacation",
+        )
+        assert photo.source_type == "local_file"
+        assert photo.is_local is True
+
+    def test_converts_path_to_string(self):
+        """from_local_path should accept Path objects."""
+        photo = Photo.from_local_path(
+            file_path=Path("/photos/vacation/img001.jpg"),
+            directory=Path("/photos/vacation"),
+        )
+        assert photo.photo_url == "/photos/vacation/img001.jpg"
+        assert photo.album_url == "/photos/vacation"
+
+    def test_thumbnail_is_none(self):
+        """from_local_path should set thumbnail_url to None."""
+        photo = Photo.from_local_path(
+            file_path="/photos/img.jpg",
+            directory="/photos",
+        )
+        assert photo.thumbnail_url is None
+
+
+class TestPhotoFromDbRow:
+    """Tests for Photo.from_db_row factory method."""
+
+    def test_creates_photo_from_row(self):
+        """from_db_row should populate all fields from dict."""
+        row = {
+            "id": 42,
+            "photo_url": "http://example.com/photo.jpg",
+            "album_url": "http://example.com/album",
+            "thumbnail_url": "http://example.com/thumb.jpg",
+            "photo_hash": "abc12345",
+            "cache_path": "/cache/abc12345.jpg",
+        }
+        photo = Photo.from_db_row(row)
+
+        assert photo.id == 42
+        assert photo.photo_url == "http://example.com/photo.jpg"
+        assert photo.album_url == "http://example.com/album"
+        assert photo.thumbnail_url == "http://example.com/thumb.jpg"
+        assert photo.photo_hash == "abc12345"
+        assert photo.cache_path == Path("/cache/abc12345.jpg")
+        assert photo.source_type == "google_photos"
+
+    def test_detects_local_file_from_url(self):
+        """from_db_row should detect local files from photo_url."""
+        row = {
+            "photo_url": "/photos/img.jpg",
+            "album_url": "/photos",
+        }
+        photo = Photo.from_db_row(row)
+        assert photo.source_type == "local_file"
+        assert photo.is_local is True
+
+    def test_handles_missing_optional_fields(self):
+        """from_db_row should handle missing optional fields."""
+        row = {
+            "photo_url": "http://example.com/photo.jpg",
+            "album_url": "http://example.com/album",
+        }
+        photo = Photo.from_db_row(row)
+
+        assert photo.id is None
+        assert photo.thumbnail_url is None
+        assert photo.cache_path is None
+
+
+class TestPhotoToDict:
+    """Tests for Photo.to_dict method."""
+
+    def test_includes_all_fields(self):
+        """to_dict should include all fields."""
+        photo = Photo(
+            photo_url="http://example.com/photo.jpg",
+            album_url="http://example.com/album",
+            thumbnail_url="http://example.com/thumb.jpg",
+            photo_hash="abc12345",
+            cache_path=Path("/cache/img.jpg"),
+            source_type="google_photos",
+            id=42,
+        )
+        result = photo.to_dict()
+
+        assert result["photo_url"] == "http://example.com/photo.jpg"
+        assert result["album_url"] == "http://example.com/album"
+        assert result["thumbnail_url"] == "http://example.com/thumb.jpg"
+        assert result["photo_hash"] == "abc12345"
+        assert result["cache_path"] == "/cache/img.jpg"
+        assert result["source_type"] == "google_photos"
+        assert result["id"] == 42
+        assert result["is_local"] is False
+
+    def test_cache_path_none_serializes_as_none(self):
+        """to_dict should serialize None cache_path as None."""
+        photo = Photo(
+            photo_url="http://example.com/photo.jpg",
+            album_url="http://example.com/album",
+        )
+        result = photo.to_dict()
+        assert result["cache_path"] is None
+
+
+class TestPhotoGetPaths:
+    """Tests for Photo.get_paths method."""
+
+    def test_get_paths_returns_image_paths(self):
+        """get_paths should return ImagePaths for photo with cache_path."""
+        photo = Photo(
+            photo_url="http://example.com/photo.jpg",
+            album_url="http://example.com/album",
+            cache_path=Path("/cache/abc12345.jpg"),
+        )
+        paths = photo.get_paths()
+
+        assert isinstance(paths, ImagePaths)
+        assert paths.cache_path == Path("/cache/abc12345.jpg")
+
+    def test_get_paths_raises_without_cache_path(self):
+        """get_paths should raise ValueError if cache_path not set."""
+        import pytest
+
+        photo = Photo(
+            photo_url="http://example.com/photo.jpg",
+            album_url="http://example.com/album",
+        )
+        with pytest.raises(ValueError, match="cache_path is not set"):
+            photo.get_paths()
+
+
+class TestImagePaths:
+    """Tests for ImagePaths dataclass."""
+
+    def test_for_cache_path_default_dirs(self):
+        """for_cache_path should compute paths using default directories."""
+        from photo import DEFAULT_GRAY_BBOX_DIR, DEFAULT_SNIPPETS_DIR
+
+        cache_path = Path("/cache/abc12345.jpg")
+        paths = ImagePaths.for_cache_path(cache_path)
+
+        assert paths.cache_path == cache_path
+        assert paths.gray_bbox_path == DEFAULT_GRAY_BBOX_DIR / "abc12345.jpg"
+        assert paths.snippets_dir == DEFAULT_SNIPPETS_DIR
+
+    def test_for_cache_path_custom_dirs(self):
+        """for_cache_path should use custom directories when provided."""
+        cache_path = Path("/cache/abc12345.jpg")
+        custom_gray = Path("/custom/gray")
+        custom_snippets = Path("/custom/snippets")
+
+        paths = ImagePaths.for_cache_path(
+            cache_path,
+            gray_bbox_dir=custom_gray,
+            snippets_dir=custom_snippets,
+        )
+
+        assert paths.gray_bbox_path == custom_gray / "abc12345.jpg"
+        assert paths.snippets_dir == custom_snippets
+
+    def test_snippet_path(self):
+        """snippet_path should return correct path for a bib."""
+        cache_path = Path("/cache/abc12345.jpg")
+        paths = ImagePaths.for_cache_path(
+            cache_path,
+            snippets_dir=Path("/snippets"),
+        )
+
+        snippet = paths.snippet_path("123", "deadbeef")
+
+        assert snippet == Path("/snippets/abc12345_bib123_deadbeef.jpg")
+
+    def test_snippet_path_different_bibs(self):
+        """snippet_path should produce unique paths for different bibs."""
+        cache_path = Path("/cache/photo.jpg")
+        paths = ImagePaths.for_cache_path(cache_path, snippets_dir=Path("/snip"))
+
+        path1 = paths.snippet_path("123", "aaa11111")
+        path2 = paths.snippet_path("456", "bbb22222")
+
+        assert path1 != path2
+        assert "bib123" in str(path1)
+        assert "bib456" in str(path2)

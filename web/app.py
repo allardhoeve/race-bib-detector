@@ -14,6 +14,7 @@ from .templates import HTML_TEMPLATE, EMPTY_TEMPLATE
 # Paths
 CACHE_DIR = Path(__file__).parent.parent / "cache"
 GRAY_BBOX_DIR = CACHE_DIR / "gray_bounding"
+CANDIDATES_DIR = CACHE_DIR / "candidates"
 SNIPPETS_DIR = CACHE_DIR / "snippets"
 
 
@@ -104,6 +105,11 @@ def create_app() -> Flask:
         """Serve bib snippet images."""
         return send_from_directory(SNIPPETS_DIR, filename)
 
+    @app.route('/cache/candidates/<filename>')
+    def serve_candidates(filename):
+        """Serve candidate visualization images."""
+        return send_from_directory(CANDIDATES_DIR, filename)
+
     return app
 
 
@@ -159,8 +165,12 @@ def get_photo_with_bibs(photo_hash: str) -> tuple[dict | None, list[dict]]:
     if photo['cache_filename']:
         gray_bbox_path = GRAY_BBOX_DIR / photo['cache_filename']
         photo['has_gray_bbox'] = gray_bbox_path.exists()
+        # Check if candidates visualization exists
+        candidates_path = CANDIDATES_DIR / photo['cache_filename']
+        photo['has_candidates'] = candidates_path.exists()
     else:
         photo['has_gray_bbox'] = False
+        photo['has_candidates'] = False
 
     # Get bib detections for this photo
     cursor.execute(

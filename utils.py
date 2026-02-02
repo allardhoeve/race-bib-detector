@@ -15,10 +15,11 @@ import requests
 from config import PHOTO_URL_WIDTH, THUMBNAIL_URL_WIDTH, SNIPPET_PADDING_RATIO
 
 if TYPE_CHECKING:
-    from detection import Detection
+    from detection import Detection, BibCandidate
 
 CACHE_DIR = Path(__file__).parent / "cache"
 GRAY_BBOX_DIR = CACHE_DIR / "gray_bounding"
+CANDIDATES_DIR = CACHE_DIR / "candidates"
 SNIPPETS_DIR = CACHE_DIR / "snippets"
 
 
@@ -70,6 +71,11 @@ def download_image_to_file(url: str, output_path: Path, timeout: int = 60) -> bo
 def get_gray_bbox_path(cache_path: Path) -> Path:
     """Get the grayscale bounding box image path for a given cache path."""
     return GRAY_BBOX_DIR / cache_path.name
+
+
+def get_candidates_path(cache_path: Path) -> Path:
+    """Get the candidates visualization image path for a given cache path."""
+    return CANDIDATES_DIR / cache_path.name
 
 
 def compute_bbox_hash(bbox: list) -> str:
@@ -239,4 +245,87 @@ def draw_bounding_boxes_on_gray(
 
     except Exception as e:
         print(f"Error drawing bounding boxes on grayscale: {e}")
+        return False
+
+
+def draw_candidates_on_image(
+    image: np.ndarray,
+    candidates: list[BibCandidate],
+    output_path: Path,
+) -> bool:
+    """Draw bib candidates on an image and save it.
+
+    Passed candidates are drawn in green, rejected in red.
+    Each candidate shows its rejection reason if rejected.
+
+    Args:
+        image: Source image as numpy array (RGB or grayscale)
+        candidates: List of BibCandidate objects
+        output_path: Where to save the annotated image
+
+    Returns:
+        True on success
+    """
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Convert to BGR for colored annotations
+        if image.ndim == 2:
+            img = cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+        elif image.shape[2] == 3:
+            img = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        else:
+            img = image.copy()
+
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.5
+        thickness = 1
+
+        for candidate in candidates:
+            x, y, w, h = candidate.bbox
+
+            # Green for passed, red for rejected
+            if candidate.passed:
+                color = (0, 255, 0)  # Green (BGR)
+                label = "PASS"
+            else:
+                color = (0, 0, 255)  # Red (BGR)
+                # Shorten rejection reasons for display
+                reason = candidate.rejection_reason or "rejected"
+                if reason.startswith("aspect_ratio"):
+                    label = "aspect"
+                elif reason.startswith("relative_area"):
+                    label = "size"
+                elif reason.startswith("brightness"):
+                    label = "dark"
+                else:
+                    label = reason[:8]
+
+            # Draw rectangle
+            cv2.rectangle(img, (x, y), (x + w, y + h), color, 2)
+
+            # Draw label background
+            (text_width, text_height), baseline = cv2.getTextSize(label, font, font_scale, thickness)
+            label_y = max(y - 5, text_height + 5)
+
+            cv2.rectangle(
+                img,
+                (x, label_y - text_height - 4),
+                (x + text_width + 6, label_y + 2),
+                color,
+                -1
+            )
+
+            # Draw label text (black on colored background)
+            cv2.putText(
+                img, label,
+                (x + 3, label_y - 2),
+                font, font_scale, (0, 0, 0), thickness
+            )
+
+        cv2.imwrite(str(output_path), img)
+        return True
+
+    except Exception as e:
+        print(f"Error drawing candidates: {e}")
         return False

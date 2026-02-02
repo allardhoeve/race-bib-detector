@@ -1,18 +1,14 @@
 """Database helper module for bib number recognizer."""
 
-import hashlib
 import json
 import sqlite3
 from pathlib import Path
 from typing import Optional
 
+from photo import compute_photo_hash, Photo
+
 DB_PATH = Path(__file__).parent / "bibs.db"
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
-
-
-def compute_photo_hash(photo_url: str) -> str:
-    """Compute an 8-character hash from a photo URL for stable identification."""
-    return hashlib.sha256(photo_url.encode()).hexdigest()[:8]
 
 
 def get_connection() -> sqlite3.Connection:

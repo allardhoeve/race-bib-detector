@@ -26,7 +26,15 @@ from sources import (
     cache_image,
     load_from_cache,
 )
-from utils import get_gray_bbox_path, draw_bounding_boxes_on_gray, download_image, get_snippet_path, save_bib_snippet
+from utils import (
+    get_gray_bbox_path,
+    get_candidates_path,
+    draw_bounding_boxes_on_gray,
+    draw_candidates_on_image,
+    download_image,
+    get_snippet_path,
+    save_bib_snippet,
+)
 
 
 @dataclass
@@ -67,13 +75,14 @@ def save_detection_artifacts(
     result: DetectionResult,
     cache_path: Path,
 ) -> None:
-    """Save visualization artifacts: grayscale bbox image and bib snippets.
+    """Save visualization artifacts: grayscale bbox image, candidates image, and bib snippets.
 
     Args:
-        result: DetectionResult from detect_bib_numbers
+        result: DetectionResult (PipelineResult) from detect_bib_numbers
         cache_path: Path to cached image file
     """
     gray_bbox_path = get_gray_bbox_path(cache_path)
+    candidates_path = get_candidates_path(cache_path)
 
     # Get detections scaled to OCR image coordinates for visualization
     scaled_detections = result.detections_at_ocr_scale()
@@ -83,6 +92,10 @@ def save_detection_artifacts(
         save_bib_snippet(result.ocr_grayscale, scaled_det.bbox, snippet_path)
 
     draw_bounding_boxes_on_gray(result.ocr_grayscale, scaled_detections, gray_bbox_path)
+
+    # Save candidates visualization (shows all candidates: passed=green, rejected=red)
+    if result.all_candidates:
+        draw_candidates_on_image(result.ocr_grayscale, result.all_candidates, candidates_path)
 
 
 def save_detections_to_db(

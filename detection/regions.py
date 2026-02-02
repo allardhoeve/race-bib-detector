@@ -3,6 +3,10 @@ White region detection for candidate bib areas.
 
 Bibs are typically white rectangles with dark numbers. This module finds
 candidate white regions that could contain bib numbers.
+
+Also provides `validate_detection_region()` to apply the same filtering
+logic to any detection bbox, ensuring consistent filtering across detection
+methods (white_region and full_image).
 """
 
 import cv2
@@ -21,6 +25,80 @@ from config import (
 )
 
 from .types import BibCandidate
+
+
+def validate_detection_region(
+    bbox: list[list[int]],
+    gray_image: np.ndarray,
+) -> BibCandidate:
+    """Validate a detection bounding box using the same criteria as white region candidates.
+
+    This ensures consistent filtering between white_region and full_image detection methods.
+    Checks aspect ratio, relative area, and brightness thresholds.
+
+    Args:
+        bbox: Bounding box as [[x1,y1], [x2,y2], [x3,y3], [x4,y4]] (quadrilateral from OCR)
+        gray_image: Grayscale image to check brightness
+
+    Returns:
+        BibCandidate with passed=True if valid, or passed=False with rejection_reason
+    """
+    img_height, img_width = gray_image.shape[:2]
+    total_image_area = img_width * img_height
+
+    # Convert quadrilateral bbox to axis-aligned rect (x, y, w, h)
+    x_coords = [p[0] for p in bbox]
+    y_coords = [p[1] for p in bbox]
+    x_min = max(0, min(x_coords))
+    y_min = max(0, min(y_coords))
+    x_max = min(img_width, max(x_coords))
+    y_max = min(img_height, max(y_coords))
+
+    w = x_max - x_min
+    h = y_max - y_min
+
+    if w <= 0 or h <= 0:
+        return BibCandidate.create_rejected(
+            bbox=(x_min, y_min, max(1, w), max(1, h)),
+            area=0,
+            aspect_ratio=0.0,
+            median_brightness=0.0,
+            mean_brightness=0.0,
+            relative_area=0.0,
+            reason="invalid_bbox (zero size)",
+        )
+
+    bbox_area = w * h
+    aspect_ratio = w / h
+    relative_area = bbox_area / total_image_area
+
+    # Get brightness metrics
+    region = gray_image[y_min:y_max, x_min:x_max]
+    median_brightness = float(np.median(region))
+    mean_brightness = float(np.mean(region))
+
+    # Apply same filters as find_bib_candidates
+    rejection_reason = None
+
+    if aspect_ratio < MIN_ASPECT_RATIO or aspect_ratio > MAX_ASPECT_RATIO:
+        rejection_reason = f"aspect_ratio {aspect_ratio:.2f} outside [{MIN_ASPECT_RATIO}, {MAX_ASPECT_RATIO}]"
+    elif relative_area < MIN_RELATIVE_AREA or relative_area > MAX_RELATIVE_AREA:
+        rejection_reason = f"relative_area {relative_area:.4f} outside [{MIN_RELATIVE_AREA}, {MAX_RELATIVE_AREA}]"
+    elif median_brightness < MEDIAN_BRIGHTNESS_THRESHOLD or mean_brightness < MEAN_BRIGHTNESS_THRESHOLD:
+        rejection_reason = f"brightness (median={median_brightness:.0f}, mean={mean_brightness:.0f}) below threshold"
+
+    passed = rejection_reason is None
+
+    return BibCandidate(
+        bbox=(x_min, y_min, w, h),
+        area=bbox_area,
+        aspect_ratio=aspect_ratio,
+        median_brightness=median_brightness,
+        mean_brightness=mean_brightness,
+        relative_area=relative_area,
+        passed=passed,
+        rejection_reason=rejection_reason,
+    )
 
 
 def find_bib_candidates(

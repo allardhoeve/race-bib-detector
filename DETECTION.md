@@ -152,11 +152,35 @@ scaled_detections = result.detections_at_ocr_scale()
 ```
 
 Returns a `DetectionResult` containing:
-- `detections`: List of `Detection` objects with `bib_number`, `confidence`, `bbox`
+- `detections`: List of `Detection` objects (see below)
 - `ocr_grayscale`: Grayscale image used for OCR (for visualization)
 - `original_dimensions`: (width, height) of original image
 - `ocr_dimensions`: (width, height) of OCR image
 - `scale_factor`: Ratio for coordinate mapping
+
+## Detection Lineage
+
+Each `Detection` tracks its origin for debugging and transparency:
+
+```python
+for det in result.detections:
+    print(f"Bib {det.bib_number}: source={det.source}")
+
+    if det.source == "white_region" and det.source_candidate:
+        # Trace back to the candidate region
+        candidate = det.source_candidate
+        print(f"  From candidate at ({candidate.x}, {candidate.y})")
+        print(f"  Candidate brightness: {candidate.median_brightness}")
+    elif det.source == "full_image":
+        print("  Found via full-image fallback scan")
+```
+
+Detection attributes:
+- `bib_number`: The detected number (e.g., "123")
+- `confidence`: OCR confidence (0.0 to 1.0)
+- `bbox`: Bounding box as 4 [x,y] points
+- `source`: Detection method (`"white_region"` or `"full_image"`)
+- `source_candidate`: The `BibCandidate` this came from (None for full_image)
 
 ## Configuration
 

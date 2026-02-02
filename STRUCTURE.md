@@ -8,6 +8,7 @@ This document describes the architecture and organization of the Google Photos B
 google-photos-startnumber-recognizer/
 ├── scan_album.py           # Main CLI entry point for scanning
 ├── web_viewer.py           # Thin wrapper to run web interface
+├── photo.py                # Core Photo dataclass (lineage anchor)
 ├── db.py                   # Database operations
 ├── utils.py                # Shared utilities (bounding box drawing)
 ├── schema.sql              # Database schema
@@ -147,9 +148,45 @@ Flask-based web interface for browsing results.
                                          └─────────────┘
 ```
 
+## Core Types
+
+### photo.py
+
+The `Photo` dataclass serves as the anchor for lineage tracking throughout the pipeline. All pipeline results can be traced back to a `Photo` instance.
+
+```python
+from photo import Photo, ImagePaths, compute_photo_hash
+
+# From Google Photos URL
+photo = Photo.from_url(
+    photo_url="http://photos.google.com/photo.jpg",
+    album_url="http://photos.google.com/album",
+)
+
+# From local file
+photo = Photo.from_local_path(
+    file_path="/photos/img.jpg",
+    directory="/photos",
+)
+
+# From database row
+photo = Photo.from_db_row(row_dict)
+
+# Get all derived paths for a photo
+paths = photo.get_paths()
+print(paths.gray_bbox_path)  # Where grayscale+boxes image is saved
+print(paths.snippet_path("123", "abc12345"))  # Path for bib 123 snippet
+```
+
+The `ImagePaths` dataclass consolidates all derived file paths:
+- `cache_path`: The cached original image
+- `gray_bbox_path`: Grayscale image with detection boxes drawn
+- `snippets_dir`: Directory for cropped bib snippets
+- `snippet_path(bib_number, bbox_hash)`: Path for a specific snippet
+
 ## Photo Identification
 
-Photos are identified by an 8-character **photo hash** derived from the photo URL using SHA-256. This hash is stable across re-scans and database changes. See [CLAUDE.md](CLAUDE.md) for details.
+Photos are identified by an 8-character **photo hash** derived from the photo URL using SHA-256. This hash is stable across re-scans and database changes. The canonical hash function is `compute_photo_hash()` in `photo.py`. See [CLAUDE.md](CLAUDE.md) for details.
 
 ## Database Schema
 
