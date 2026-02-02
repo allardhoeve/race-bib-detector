@@ -15,6 +15,80 @@ from .bbox import bbox_area, bbox_iou, bbox_overlap_ratio
 from .validation import is_substring_bib
 
 
+def choose_detection_to_remove(
+    det1: dict,
+    det2: dict,
+    idx1: int,
+    idx2: int,
+) -> int | None:
+    """Decide which of two overlapping detections to remove.
+
+    Decision logic:
+    1. If one bib is a substring of the other, keep the longer one
+       (unless shorter has much higher confidence)
+    2. Otherwise prefer more digits
+    3. If same digit count, prefer higher confidence
+
+    Args:
+        det1: First detection dict with 'bib_number', 'confidence'
+        det2: Second detection dict with 'bib_number', 'confidence'
+        idx1: Index of first detection
+        idx2: Index of second detection
+
+    Returns:
+        Index of detection to remove, or None if neither should be removed
+    """
+    bib1, bib2 = det1["bib_number"], det2["bib_number"]
+    conf1, conf2 = det1["confidence"], det2["confidence"]
+
+    # Check substring relationship
+    # When one is substring of another, prefer longer UNLESS shorter has much higher confidence
+    if is_substring_bib(bib1, bib2):
+        # bib1 is substring of bib2 - keep bib2 (longer) unless bib1 has much higher confidence
+        if conf1 > conf2 * SUBSTRING_CONFIDENCE_RATIO:
+            return idx2  # Remove longer, keep shorter high-confidence
+        return idx1  # Remove shorter, keep longer
+
+    if is_substring_bib(bib2, bib1):
+        # bib2 is substring of bib1 - keep bib1 (longer) unless bib2 has much higher confidence
+        if conf2 > conf1 * SUBSTRING_CONFIDENCE_RATIO:
+            return idx1  # Remove longer, keep shorter high-confidence
+        return idx2  # Remove shorter, keep longer
+
+    # No substring relationship - prefer more digits
+    if len(bib2) > len(bib1):
+        return idx1
+    if len(bib1) > len(bib2):
+        return idx2
+
+    # Same length - keep higher confidence
+    if conf2 > conf1:
+        return idx1
+    return idx2
+
+
+def detections_overlap(
+    det1: dict,
+    det2: dict,
+    iou_threshold: float,
+    overlap_threshold: float,
+) -> bool:
+    """Check if two detections overlap significantly.
+
+    Args:
+        det1: First detection dict with 'bbox'
+        det2: Second detection dict with 'bbox'
+        iou_threshold: IoU threshold for considering boxes as overlapping
+        overlap_threshold: Overlap ratio threshold for considering boxes as overlapping
+
+    Returns:
+        True if detections overlap above either threshold
+    """
+    iou = bbox_iou(det1["bbox"], det2["bbox"])
+    overlap_ratio = bbox_overlap_ratio(det1["bbox"], det2["bbox"])
+    return iou >= iou_threshold or overlap_ratio >= overlap_threshold
+
+
 def filter_small_detections(
     detections: list[dict],
     white_region_area: float,
@@ -79,7 +153,6 @@ def filter_overlapping_detections(
     if len(detections) <= 1:
         return detections
 
-    # Mark detections to remove
     to_remove = set()
 
     for i, det1 in enumerate(detections):
@@ -90,51 +163,13 @@ def filter_overlapping_detections(
             if j <= i or j in to_remove:
                 continue
 
-            iou = bbox_iou(det1["bbox"], det2["bbox"])
-            overlap_ratio = bbox_overlap_ratio(det1["bbox"], det2["bbox"])
-
-            # Consider boxes overlapping if either IoU or overlap ratio exceeds threshold
-            if iou < iou_threshold and overlap_ratio < overlap_threshold:
+            if not detections_overlap(det1, det2, iou_threshold, overlap_threshold):
                 continue
 
-            # Detections overlap - decide which to keep
-            bib1, bib2 = det1["bib_number"], det2["bib_number"]
-            conf1, conf2 = det1["confidence"], det2["confidence"]
-
-            # Check substring relationship
-            # When one is substring of another, prefer longer UNLESS shorter has much higher confidence
-            # (e.g., "600" at 1.0 conf vs "6600" at 0.5 conf - prefer "600")
-
-            if is_substring_bib(bib1, bib2):
-                # bib1 is substring of bib2
-                # Keep bib2 (longer) unless bib1 has significantly higher confidence
-                if conf1 > conf2 * SUBSTRING_CONFIDENCE_RATIO:
-                    to_remove.add(j)  # Remove longer, keep shorter high-confidence
-                else:
-                    to_remove.add(i)  # Remove shorter, keep longer
-                break
-            elif is_substring_bib(bib2, bib1):
-                # bib2 is substring of bib1
-                # Keep bib1 (longer) unless bib2 has significantly higher confidence
-                if conf2 > conf1 * SUBSTRING_CONFIDENCE_RATIO:
-                    to_remove.add(i)  # Remove longer, keep shorter high-confidence
-                else:
-                    to_remove.add(j)  # Remove shorter, keep longer
-                continue
-
-            # No substring relationship - prefer more digits, then higher confidence
-            if len(bib2) > len(bib1):
-                to_remove.add(i)
-                break
-            elif len(bib1) > len(bib2):
-                to_remove.add(j)
-                continue
-            else:
-                # Same length - keep higher confidence
-                if det2["confidence"] > det1["confidence"]:
-                    to_remove.add(i)
-                    break
-                else:
-                    to_remove.add(j)
+            remove_idx = choose_detection_to_remove(det1, det2, i, j)
+            if remove_idx is not None:
+                to_remove.add(remove_idx)
+                if remove_idx == i:
+                    break  # det1 removed, move to next i
 
     return [det for i, det in enumerate(detections) if i not in to_remove]

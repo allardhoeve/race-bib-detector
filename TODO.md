@@ -12,16 +12,8 @@ Added `scale_bbox()` and `scale_detections()` functions to `detection/bbox.py`. 
 #### ~~Split `process_image()` into focused functions~~ DONE
 Extracted `save_detection_artifacts()` and `save_detections_to_db()` from `process_image()`. The main function is now a simple orchestrator that calls detection, saves artifacts, and saves to DB.
 
-#### Extract overlapping detection decision logic
-**Location:** `detection/filtering.py:51-140`
-
-The `filter_overlapping_detections()` function is 90 lines with deeply nested logic and multiple conditions for deciding which detection to keep (substring vs count vs confidence).
-
-Extract decision logic into:
-- `decide_which_to_remove(det1, det2)` → returns which index to remove
-- `choose_between_overlapping(det1, det2)` → returns winner
-
-This would make the algorithm more readable and testable.
+#### ~~Extract overlapping detection decision logic~~ DONE
+Extracted `choose_detection_to_remove()` and `detections_overlap()` helper functions from `filter_overlapping_detections()`. The main function is now a simple loop that uses these helpers. Added 6 unit tests for the new functions.
 
 #### Split `utils.py` into focused modules
 **Location:** `utils.py`

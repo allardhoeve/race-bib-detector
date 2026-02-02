@@ -118,6 +118,58 @@ class TestBboxScaling:
         assert scaled == [[50, 50], [100, 50], [100, 100], [50, 100]]
 
 
+class TestOverlapFiltering:
+    """Tests for overlapping detection filtering."""
+
+    def test_choose_substring_keeps_longer(self):
+        """When one bib is substring of another, keep the longer one."""
+        from detection.filtering import choose_detection_to_remove
+        det1 = {"bib_number": "6", "confidence": 0.9}
+        det2 = {"bib_number": "620", "confidence": 0.9}
+        # bib1 "6" is substring of "620", should remove det1 (idx 0)
+        assert choose_detection_to_remove(det1, det2, 0, 1) == 0
+
+    def test_choose_substring_keeps_shorter_if_much_higher_confidence(self):
+        """Keep shorter if it has much higher confidence than longer."""
+        from detection.filtering import choose_detection_to_remove
+        det1 = {"bib_number": "6", "confidence": 0.95}
+        det2 = {"bib_number": "620", "confidence": 0.5}
+        # "6" has much higher confidence, should remove det2 (idx 1)
+        assert choose_detection_to_remove(det1, det2, 0, 1) == 1
+
+    def test_choose_more_digits_wins(self):
+        """When no substring relation, prefer more digits."""
+        from detection.filtering import choose_detection_to_remove
+        det1 = {"bib_number": "12", "confidence": 0.9}
+        det2 = {"bib_number": "345", "confidence": 0.9}
+        # det2 has more digits, remove det1
+        assert choose_detection_to_remove(det1, det2, 0, 1) == 0
+
+    def test_choose_same_length_higher_confidence_wins(self):
+        """When same digit count, prefer higher confidence."""
+        from detection.filtering import choose_detection_to_remove
+        det1 = {"bib_number": "123", "confidence": 0.7}
+        det2 = {"bib_number": "456", "confidence": 0.9}
+        # det2 has higher confidence, remove det1
+        assert choose_detection_to_remove(det1, det2, 0, 1) == 0
+
+    def test_detections_overlap_iou(self):
+        """Test overlap detection via IoU."""
+        from detection.filtering import detections_overlap
+        # Identical boxes have IoU = 1.0
+        bbox = [[0, 0], [100, 0], [100, 100], [0, 100]]
+        det1 = {"bbox": bbox}
+        det2 = {"bbox": bbox}
+        assert detections_overlap(det1, det2, iou_threshold=0.3, overlap_threshold=0.5)
+
+    def test_detections_no_overlap(self):
+        """Test non-overlapping boxes."""
+        from detection.filtering import detections_overlap
+        det1 = {"bbox": [[0, 0], [100, 0], [100, 100], [0, 100]]}
+        det2 = {"bbox": [[200, 200], [300, 200], [300, 300], [200, 300]]}
+        assert not detections_overlap(det1, det2, iou_threshold=0.3, overlap_threshold=0.5)
+
+
 class TestBibDetection:
     """Tests for bib number detection from images."""
 
