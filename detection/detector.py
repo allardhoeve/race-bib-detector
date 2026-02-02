@@ -19,7 +19,7 @@ from config import (
 )
 from preprocessing import run_pipeline, PreprocessConfig
 
-from .types import Detection
+from .types import Detection, DetectionResult
 from .regions import find_white_regions
 from .validation import is_valid_bib_number
 from .filtering import filter_small_detections, filter_overlapping_detections
@@ -29,7 +29,7 @@ def detect_bib_numbers(
     reader: easyocr.Reader,
     image_data: bytes,
     preprocess_config: PreprocessConfig | None = None,
-) -> tuple[list[Detection], np.ndarray | None]:
+) -> DetectionResult:
     """Detect bib numbers in an image using EasyOCR.
 
     Focuses on white rectangular regions (typical bib appearance) and
@@ -41,7 +41,7 @@ def detect_bib_numbers(
         preprocess_config: Optional preprocessing configuration.
 
     Returns:
-        Tuple of (list of Detection objects, grayscale image used for OCR).
+        DetectionResult containing detections and metadata for coordinate mapping.
     """
     # Load image from bytes
     image = Image.open(io.BytesIO(image_data))
@@ -57,14 +57,9 @@ def detect_bib_numbers(
     preprocess_result = run_pipeline(image_array, preprocess_config)
 
     # Use resized image for OCR if available (more consistent kernel behavior)
-    if preprocess_result.resized is not None:
-        ocr_image = preprocess_result.resized
-        ocr_grayscale = preprocess_result.resized_grayscale
-        scale_factor = preprocess_result.scale_factor
-    else:
-        ocr_image = image_array
-        ocr_grayscale = preprocess_result.grayscale
-        scale_factor = 1.0
+    ocr_image = preprocess_result.ocr_image
+    ocr_grayscale = preprocess_result.ocr_grayscale
+    scale_factor = preprocess_result.scale_factor
 
     # Find candidate white regions on the OCR image (resized if preprocessing enabled)
     white_regions = find_white_regions(ocr_image)
@@ -98,7 +93,7 @@ def detect_bib_numbers(
     # Also run OCR on full image as fallback (in case region detection missed something)
     # For full image scan, we validate brightness to filter false positives
     results = reader.readtext(ocr_image)
-    gray_for_brightness = preprocess_result.resized_grayscale if preprocess_result.resized_grayscale is not None else preprocess_result.grayscale
+    gray_for_brightness = preprocess_result.ocr_grayscale
     for bbox, text, confidence in results:
         cleaned = text.strip().replace(" ", "")
 
@@ -141,5 +136,14 @@ def detect_bib_numbers(
     if scale_factor != 1.0:
         final_detections = [det.scale_bbox(scale_factor) for det in final_detections]
 
-    # Return detections and the grayscale image used (at OCR resolution for visualization)
-    return final_detections, ocr_grayscale
+    # Get dimensions
+    orig_h, orig_w = image_array.shape[:2]
+    ocr_h, ocr_w = ocr_image.shape[:2]
+
+    return DetectionResult(
+        detections=final_detections,
+        ocr_grayscale=ocr_grayscale,
+        original_dimensions=(orig_w, orig_h),
+        ocr_dimensions=(ocr_w, ocr_h),
+        scale_factor=scale_factor,
+    )

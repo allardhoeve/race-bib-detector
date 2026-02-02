@@ -118,3 +118,19 @@ class PreprocessResult:
             [p[0] * self.scale_factor, p[1] * self.scale_factor]
             for p in bbox
         ]
+
+    @property
+    def ocr_image(self) -> np.ndarray:
+        """Get the image to use for OCR (resized if available, else original)."""
+        return self.resized if self.resized is not None else self.original
+
+    @property
+    def ocr_grayscale(self) -> np.ndarray:
+        """Get grayscale at OCR resolution (resized if available, else original)."""
+        return self.resized_grayscale if self.resized_grayscale is not None else self.grayscale
+
+    @property
+    def ocr_dimensions(self) -> tuple[int, int]:
+        """Get (width, height) of the OCR image."""
+        h, w = self.ocr_image.shape[:2]
+        return w, h

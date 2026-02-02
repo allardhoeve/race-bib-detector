@@ -144,25 +144,10 @@ Add docstrings explaining when to use which.
 
 ---
 
-#### High Priority: Create `DetectionResult` dataclass
+#### ~~High Priority: Create `DetectionResult` dataclass~~ ✓ DONE
 **Location:** `detection/types.py`
 
-Currently `detect_bib_numbers` returns `(list[Detection], np.ndarray | None)` - a tuple where the caller must infer context. The scale_factor is computed inside detection but not returned, so `scan_album.py` recomputes it.
-
-```python
-@dataclass
-class DetectionResult:
-    detections: list[Detection]
-    grayscale_image: np.ndarray  # At OCR resolution
-    original_dimensions: tuple[int, int]  # (width, height)
-    ocr_dimensions: tuple[int, int]  # (width, height)
-    scale_factor: float  # For mapping coords back to original
-```
-
-**Benefits:**
-- No more recomputing `gray_scale = gray_w / orig_w` in scan_album.py
-- Clear ownership of dimensions and scale factor
-- Self-documenting return type
+Created `DetectionResult` dataclass that bundles detections with metadata (ocr_grayscale, dimensions, scale_factor). Updated `detect_bib_numbers` to return `DetectionResult` instead of a tuple. Added `detections_at_ocr_scale()` method. Simplified `scan_album.py` by removing `get_image_dimensions()` - scale factor now comes from `DetectionResult`.
 
 ---
 
@@ -196,28 +181,10 @@ class BibCandidate:
 
 ---
 
-#### High Priority: Improve `PreprocessResult` with computed properties
+#### ~~High Priority: Improve `PreprocessResult` with computed properties~~ ✓ DONE
 **Location:** `preprocessing/config.py`
 
-Currently callers must check `if preprocess_result.resized is not None` to pick the right image. Add explicit properties:
-
-```python
-@property
-def ocr_image(self) -> np.ndarray:
-    """Get the image to use for OCR (resized if available)."""
-    return self.resized if self.resized is not None else self.original
-
-@property
-def ocr_grayscale(self) -> np.ndarray:
-    """Get grayscale at OCR resolution."""
-    return self.resized_grayscale if self.resized_grayscale is not None else self.grayscale
-
-@property
-def ocr_dimensions(self) -> tuple[int, int]:
-    """Get (width, height) of OCR image."""
-    h, w = self.ocr_image.shape[:2]
-    return w, h
-```
+Added `ocr_image`, `ocr_grayscale`, and `ocr_dimensions` properties to `PreprocessResult`. Updated `detector.py` to use them instead of manual checks.
 
 ---
 

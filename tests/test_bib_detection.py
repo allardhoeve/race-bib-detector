@@ -121,6 +121,67 @@ class TestDetectionDataclass:
         assert det.bbox == [[5, 5], [15, 5], [15, 15], [5, 15]]
 
 
+class TestDetectionResult:
+    """Tests for DetectionResult dataclass."""
+
+    def test_detection_result_creation(self):
+        """Test creating a DetectionResult."""
+        import numpy as np
+        from detection import Detection, DetectionResult
+
+        detections = [Detection(bib_number="123", confidence=0.9, bbox=[[0, 0], [100, 0], [100, 50], [0, 50]])]
+        grayscale = np.zeros((480, 640), dtype=np.uint8)
+
+        result = DetectionResult(
+            detections=detections,
+            ocr_grayscale=grayscale,
+            original_dimensions=(1280, 960),
+            ocr_dimensions=(640, 480),
+            scale_factor=2.0,
+        )
+
+        assert len(result.detections) == 1
+        assert result.original_dimensions == (1280, 960)
+        assert result.ocr_dimensions == (640, 480)
+        assert result.scale_factor == 2.0
+
+    def test_ocr_scale_property(self):
+        """Test that ocr_scale is inverse of scale_factor."""
+        import numpy as np
+        from detection import DetectionResult
+
+        result = DetectionResult(
+            detections=[],
+            ocr_grayscale=np.zeros((100, 100), dtype=np.uint8),
+            original_dimensions=(200, 200),
+            ocr_dimensions=(100, 100),
+            scale_factor=2.0,
+        )
+
+        assert result.ocr_scale == 0.5
+
+    def test_detections_at_ocr_scale(self):
+        """Test that detections_at_ocr_scale scales bboxes correctly."""
+        import numpy as np
+        from detection import Detection, DetectionResult
+
+        # Detection in original coords (scale_factor=2.0 means original is 2x OCR)
+        det = Detection(bib_number="123", confidence=0.9, bbox=[[100, 100], [200, 100], [200, 200], [100, 200]])
+
+        result = DetectionResult(
+            detections=[det],
+            ocr_grayscale=np.zeros((480, 640), dtype=np.uint8),
+            original_dimensions=(1280, 960),
+            ocr_dimensions=(640, 480),
+            scale_factor=2.0,
+        )
+
+        scaled = result.detections_at_ocr_scale()
+        assert len(scaled) == 1
+        # Original bbox at 100,100 -> 200,200 should become 50,50 -> 100,100 at OCR scale
+        assert scaled[0].bbox == [[50, 50], [100, 50], [100, 100], [50, 100]]
+
+
 class TestBboxScaling:
     """Tests for bounding box scaling utilities."""
 
@@ -229,8 +290,8 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        detections, _ = detect_bib_numbers(ocr_reader, image_data)
-        bib_numbers = [d.bib_number for d in detections]
+        result = detect_bib_numbers(ocr_reader, image_data)
+        bib_numbers = [d.bib_number for d in result.detections]
 
         assert "353" in bib_numbers, f"Expected bib 353, got: {bib_numbers}"
 
@@ -242,8 +303,8 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        detections, _ = detect_bib_numbers(ocr_reader, image_data)
-        bib_numbers = [d.bib_number for d in detections]
+        result = detect_bib_numbers(ocr_reader, image_data)
+        bib_numbers = [d.bib_number for d in result.detections]
 
         assert "622" in bib_numbers, f"Expected bib 622, got: {bib_numbers}"
 
@@ -255,8 +316,8 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        detections, _ = detect_bib_numbers(ocr_reader, image_data)
-        bib_numbers = [d.bib_number for d in detections]
+        result = detect_bib_numbers(ocr_reader, image_data)
+        bib_numbers = [d.bib_number for d in result.detections]
 
         # Check that at least some of the expected bibs are detected
         expected = {"379", "328", "329"}
@@ -273,12 +334,12 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        detections, _ = detect_bib_numbers(ocr_reader, image_data)
+        result = detect_bib_numbers(ocr_reader, image_data)
 
         # Should not detect the specific bib numbers from our race photos
         # (OCR may find some numbers in any image, but not race-specific ones)
         race_bibs = {"353", "379", "328", "329"}
-        detected = {d.bib_number for d in detections}
+        detected = {d.bib_number for d in result.detections}
 
         assert not (race_bibs & detected), f"Found race bibs in non-race photo: {race_bibs & detected}"
 
@@ -289,17 +350,17 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        detections, grayscale = detect_bib_numbers(ocr_reader, image_data)
+        result = detect_bib_numbers(ocr_reader, image_data)
 
-        assert len(detections) > 0, "Expected at least one detection"
-        for det in detections:
+        assert len(result.detections) > 0, "Expected at least one detection"
+        for det in result.detections:
             assert 0 <= det.confidence <= 1
             assert det.bbox is not None
             assert det.bib_number is not None
 
         # Check that grayscale image is returned
-        assert grayscale is not None
-        assert grayscale.ndim == 2  # Should be 2D grayscale
+        assert result.ocr_grayscale is not None
+        assert result.ocr_grayscale.ndim == 2  # Should be 2D grayscale
 
     def test_detect_four_bibs_hvv3729(self, ocr_reader):
         """Test detection of 4 bibs in HVV_3729 (photo 0ba02f00).
@@ -313,8 +374,8 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        detections, grayscale = detect_bib_numbers(ocr_reader, image_data)
-        bib_numbers = [d.bib_number for d in detections]
+        result = detect_bib_numbers(ocr_reader, image_data)
+        bib_numbers = [d.bib_number for d in result.detections]
 
         # Should detect all 4 bibs
         expected = {"539", "526", "527", "535"}
@@ -323,7 +384,7 @@ class TestBibDetection:
         assert expected == detected, f"Expected {expected}, got {detected}"
 
         # Each bib should have a unique bbox (for snippet naming)
-        bboxes = [str(d.bbox) for d in detections]
+        bboxes = [str(d.bbox) for d in result.detections]
         assert len(bboxes) == len(set(bboxes)), "Bounding boxes should be unique"
 
     def test_detect_three_bibs_hvv3730(self, ocr_reader):
@@ -338,8 +399,8 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        detections, grayscale = detect_bib_numbers(ocr_reader, image_data)
-        bib_numbers = [d.bib_number for d in detections]
+        result = detect_bib_numbers(ocr_reader, image_data)
+        bib_numbers = [d.bib_number for d in result.detections]
 
         # Should detect the 3 clear bibs
         expected = {"539", "540", "526"}
@@ -393,40 +454,32 @@ class TestSnippetGeneration:
         import tempfile
         import shutil
         from pathlib import Path
-        from PIL import Image
-        import io
         from utils import compute_bbox_hash, save_bib_snippet
-        from preprocessing import run_pipeline, PreprocessConfig
 
         image_path = SAMPLES_DIR / "HVV_3729.jpg"
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        detections, grayscale = detect_bib_numbers(ocr_reader, image_data)
+        result = detect_bib_numbers(ocr_reader, image_data)
 
-        # Get original image dimensions to compute scale factor
-        with Image.open(io.BytesIO(image_data)) as img:
-            orig_w, orig_h = img.size
-        gray_h, gray_w = grayscale.shape[:2]
-        scale = gray_w / orig_w
+        # Use DetectionResult to get detections at OCR scale
+        scaled_detections = result.detections_at_ocr_scale()
 
         # Create temp directory for snippets
         temp_dir = Path(tempfile.mkdtemp())
         try:
             # Save snippets using the same logic as scan_album.py
             # Note: bboxes from detect_bib_numbers are in original coords,
-            # so we need to scale them to match the grayscale image
-            for det in detections:
-                # Scale bbox to grayscale coordinates using Detection.scale_bbox
-                scaled_det = det.scale_bbox(scale)
+            # so we use detections_at_ocr_scale() to get them at grayscale resolution
+            for det, scaled_det in zip(result.detections, scaled_detections):
                 bbox_hash = compute_bbox_hash(det.bbox)
                 snippet_filename = f"test_photo_bib{det.bib_number}_{bbox_hash}.jpg"
                 snippet_path = temp_dir / snippet_filename
-                save_bib_snippet(grayscale, scaled_det.bbox, snippet_path)
+                save_bib_snippet(result.ocr_grayscale, scaled_det.bbox, snippet_path)
 
             # Count saved snippets
             snippets = list(temp_dir.glob("*.jpg"))
-            assert len(snippets) == len(detections), f"Expected {len(detections)} snippets, got {len(snippets)}"
+            assert len(snippets) == len(result.detections), f"Expected {len(result.detections)} snippets, got {len(snippets)}"
         finally:
             shutil.rmtree(temp_dir)
 

@@ -6,6 +6,8 @@ This module defines the core data structures used throughout the detection pipel
 
 from dataclasses import dataclass
 
+import numpy as np
+
 
 # Type alias for a bounding box: list of 4 [x, y] coordinate pairs (quadrilateral)
 Bbox = list[list[int]]
@@ -68,3 +70,37 @@ class Detection:
             confidence=d["confidence"],
             bbox=d["bbox"],
         )
+
+
+@dataclass
+class DetectionResult:
+    """Result of the bib number detection pipeline.
+
+    Bundles all outputs from detect_bib_numbers() including metadata needed
+    for coordinate mapping and visualization.
+
+    Attributes:
+        detections: List of detected bib numbers (in original image coordinates)
+        ocr_grayscale: Grayscale image used for OCR (at OCR resolution)
+        original_dimensions: (width, height) of the original input image
+        ocr_dimensions: (width, height) of the image used for OCR
+        scale_factor: Ratio to map OCR coords back to original (original_width / ocr_width)
+    """
+
+    detections: list[Detection]
+    ocr_grayscale: np.ndarray
+    original_dimensions: tuple[int, int]  # (width, height)
+    ocr_dimensions: tuple[int, int]  # (width, height)
+    scale_factor: float
+
+    @property
+    def ocr_scale(self) -> float:
+        """Scale factor to map original coords to OCR coords (inverse of scale_factor)."""
+        return 1.0 / self.scale_factor if self.scale_factor != 0 else 1.0
+
+    def detections_at_ocr_scale(self) -> list[Detection]:
+        """Return detections with bboxes scaled to OCR image coordinates.
+
+        Useful for visualization on the OCR grayscale image.
+        """
+        return [det.scale_bbox(self.ocr_scale) for det in self.detections]

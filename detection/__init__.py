@@ -14,7 +14,7 @@ Key components:
 - detector: Main detection orchestration
 """
 
-from .types import Detection, Bbox
+from .types import Detection, DetectionResult, Bbox
 from .detector import detect_bib_numbers
 from .validation import is_valid_bib_number
 from .regions import find_white_regions
@@ -23,6 +23,7 @@ from .filtering import filter_small_detections, filter_overlapping_detections
 
 __all__ = [
     "Detection",
+    "DetectionResult",
     "Bbox",
     "detect_bib_numbers",
     "is_valid_bib_number",

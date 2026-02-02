@@ -257,6 +257,84 @@ class TestPreprocessResult:
         mapped = result.map_bbox_to_original(bbox)
         assert mapped == [[20, 20], [40, 20], [40, 40], [20, 40]]
 
+    def test_ocr_image_returns_resized_when_available(self):
+        """ocr_image should return resized image when available."""
+        original = np.zeros((200, 400, 3), dtype=np.uint8)
+        resized = np.zeros((100, 200, 3), dtype=np.uint8)
+        result = PreprocessResult(
+            original=original,
+            grayscale=np.zeros((200, 400)),
+            resized=resized,
+            resized_grayscale=np.zeros((100, 200)),
+            scale_factor=2.0,
+            config=PreprocessConfig(target_width=200),
+        )
+        assert result.ocr_image is resized
+
+    def test_ocr_image_returns_original_when_no_resize(self):
+        """ocr_image should return original when resized is None."""
+        original = np.zeros((200, 400, 3), dtype=np.uint8)
+        result = PreprocessResult(
+            original=original,
+            grayscale=np.zeros((200, 400)),
+            resized=None,
+            resized_grayscale=None,
+            scale_factor=1.0,
+            config=PreprocessConfig(target_width=None),
+        )
+        assert result.ocr_image is original
+
+    def test_ocr_grayscale_returns_resized_when_available(self):
+        """ocr_grayscale should return resized grayscale when available."""
+        grayscale = np.zeros((200, 400), dtype=np.uint8)
+        resized_grayscale = np.zeros((100, 200), dtype=np.uint8)
+        result = PreprocessResult(
+            original=np.zeros((200, 400, 3)),
+            grayscale=grayscale,
+            resized=np.zeros((100, 200, 3)),
+            resized_grayscale=resized_grayscale,
+            scale_factor=2.0,
+            config=PreprocessConfig(target_width=200),
+        )
+        assert result.ocr_grayscale is resized_grayscale
+
+    def test_ocr_grayscale_returns_original_when_no_resize(self):
+        """ocr_grayscale should return original grayscale when resized is None."""
+        grayscale = np.zeros((200, 400), dtype=np.uint8)
+        result = PreprocessResult(
+            original=np.zeros((200, 400, 3)),
+            grayscale=grayscale,
+            resized=None,
+            resized_grayscale=None,
+            scale_factor=1.0,
+            config=PreprocessConfig(target_width=None),
+        )
+        assert result.ocr_grayscale is grayscale
+
+    def test_ocr_dimensions_returns_resized_dimensions(self):
+        """ocr_dimensions should return (width, height) of resized image."""
+        result = PreprocessResult(
+            original=np.zeros((200, 400, 3)),
+            grayscale=np.zeros((200, 400)),
+            resized=np.zeros((100, 200, 3)),
+            resized_grayscale=np.zeros((100, 200)),
+            scale_factor=2.0,
+            config=PreprocessConfig(target_width=200),
+        )
+        assert result.ocr_dimensions == (200, 100)
+
+    def test_ocr_dimensions_returns_original_dimensions_when_no_resize(self):
+        """ocr_dimensions should return original dimensions when no resize."""
+        result = PreprocessResult(
+            original=np.zeros((200, 400, 3)),
+            grayscale=np.zeros((200, 400)),
+            resized=None,
+            resized_grayscale=None,
+            scale_factor=1.0,
+            config=PreprocessConfig(target_width=None),
+        )
+        assert result.ocr_dimensions == (400, 200)
+
 
 class TestRunPipeline:
     """Tests for the run_pipeline function."""
