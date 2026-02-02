@@ -111,20 +111,3 @@ def find_bib_candidates(
             candidates.append(candidate)
 
     return candidates
-
-
-def find_white_regions(image_array: np.ndarray, min_area: int | None = None) -> list[tuple]:
-    """Find white rectangular regions that could be bib numbers.
-
-    This is the legacy interface that returns simple tuples.
-    For structured data with debugging info, use find_bib_candidates().
-
-    Args:
-        image_array: RGB image as numpy array.
-        min_area: Minimum contour area to consider (defaults to MIN_CONTOUR_AREA).
-
-    Returns:
-        List of (x, y, w, h) tuples for candidate regions that passed filters.
-    """
-    candidates = find_bib_candidates(image_array, min_area, include_rejected=False)
-    return [c.to_xywh() for c in candidates]

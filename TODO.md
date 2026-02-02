@@ -54,31 +54,6 @@ The `get_photo_with_bibs()` function is 70 lines with complex branching. Split i
 - `load_bib_detections(photo_id)`
 - `enrich_detections_with_snippets(bibs, cache_filename)`
 
-### Low Priority
-
-#### Create PhotoInfo dataclass
-**Location:** `sources/google_photos.py`, `scan_album.py`
-
-Image metadata is passed around as dicts with `photo_url`, `thumbnail_url`, `base_url` keys.
-Create a `PhotoInfo` dataclass similar to `ImageInfo` in `scan_album.py` but for source data.
-
-#### Create ScanStats dataclass
-**Location:** `scan_album.py:174`, `scan_album.py:234`, etc.
-
-Stats returned from scan functions are plain dicts. Could be a dataclass:
-```python
-@dataclass
-class ScanStats:
-    photos_found: int
-    photos_scanned: int
-    photos_skipped: int
-    bibs_detected: int
-```
-
-#### Add type alias for Bbox
-The `Bbox` type alias exists in `detection/types.py` but isn't used consistently.
-Update bbox utility functions in `detection/bbox.py` to use `Bbox` type alias.
-
 #### Add structured logging
 **Location:** Multiple entry points
 
@@ -142,28 +117,6 @@ Add docstrings explaining when to use which.
 5. **Bib candidates not exposed** - white region detection happens but regions aren't saved/visualized separately
 6. **No lineage tracking** - can't trace a detection back through preprocessing steps
 
----
-
-#### ~~High Priority: Create `DetectionResult` dataclass~~ ✓ DONE
-**Location:** `detection/types.py`
-
-Created `DetectionResult` dataclass that bundles detections with metadata (ocr_grayscale, dimensions, scale_factor). Updated `detect_bib_numbers` to return `DetectionResult` instead of a tuple. Added `detections_at_ocr_scale()` method. Simplified `scan_album.py` by removing `get_image_dimensions()` - scale factor now comes from `DetectionResult`.
-
----
-
-#### ~~High Priority: Create `BibCandidate` dataclass (Stage 3)~~ ✓ DONE
-**Location:** `detection/types.py`
-
-Created `BibCandidate` dataclass with properties (x, y, w, h), `to_xywh()`, `extract_region()`, and `create_rejected()` class method. Added `find_bib_candidates()` function that returns structured candidates with rejection reasons. Legacy `find_white_regions()` now wraps `find_bib_candidates()`.
-
----
-
-#### ~~High Priority: Improve `PreprocessResult` with computed properties~~ ✓ DONE
-**Location:** `preprocessing/config.py`
-
-Added `ocr_image`, `ocr_grayscale`, and `ocr_dimensions` properties to `PreprocessResult`. Updated `detector.py` to use them instead of manual checks.
-
----
 
 #### High Priority: Create `DetectionPipeline` result structure
 **Location:** `detection/types.py`
@@ -299,22 +252,6 @@ This requires the pipeline to save intermediate artifacts, which the data struct
 
 
 ## Completed
-
-
-
-
-
-
-### Improve bib detection filtering
-# - [ ] Take a new approach to the bib detection. 1. Take all the squares that look like bibs. These are white squares. 
-#      There can be multiple. Make these into snippets. Disregard all boxes that contain text that do not look like 
-#      bibs. This prevents things like numbers on helmets, like in photo 7286de68 (make this a test). Detect a single (!)
-#      number in each bib snippet. This is the largest number we can find. 
-# - [ ] Clean up any unused code that was used in the previous way of detecting bibs.
-# - [ ] Try to make methods shorter. Some methods have a large number of branches. Things will get more maintainable and
-#      more readable if the methods are shorter.
-# - [ ] Use tricks like increasing the contrast on each bib snippet to get to better results. Ideas are in "IDEAS.md".
-
 ## Backlog
 
 ### Explore facial recognition for photo grouping

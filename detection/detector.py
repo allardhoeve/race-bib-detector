@@ -19,8 +19,8 @@ from config import (
 )
 from preprocessing import run_pipeline, PreprocessConfig
 
-from .types import Detection, DetectionResult
-from .regions import find_white_regions
+from .types import Detection, DetectionResult, BibCandidate
+from .regions import find_bib_candidates
 from .validation import is_valid_bib_number
 from .filtering import filter_small_detections, filter_overlapping_detections
 
@@ -61,34 +61,32 @@ def detect_bib_numbers(
     ocr_grayscale = preprocess_result.ocr_grayscale
     scale_factor = preprocess_result.scale_factor
 
-    # Find candidate white regions on the OCR image (resized if preprocessing enabled)
-    white_regions = find_white_regions(ocr_image)
+    # Find candidate bib regions on the OCR image (resized if preprocessing enabled)
+    bib_candidates = find_bib_candidates(ocr_image)
 
     all_detections = []
 
-    if white_regions:
-        # OCR only on candidate regions
-        for (x, y, w, h) in white_regions:
-            region_area = w * h
-            region = ocr_image[y:y+h, x:x+w]
-            results = reader.readtext(region)
+    # OCR on each candidate bib region
+    for candidate in bib_candidates:
+        region = candidate.extract_region(ocr_image)
+        results = reader.readtext(region)
 
-            region_detections: list[Detection] = []
-            for bbox, text, confidence in results:
-                cleaned = text.strip().replace(" ", "")
+        region_detections: list[Detection] = []
+        for bbox, text, confidence in results:
+            cleaned = text.strip().replace(" ", "")
 
-                if is_valid_bib_number(cleaned) and confidence > WHITE_REGION_CONFIDENCE_THRESHOLD:
-                    # Adjust bbox coordinates to full OCR image (before scaling back)
-                    bbox_adjusted = [[int(p[0]) + x, int(p[1]) + y] for p in bbox]
-                    region_detections.append(Detection(
-                        bib_number=cleaned,
-                        confidence=float(confidence),
-                        bbox=bbox_adjusted,
-                    ))
+            if is_valid_bib_number(cleaned) and confidence > WHITE_REGION_CONFIDENCE_THRESHOLD:
+                # Adjust bbox coordinates to full OCR image (before scaling back)
+                bbox_adjusted = [[int(p[0]) + candidate.x, int(p[1]) + candidate.y] for p in bbox]
+                region_detections.append(Detection(
+                    bib_number=cleaned,
+                    confidence=float(confidence),
+                    bbox=bbox_adjusted,
+                ))
 
-            # Filter out tiny detections relative to this white region
-            filtered = filter_small_detections(region_detections, region_area)
-            all_detections.extend(filtered)
+        # Filter out tiny detections relative to this candidate region
+        filtered = filter_small_detections(region_detections, candidate.area)
+        all_detections.extend(filtered)
 
     # Also run OCR on full image as fallback (in case region detection missed something)
     # For full image scan, we validate brightness to filter false positives

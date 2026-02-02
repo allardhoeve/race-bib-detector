@@ -101,11 +101,12 @@ See [PREPROCESSING.md](PREPROCESSING.md) for detailed documentation.
 
 Detects and validates bib numbers in images.
 
+- **types.py**: Data structures (`Detection`, `DetectionResult`, `BibCandidate`, `Bbox`)
 - **bbox.py**: Geometry utilities (`bbox_area`, `bbox_iou`, `bbox_overlap_ratio`)
 - **validation.py**: `is_valid_bib_number()`, `is_substring_bib()`
-- **regions.py**: `find_white_regions()` - finds candidate bib areas
+- **regions.py**: `find_bib_candidates()` - finds candidate bib areas as `BibCandidate` objects
 - **filtering.py**: `filter_small_detections()`, `filter_overlapping_detections()`
-- **detector.py**: `detect_bib_numbers()` - main entry point
+- **detector.py**: `detect_bib_numbers()` - main entry point, returns `DetectionResult`
 
 ### sources/
 

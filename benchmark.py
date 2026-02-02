@@ -15,8 +15,7 @@ import easyocr
 import numpy as np
 from PIL import Image
 
-from detection import detect_bib_numbers
-from detection.regions import find_white_regions
+from detection import detect_bib_numbers, find_bib_candidates
 from preprocessing import run_pipeline, PreprocessConfig
 from sources import scan_local_images
 
@@ -73,15 +72,15 @@ def benchmark_image(image_path: Path, reader: easyocr.Reader, config: Preprocess
 
     # Stage 3: Region detection
     t0 = time.perf_counter()
-    white_regions = find_white_regions(ocr_image)
+    bib_candidates = find_bib_candidates(ocr_image)
     timings['region_detection'] = time.perf_counter() - t0
 
     # Stage 4: OCR (the main suspect)
     t0 = time.perf_counter()
 
-    # OCR on white regions
-    for (x, y, w, h) in white_regions:
-        region = ocr_image[y:y+h, x:x+w]
+    # OCR on candidate regions
+    for candidate in bib_candidates:
+        region = candidate.extract_region(ocr_image)
         reader.readtext(region)
 
     # OCR on full image (fallback)

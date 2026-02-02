@@ -12,15 +12,32 @@ The detection module identifies race bib numbers in photos using:
 
 ## Pipeline Stages
 
-### Stage 1: White Region Detection
+### Stage 1: Bib Candidate Detection
 
-Bibs are typically white rectangles. We find candidate regions by:
+Bibs are typically white rectangles. We find candidate regions using `find_bib_candidates()`:
 
 ```python
-from detection import find_white_regions
+from detection import find_bib_candidates, BibCandidate
 
-regions = find_white_regions(image_array)
-# Returns: [(x, y, w, h), ...]
+candidates = find_bib_candidates(image_array)
+# Returns: list[BibCandidate]
+
+for candidate in candidates:
+    print(f"Region at ({candidate.x}, {candidate.y}) size {candidate.w}x{candidate.h}")
+    print(f"  Brightness: median={candidate.median_brightness}, mean={candidate.mean_brightness}")
+    print(f"  Aspect ratio: {candidate.aspect_ratio:.2f}")
+
+    # Extract the region for OCR
+    region = candidate.extract_region(image_array)
+```
+
+To debug why candidates are rejected, use `include_rejected=True`:
+
+```python
+all_candidates = find_bib_candidates(image_array, include_rejected=True)
+for c in all_candidates:
+    if not c.passed:
+        print(f"Rejected: {c.rejection_reason}")
 ```
 
 Filtering criteria:
@@ -117,18 +134,29 @@ overlap = bbox_overlap_ratio(bbox1, bbox2)  # 0.0 to 1.0
 The `detect_bib_numbers` function orchestrates the full pipeline:
 
 ```python
-from detection import detect_bib_numbers
+from detection import detect_bib_numbers, DetectionResult
 
-bibs, grayscale = detect_bib_numbers(reader, image_data, preprocess_config)
+result = detect_bib_numbers(reader, image_data, preprocess_config)
 
-for bib in bibs:
-    print(f"Bib {bib['bib_number']}: {bib['confidence']:.0%}")
-    print(f"  Location: {bib['bbox']}")
+for det in result.detections:
+    print(f"Bib {det.bib_number}: {det.confidence:.0%}")
+    print(f"  Location: {det.bbox}")
+
+# Access metadata
+print(f"Original size: {result.original_dimensions}")
+print(f"OCR size: {result.ocr_dimensions}")
+print(f"Scale factor: {result.scale_factor}")
+
+# Get detections at OCR resolution for visualization
+scaled_detections = result.detections_at_ocr_scale()
 ```
 
-Returns:
-- List of detection dicts with `bib_number`, `confidence`, `bbox`
-- Grayscale image used for OCR (for visualization)
+Returns a `DetectionResult` containing:
+- `detections`: List of `Detection` objects with `bib_number`, `confidence`, `bbox`
+- `ocr_grayscale`: Grayscale image used for OCR (for visualization)
+- `original_dimensions`: (width, height) of original image
+- `ocr_dimensions`: (width, height) of OCR image
+- `scale_factor`: Ratio for coordinate mapping
 
 ## Configuration
 
@@ -138,7 +166,7 @@ Detection uses preprocessing configuration:
 from preprocessing import PreprocessConfig
 
 config = PreprocessConfig(target_width=1280)
-bibs, gray = detect_bib_numbers(reader, image_data, config)
+result = detect_bib_numbers(reader, image_data, config)
 ```
 
 Resizing to a fixed width ensures consistent kernel behavior for region detection.
