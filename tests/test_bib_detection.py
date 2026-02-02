@@ -96,29 +96,26 @@ class TestBboxScaling:
         scaled = scale_bbox(bbox, 2.0)
         assert scaled == [[20, 40], [60, 40], [60, 80], [20, 80]]
 
-    def test_scale_detections(self):
-        """Test that scale_detections scales all bbox in detections."""
-        from detection import scale_detections
-        detections = [
-            {"bib_number": "123", "confidence": 0.9, "bbox": [[100, 100], [200, 100], [200, 200], [100, 200]]},
-            {"bib_number": "456", "confidence": 0.8, "bbox": [[300, 300], [400, 300], [400, 400], [300, 400]]},
+    def test_scale_bboxes(self):
+        """Test that scale_bboxes scales a list of bounding boxes."""
+        from detection import scale_bboxes
+        bboxes = [
+            [[100, 100], [200, 100], [200, 200], [100, 200]],
+            [[300, 300], [400, 300], [400, 400], [300, 400]],
         ]
-        scaled = scale_detections(detections, 0.5)
-        assert scaled[0]["bbox"] == [[50, 50], [100, 50], [100, 100], [50, 100]]
-        assert scaled[1]["bbox"] == [[150, 150], [200, 150], [200, 200], [150, 200]]
-        # Ensure other fields are preserved
-        assert scaled[0]["bib_number"] == "123"
-        assert scaled[0]["confidence"] == 0.9
+        scaled = scale_bboxes(bboxes, 0.5)
+        assert scaled[0] == [[50, 50], [100, 50], [100, 100], [50, 100]]
+        assert scaled[1] == [[150, 150], [200, 150], [200, 200], [150, 200]]
 
-    def test_scale_detections_does_not_mutate_original(self):
-        """Test that scale_detections returns new dicts."""
-        from detection import scale_detections
-        original = [{"bib_number": "123", "confidence": 0.9, "bbox": [[100, 100], [200, 100], [200, 200], [100, 200]]}]
-        scaled = scale_detections(original, 0.5)
+    def test_scale_bbox_does_not_mutate_original(self):
+        """Test that scale_bbox returns a new list."""
+        from detection import scale_bbox
+        original = [[100, 100], [200, 100], [200, 200], [100, 200]]
+        scaled = scale_bbox(original, 0.5)
         # Original should be unchanged
-        assert original[0]["bbox"] == [[100, 100], [200, 100], [200, 200], [100, 200]]
+        assert original == [[100, 100], [200, 100], [200, 200], [100, 200]]
         # Scaled should be different
-        assert scaled[0]["bbox"] == [[50, 50], [100, 50], [100, 100], [50, 100]]
+        assert scaled == [[50, 50], [100, 50], [100, 100], [50, 100]]
 
 
 class TestBibDetection:

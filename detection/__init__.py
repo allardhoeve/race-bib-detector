@@ -16,7 +16,7 @@ Key components:
 from .detector import detect_bib_numbers
 from .validation import is_valid_bib_number
 from .regions import find_white_regions
-from .bbox import bbox_area, bbox_iou, bbox_overlap_ratio, bbox_to_rect, scale_bbox, scale_detections
+from .bbox import bbox_area, bbox_iou, bbox_overlap_ratio, bbox_to_rect, scale_bbox, scale_bboxes
 from .filtering import filter_small_detections, filter_overlapping_detections
 
 __all__ = [
@@ -28,7 +28,7 @@ __all__ = [
     "bbox_overlap_ratio",
     "bbox_to_rect",
     "scale_bbox",
-    "scale_detections",
+    "scale_bboxes",
     "filter_small_detections",
     "filter_overlapping_detections",
 ]

@@ -134,22 +134,14 @@ def scale_bbox(bbox: list, factor: float) -> list:
     return [[int(p[0] * factor), int(p[1] * factor)] for p in bbox]
 
 
-def scale_detections(detections: list[dict], factor: float) -> list[dict]:
-    """Scale bounding boxes in a list of detections.
-
-    Creates copies of the detection dicts with scaled bbox coordinates.
-    Does not modify the original detections.
+def scale_bboxes(bboxes: list[list], factor: float) -> list[list]:
+    """Scale a list of bounding boxes by a factor.
 
     Args:
-        detections: List of detection dicts, each with a 'bbox' key.
-        factor: Scale factor to apply to all bbox coordinates.
+        bboxes: List of bounding boxes, each a list of [x, y] points.
+        factor: Scale factor to apply to all coordinates.
 
     Returns:
-        New list of detection dicts with scaled bboxes.
+        New list of bounding boxes with scaled coordinates.
     """
-    scaled = []
-    for det in detections:
-        scaled_det = det.copy()
-        scaled_det["bbox"] = scale_bbox(det["bbox"], factor)
-        scaled.append(scaled_det)
-    return scaled
+    return [scale_bbox(bbox, factor) for bbox in bboxes]

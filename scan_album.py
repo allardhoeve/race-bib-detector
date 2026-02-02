@@ -18,7 +18,7 @@ import numpy as np
 from tqdm import tqdm
 
 import db
-from detection import detect_bib_numbers, scale_detections, scale_bbox
+from detection import detect_bib_numbers, scale_bbox
 from preprocessing import PreprocessConfig
 from sources import (
     extract_images_from_album,
@@ -96,11 +96,18 @@ def process_image(
         gray_bbox_path = get_gray_bbox_path(cache_path)
         gray_h, gray_w = ocr_grayscale.shape[:2]
         gray_scale = gray_w / orig_w
-        scaled_bibs = scale_detections(bibs, gray_scale)
 
-        for bib, scaled_bib in zip(bibs, scaled_bibs):
+        # Build scaled detections for visualization (need bbox, bib_number, confidence)
+        scaled_bibs = []
+        for bib in bibs:
+            scaled_bbox = scale_bbox(bib["bbox"], gray_scale)
+            scaled_bibs.append({
+                "bib_number": bib["bib_number"],
+                "confidence": bib["confidence"],
+                "bbox": scaled_bbox,
+            })
             snippet_path = get_snippet_path(cache_path, bib["bib_number"], bib["bbox"])
-            save_bib_snippet(ocr_grayscale, scaled_bib["bbox"], snippet_path)
+            save_bib_snippet(ocr_grayscale, scaled_bbox, snippet_path)
 
         draw_bounding_boxes_on_gray(ocr_grayscale, scaled_bibs, gray_bbox_path)
 
