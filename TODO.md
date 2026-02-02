@@ -151,33 +151,10 @@ Created `DetectionResult` dataclass that bundles detections with metadata (ocr_g
 
 ---
 
-#### High Priority: Create `BibCandidate` dataclass (Stage 3)
+#### ~~High Priority: Create `BibCandidate` dataclass (Stage 3)~~ ✓ DONE
 **Location:** `detection/types.py`
 
-Currently white regions are just tuples `(x, y, w, h)` returned by `find_white_regions()`. These should be first-class objects with metadata for debugging:
-
-```python
-@dataclass
-class BibCandidate:
-    """A candidate bib region (white rectangle) before OCR."""
-    bbox: Bbox  # Region bounds in OCR coordinates
-    area: int
-    aspect_ratio: float
-    median_brightness: float
-    mean_brightness: float
-    passed_filters: bool = True
-    rejection_reason: str | None = None  # Why it was filtered out, for debugging
-
-    def to_snippet_image(self, image: np.ndarray) -> np.ndarray:
-        """Extract this region from an image."""
-        x, y, w, h = self.as_xywh()
-        return image[y:y+h, x:x+w]
-```
-
-**Benefits:**
-- Can save/visualize ALL candidates (not just those that passed)
-- Web interface can show why candidates were rejected
-- Enables debugging of white region detection tuning
+Created `BibCandidate` dataclass with properties (x, y, w, h), `to_xywh()`, `extract_region()`, and `create_rejected()` class method. Added `find_bib_candidates()` function that returns structured candidates with rejection reasons. Legacy `find_white_regions()` now wraps `find_bib_candidates()`.
 
 ---
 

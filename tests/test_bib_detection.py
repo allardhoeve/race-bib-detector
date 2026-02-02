@@ -182,6 +182,86 @@ class TestDetectionResult:
         assert scaled[0].bbox == [[50, 50], [100, 50], [100, 100], [50, 100]]
 
 
+class TestBibCandidate:
+    """Tests for BibCandidate dataclass."""
+
+    def test_bib_candidate_creation(self):
+        """Test creating a BibCandidate."""
+        from detection import BibCandidate
+
+        candidate = BibCandidate(
+            bbox=(100, 200, 50, 60),
+            area=3000,
+            aspect_ratio=0.83,
+            median_brightness=180.0,
+            mean_brightness=175.0,
+            relative_area=0.01,
+            passed=True,
+        )
+
+        assert candidate.bbox == (100, 200, 50, 60)
+        assert candidate.x == 100
+        assert candidate.y == 200
+        assert candidate.w == 50
+        assert candidate.h == 60
+        assert candidate.passed is True
+        assert candidate.rejection_reason is None
+
+    def test_bib_candidate_rejected(self):
+        """Test creating a rejected BibCandidate."""
+        from detection import BibCandidate
+
+        candidate = BibCandidate.create_rejected(
+            bbox=(10, 20, 30, 40),
+            area=1200,
+            aspect_ratio=0.75,
+            median_brightness=80.0,
+            mean_brightness=85.0,
+            relative_area=0.001,
+            reason="brightness too low",
+        )
+
+        assert candidate.passed is False
+        assert candidate.rejection_reason == "brightness too low"
+
+    def test_bib_candidate_to_xywh(self):
+        """Test to_xywh method."""
+        from detection import BibCandidate
+
+        candidate = BibCandidate(
+            bbox=(10, 20, 30, 40),
+            area=1200,
+            aspect_ratio=0.75,
+            median_brightness=150.0,
+            mean_brightness=145.0,
+            relative_area=0.01,
+        )
+
+        assert candidate.to_xywh() == (10, 20, 30, 40)
+
+    def test_bib_candidate_extract_region(self):
+        """Test extract_region method."""
+        import numpy as np
+        from detection import BibCandidate
+
+        # Create a test image
+        image = np.zeros((100, 100), dtype=np.uint8)
+        image[20:40, 10:50] = 255  # White rectangle
+
+        candidate = BibCandidate(
+            bbox=(10, 20, 40, 20),
+            area=800,
+            aspect_ratio=2.0,
+            median_brightness=255.0,
+            mean_brightness=255.0,
+            relative_area=0.008,
+        )
+
+        region = candidate.extract_region(image)
+        assert region.shape == (20, 40)
+        assert np.all(region == 255)
+
+
 class TestBboxScaling:
     """Tests for bounding box scaling utilities."""
 

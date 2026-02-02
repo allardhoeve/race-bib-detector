@@ -73,6 +73,90 @@ class Detection:
 
 
 @dataclass
+class BibCandidate:
+    """A candidate bib region (white rectangle) before OCR.
+
+    Represents a potential bib area detected by white region analysis.
+    Includes metadata about why the region was accepted or rejected,
+    enabling debugging of the detection pipeline.
+
+    Attributes:
+        bbox: Region bounds as (x, y, w, h) in OCR coordinates
+        area: Area of the region in pixels
+        aspect_ratio: Width / height ratio
+        median_brightness: Median pixel brightness (0-255)
+        mean_brightness: Mean pixel brightness (0-255)
+        relative_area: Area as fraction of total image area
+        passed: Whether this candidate passed all filters
+        rejection_reason: Why the candidate was rejected (None if passed)
+    """
+
+    bbox: tuple[int, int, int, int]  # (x, y, w, h)
+    area: int
+    aspect_ratio: float
+    median_brightness: float
+    mean_brightness: float
+    relative_area: float
+    passed: bool = True
+    rejection_reason: str | None = None
+
+    @property
+    def x(self) -> int:
+        return self.bbox[0]
+
+    @property
+    def y(self) -> int:
+        return self.bbox[1]
+
+    @property
+    def w(self) -> int:
+        return self.bbox[2]
+
+    @property
+    def h(self) -> int:
+        return self.bbox[3]
+
+    def to_xywh(self) -> tuple[int, int, int, int]:
+        """Return (x, y, w, h) tuple."""
+        return self.bbox
+
+    def extract_region(self, image: np.ndarray) -> np.ndarray:
+        """Extract this region from an image.
+
+        Args:
+            image: Image to extract from (grayscale or RGB)
+
+        Returns:
+            Cropped region as numpy array
+        """
+        x, y, w, h = self.bbox
+        return image[y:y+h, x:x+w]
+
+    @classmethod
+    def create_rejected(
+        cls,
+        bbox: tuple[int, int, int, int],
+        area: int,
+        aspect_ratio: float,
+        median_brightness: float,
+        mean_brightness: float,
+        relative_area: float,
+        reason: str,
+    ) -> "BibCandidate":
+        """Create a rejected candidate with a reason."""
+        return cls(
+            bbox=bbox,
+            area=area,
+            aspect_ratio=aspect_ratio,
+            median_brightness=median_brightness,
+            mean_brightness=mean_brightness,
+            relative_area=relative_area,
+            passed=False,
+            rejection_reason=reason,
+        )
+
+
+@dataclass
 class DetectionResult:
     """Result of the bib number detection pipeline.
 
