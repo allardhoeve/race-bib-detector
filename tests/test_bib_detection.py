@@ -79,6 +79,48 @@ class TestBibValidation:
         assert is_valid_bib_number("4 2")  # spaces removed
 
 
+class TestDetectionDataclass:
+    """Tests for the Detection dataclass."""
+
+    def test_detection_creation(self):
+        """Test basic Detection creation."""
+        from detection import Detection
+        det = Detection(bib_number="123", confidence=0.95, bbox=[[0, 0], [10, 0], [10, 10], [0, 10]])
+        assert det.bib_number == "123"
+        assert det.confidence == 0.95
+        assert det.bbox == [[0, 0], [10, 0], [10, 10], [0, 10]]
+
+    def test_detection_scale_bbox(self):
+        """Test Detection.scale_bbox returns new Detection with scaled bbox."""
+        from detection import Detection
+        det = Detection(bib_number="123", confidence=0.95, bbox=[[100, 100], [200, 100], [200, 200], [100, 200]])
+        scaled = det.scale_bbox(0.5)
+
+        # Original unchanged
+        assert det.bbox == [[100, 100], [200, 100], [200, 200], [100, 200]]
+
+        # Scaled Detection has new bbox
+        assert scaled.bbox == [[50, 50], [100, 50], [100, 100], [50, 100]]
+        assert scaled.bib_number == "123"
+        assert scaled.confidence == 0.95
+
+    def test_detection_to_dict(self):
+        """Test Detection.to_dict for backwards compatibility."""
+        from detection import Detection
+        det = Detection(bib_number="456", confidence=0.8, bbox=[[0, 0], [10, 0], [10, 10], [0, 10]])
+        d = det.to_dict()
+        assert d == {"bib_number": "456", "confidence": 0.8, "bbox": [[0, 0], [10, 0], [10, 10], [0, 10]]}
+
+    def test_detection_from_dict(self):
+        """Test Detection.from_dict for backwards compatibility."""
+        from detection import Detection
+        d = {"bib_number": "789", "confidence": 0.7, "bbox": [[5, 5], [15, 5], [15, 15], [5, 15]]}
+        det = Detection.from_dict(d)
+        assert det.bib_number == "789"
+        assert det.confidence == 0.7
+        assert det.bbox == [[5, 5], [15, 5], [15, 15], [5, 15]]
+
+
 class TestBboxScaling:
     """Tests for bounding box scaling utilities."""
 
@@ -123,50 +165,56 @@ class TestOverlapFiltering:
 
     def test_choose_substring_keeps_longer(self):
         """When one bib is substring of another, keep the longer one."""
+        from detection import Detection
         from detection.filtering import choose_detection_to_remove
-        det1 = {"bib_number": "6", "confidence": 0.9}
-        det2 = {"bib_number": "620", "confidence": 0.9}
+        det1 = Detection(bib_number="6", confidence=0.9, bbox=[[0, 0], [10, 0], [10, 10], [0, 10]])
+        det2 = Detection(bib_number="620", confidence=0.9, bbox=[[0, 0], [10, 0], [10, 10], [0, 10]])
         # bib1 "6" is substring of "620", should remove det1 (idx 0)
         assert choose_detection_to_remove(det1, det2, 0, 1) == 0
 
     def test_choose_substring_keeps_shorter_if_much_higher_confidence(self):
         """Keep shorter if it has much higher confidence than longer."""
+        from detection import Detection
         from detection.filtering import choose_detection_to_remove
-        det1 = {"bib_number": "6", "confidence": 0.95}
-        det2 = {"bib_number": "620", "confidence": 0.5}
+        det1 = Detection(bib_number="6", confidence=0.95, bbox=[[0, 0], [10, 0], [10, 10], [0, 10]])
+        det2 = Detection(bib_number="620", confidence=0.5, bbox=[[0, 0], [10, 0], [10, 10], [0, 10]])
         # "6" has much higher confidence, should remove det2 (idx 1)
         assert choose_detection_to_remove(det1, det2, 0, 1) == 1
 
     def test_choose_more_digits_wins(self):
         """When no substring relation, prefer more digits."""
+        from detection import Detection
         from detection.filtering import choose_detection_to_remove
-        det1 = {"bib_number": "12", "confidence": 0.9}
-        det2 = {"bib_number": "345", "confidence": 0.9}
+        det1 = Detection(bib_number="12", confidence=0.9, bbox=[[0, 0], [10, 0], [10, 10], [0, 10]])
+        det2 = Detection(bib_number="345", confidence=0.9, bbox=[[0, 0], [10, 0], [10, 10], [0, 10]])
         # det2 has more digits, remove det1
         assert choose_detection_to_remove(det1, det2, 0, 1) == 0
 
     def test_choose_same_length_higher_confidence_wins(self):
         """When same digit count, prefer higher confidence."""
+        from detection import Detection
         from detection.filtering import choose_detection_to_remove
-        det1 = {"bib_number": "123", "confidence": 0.7}
-        det2 = {"bib_number": "456", "confidence": 0.9}
+        det1 = Detection(bib_number="123", confidence=0.7, bbox=[[0, 0], [10, 0], [10, 10], [0, 10]])
+        det2 = Detection(bib_number="456", confidence=0.9, bbox=[[0, 0], [10, 0], [10, 10], [0, 10]])
         # det2 has higher confidence, remove det1
         assert choose_detection_to_remove(det1, det2, 0, 1) == 0
 
     def test_detections_overlap_iou(self):
         """Test overlap detection via IoU."""
+        from detection import Detection
         from detection.filtering import detections_overlap
         # Identical boxes have IoU = 1.0
         bbox = [[0, 0], [100, 0], [100, 100], [0, 100]]
-        det1 = {"bbox": bbox}
-        det2 = {"bbox": bbox}
+        det1 = Detection(bib_number="1", confidence=0.9, bbox=bbox)
+        det2 = Detection(bib_number="2", confidence=0.9, bbox=bbox)
         assert detections_overlap(det1, det2, iou_threshold=0.3, overlap_threshold=0.5)
 
     def test_detections_no_overlap(self):
         """Test non-overlapping boxes."""
+        from detection import Detection
         from detection.filtering import detections_overlap
-        det1 = {"bbox": [[0, 0], [100, 0], [100, 100], [0, 100]]}
-        det2 = {"bbox": [[200, 200], [300, 200], [300, 300], [200, 300]]}
+        det1 = Detection(bib_number="1", confidence=0.9, bbox=[[0, 0], [100, 0], [100, 100], [0, 100]])
+        det2 = Detection(bib_number="2", confidence=0.9, bbox=[[200, 200], [300, 200], [300, 300], [200, 300]])
         assert not detections_overlap(det1, det2, iou_threshold=0.3, overlap_threshold=0.5)
 
 
@@ -181,8 +229,8 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        bibs, _ = detect_bib_numbers(ocr_reader, image_data)
-        bib_numbers = [b["bib_number"] for b in bibs]
+        detections, _ = detect_bib_numbers(ocr_reader, image_data)
+        bib_numbers = [d.bib_number for d in detections]
 
         assert "353" in bib_numbers, f"Expected bib 353, got: {bib_numbers}"
 
@@ -194,8 +242,8 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        bibs, _ = detect_bib_numbers(ocr_reader, image_data)
-        bib_numbers = [b["bib_number"] for b in bibs]
+        detections, _ = detect_bib_numbers(ocr_reader, image_data)
+        bib_numbers = [d.bib_number for d in detections]
 
         assert "622" in bib_numbers, f"Expected bib 622, got: {bib_numbers}"
 
@@ -207,8 +255,8 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        bibs, _ = detect_bib_numbers(ocr_reader, image_data)
-        bib_numbers = [b["bib_number"] for b in bibs]
+        detections, _ = detect_bib_numbers(ocr_reader, image_data)
+        bib_numbers = [d.bib_number for d in detections]
 
         # Check that at least some of the expected bibs are detected
         expected = {"379", "328", "329"}
@@ -225,12 +273,12 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        bibs, _ = detect_bib_numbers(ocr_reader, image_data)
+        detections, _ = detect_bib_numbers(ocr_reader, image_data)
 
         # Should not detect the specific bib numbers from our race photos
         # (OCR may find some numbers in any image, but not race-specific ones)
         race_bibs = {"353", "379", "328", "329"}
-        detected = {b["bib_number"] for b in bibs}
+        detected = {d.bib_number for d in detections}
 
         assert not (race_bibs & detected), f"Found race bibs in non-race photo: {race_bibs & detected}"
 
@@ -241,14 +289,13 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        bibs, grayscale = detect_bib_numbers(ocr_reader, image_data)
+        detections, grayscale = detect_bib_numbers(ocr_reader, image_data)
 
-        assert len(bibs) > 0, "Expected at least one detection"
-        for bib in bibs:
-            assert "confidence" in bib
-            assert 0 <= bib["confidence"] <= 1
-            assert "bbox" in bib
-            assert "bib_number" in bib
+        assert len(detections) > 0, "Expected at least one detection"
+        for det in detections:
+            assert 0 <= det.confidence <= 1
+            assert det.bbox is not None
+            assert det.bib_number is not None
 
         # Check that grayscale image is returned
         assert grayscale is not None
@@ -266,8 +313,8 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        bibs, grayscale = detect_bib_numbers(ocr_reader, image_data)
-        bib_numbers = [b["bib_number"] for b in bibs]
+        detections, grayscale = detect_bib_numbers(ocr_reader, image_data)
+        bib_numbers = [d.bib_number for d in detections]
 
         # Should detect all 4 bibs
         expected = {"539", "526", "527", "535"}
@@ -276,7 +323,7 @@ class TestBibDetection:
         assert expected == detected, f"Expected {expected}, got {detected}"
 
         # Each bib should have a unique bbox (for snippet naming)
-        bboxes = [str(b["bbox"]) for b in bibs]
+        bboxes = [str(d.bbox) for d in detections]
         assert len(bboxes) == len(set(bboxes)), "Bounding boxes should be unique"
 
     def test_detect_three_bibs_hvv3730(self, ocr_reader):
@@ -291,8 +338,8 @@ class TestBibDetection:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        bibs, grayscale = detect_bib_numbers(ocr_reader, image_data)
-        bib_numbers = [b["bib_number"] for b in bibs]
+        detections, grayscale = detect_bib_numbers(ocr_reader, image_data)
+        bib_numbers = [d.bib_number for d in detections]
 
         # Should detect the 3 clear bibs
         expected = {"539", "540", "526"}
@@ -355,7 +402,7 @@ class TestSnippetGeneration:
         with open(image_path, "rb") as f:
             image_data = f.read()
 
-        bibs, grayscale = detect_bib_numbers(ocr_reader, image_data)
+        detections, grayscale = detect_bib_numbers(ocr_reader, image_data)
 
         # Get original image dimensions to compute scale factor
         with Image.open(io.BytesIO(image_data)) as img:
@@ -369,20 +416,17 @@ class TestSnippetGeneration:
             # Save snippets using the same logic as scan_album.py
             # Note: bboxes from detect_bib_numbers are in original coords,
             # so we need to scale them to match the grayscale image
-            for bib in bibs:
-                # Scale bbox to grayscale coordinates
-                scaled_bbox = [
-                    [int(p[0] * scale), int(p[1] * scale)]
-                    for p in bib["bbox"]
-                ]
-                bbox_hash = compute_bbox_hash(bib["bbox"])
-                snippet_filename = f"test_photo_bib{bib['bib_number']}_{bbox_hash}.jpg"
+            for det in detections:
+                # Scale bbox to grayscale coordinates using Detection.scale_bbox
+                scaled_det = det.scale_bbox(scale)
+                bbox_hash = compute_bbox_hash(det.bbox)
+                snippet_filename = f"test_photo_bib{det.bib_number}_{bbox_hash}.jpg"
                 snippet_path = temp_dir / snippet_filename
-                save_bib_snippet(grayscale, scaled_bbox, snippet_path)
+                save_bib_snippet(grayscale, scaled_det.bbox, snippet_path)
 
             # Count saved snippets
             snippets = list(temp_dir.glob("*.jpg"))
-            assert len(snippets) == len(bibs), f"Expected {len(bibs)} snippets, got {len(snippets)}"
+            assert len(snippets) == len(detections), f"Expected {len(detections)} snippets, got {len(snippets)}"
         finally:
             shutil.rmtree(temp_dir)
 

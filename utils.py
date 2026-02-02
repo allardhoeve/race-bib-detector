@@ -1,8 +1,11 @@
 """Shared utility functions for bib number recognizer."""
 
+from __future__ import annotations
+
 import json
 import re
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
@@ -10,6 +13,9 @@ from PIL import Image
 import requests
 
 from config import PHOTO_URL_WIDTH, THUMBNAIL_URL_WIDTH, SNIPPET_PADDING_RATIO
+
+if TYPE_CHECKING:
+    from detection import Detection
 
 CACHE_DIR = Path(__file__).parent / "cache"
 GRAY_BBOX_DIR = CACHE_DIR / "gray_bounding"
@@ -160,14 +166,14 @@ def save_bib_snippet(
 
 def draw_bounding_boxes_on_gray(
     gray_image: np.ndarray,
-    detections: list[dict],
+    detections: list[Detection],
     output_path: Path,
 ) -> bool:
     """Draw bounding boxes on a grayscale image and save it.
 
     Args:
         gray_image: Grayscale image as numpy array (2D or 3D single channel)
-        detections: List of detection dicts with 'bib_number', 'confidence', 'bbox'
+        detections: List of Detection objects
         output_path: Where to save the annotated image
 
     Returns:
@@ -185,9 +191,9 @@ def draw_bounding_boxes_on_gray(
 
         # Draw each detection
         for det in detections:
-            bbox = det["bbox"]
-            bib_number = det["bib_number"]
-            confidence = det["confidence"]
+            bbox = det.bbox
+            bib_number = det.bib_number
+            confidence = det.confidence
 
             # bbox is [[x1,y1], [x2,y2], [x3,y3], [x4,y4]] - a quadrilateral
             pts = np.array(bbox, np.int32)

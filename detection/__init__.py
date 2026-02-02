@@ -6,6 +6,7 @@ It follows the same design philosophy as the preprocessing module: pure function
 early validation, and clear separation of concerns.
 
 Key components:
+- types: Core data structures (Detection, Bbox)
 - bbox: Bounding box geometry utilities
 - validation: Bib number validation and parsing
 - regions: White region detection for candidate bibs
@@ -13,6 +14,7 @@ Key components:
 - detector: Main detection orchestration
 """
 
+from .types import Detection, Bbox
 from .detector import detect_bib_numbers
 from .validation import is_valid_bib_number
 from .regions import find_white_regions
@@ -20,6 +22,8 @@ from .bbox import bbox_area, bbox_iou, bbox_overlap_ratio, bbox_to_rect, scale_b
 from .filtering import filter_small_detections, filter_overlapping_detections
 
 __all__ = [
+    "Detection",
+    "Bbox",
     "detect_bib_numbers",
     "is_valid_bib_number",
     "find_white_regions",

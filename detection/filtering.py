@@ -11,13 +11,14 @@ from config import (
     SUBSTRING_CONFIDENCE_RATIO,
 )
 
+from .types import Detection
 from .bbox import bbox_area, bbox_iou, bbox_overlap_ratio
 from .validation import is_substring_bib
 
 
 def choose_detection_to_remove(
-    det1: dict,
-    det2: dict,
+    det1: Detection,
+    det2: Detection,
     idx1: int,
     idx2: int,
 ) -> int | None:
@@ -30,16 +31,16 @@ def choose_detection_to_remove(
     3. If same digit count, prefer higher confidence
 
     Args:
-        det1: First detection dict with 'bib_number', 'confidence'
-        det2: Second detection dict with 'bib_number', 'confidence'
+        det1: First detection
+        det2: Second detection
         idx1: Index of first detection
         idx2: Index of second detection
 
     Returns:
         Index of detection to remove, or None if neither should be removed
     """
-    bib1, bib2 = det1["bib_number"], det2["bib_number"]
-    conf1, conf2 = det1["confidence"], det2["confidence"]
+    bib1, bib2 = det1.bib_number, det2.bib_number
+    conf1, conf2 = det1.confidence, det2.confidence
 
     # Check substring relationship
     # When one is substring of another, prefer longer UNLESS shorter has much higher confidence
@@ -68,39 +69,39 @@ def choose_detection_to_remove(
 
 
 def detections_overlap(
-    det1: dict,
-    det2: dict,
+    det1: Detection,
+    det2: Detection,
     iou_threshold: float,
     overlap_threshold: float,
 ) -> bool:
     """Check if two detections overlap significantly.
 
     Args:
-        det1: First detection dict with 'bbox'
-        det2: Second detection dict with 'bbox'
+        det1: First detection
+        det2: Second detection
         iou_threshold: IoU threshold for considering boxes as overlapping
         overlap_threshold: Overlap ratio threshold for considering boxes as overlapping
 
     Returns:
         True if detections overlap above either threshold
     """
-    iou = bbox_iou(det1["bbox"], det2["bbox"])
-    overlap_ratio = bbox_overlap_ratio(det1["bbox"], det2["bbox"])
+    iou = bbox_iou(det1.bbox, det2.bbox)
+    overlap_ratio = bbox_overlap_ratio(det1.bbox, det2.bbox)
     return iou >= iou_threshold or overlap_ratio >= overlap_threshold
 
 
 def filter_small_detections(
-    detections: list[dict],
+    detections: list[Detection],
     white_region_area: float,
     min_ratio: float | None = None,
-) -> list[dict]:
+) -> list[Detection]:
     """Filter out detections that are too small relative to the white region.
 
     A legitimate bib number (even single digit like "1") should occupy at least
     ~10-15% of the white bib region. Tiny detections are usually noise.
 
     Args:
-        detections: List of detection dicts with 'bbox' key.
+        detections: List of detections to filter.
         white_region_area: Area of the white region being scanned.
         min_ratio: Minimum ratio of detection area to region area.
 
@@ -115,7 +116,7 @@ def filter_small_detections(
 
     filtered = []
     for det in detections:
-        det_area = bbox_area(det["bbox"])
+        det_area = bbox_area(det.bbox)
         ratio = det_area / white_region_area
         if ratio >= min_ratio:
             filtered.append(det)
@@ -123,10 +124,10 @@ def filter_small_detections(
 
 
 def filter_overlapping_detections(
-    detections: list[dict],
+    detections: list[Detection],
     iou_threshold: float | None = None,
     overlap_threshold: float | None = None,
-) -> list[dict]:
+) -> list[Detection]:
     """Filter overlapping detections, keeping the longer/better one.
 
     When two detections overlap significantly:
@@ -138,7 +139,7 @@ def filter_overlapping_detections(
     cases where a small box is entirely inside a larger one.
 
     Args:
-        detections: List of detection dicts with 'bib_number', 'confidence', 'bbox'.
+        detections: List of detections to filter.
         iou_threshold: IoU threshold for considering boxes as overlapping.
         overlap_threshold: Overlap ratio threshold for considering boxes as overlapping.
 

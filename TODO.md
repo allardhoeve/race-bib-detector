@@ -65,21 +65,35 @@ The `get_photo_with_bibs()` function is 70 lines with complex branching. Split i
 
 ### Low Priority
 
-#### Create Detection dataclass
-Current detections are dicts with string keys. A structured dataclass would provide:
-- Type safety (can use mypy)
-- Self-documenting code
-- Methods for common operations (`scale_bbox()`, etc.)
-- Easier IDE autocomplete
+#### ~~Create Detection dataclass~~ DONE
+Created `Detection` dataclass in `detection/types.py` with:
+- `bib_number: str`, `confidence: float`, `bbox: Bbox`
+- `scale_bbox(factor)` method returning new Detection
+- `to_dict()` and `from_dict()` for backwards compatibility
+Updated `detector.py`, `filtering.py`, `scan_album.py`, `utils.py` and tests to use Detection.
 
+#### Create PhotoInfo dataclass
+**Location:** `sources/google_photos.py`, `scan_album.py`
+
+Image metadata is passed around as dicts with `photo_url`, `thumbnail_url`, `base_url` keys.
+Create a `PhotoInfo` dataclass similar to `ImageInfo` in `scan_album.py` but for source data.
+
+#### Create ScanStats dataclass
+**Location:** `scan_album.py:174`, `scan_album.py:234`, etc.
+
+Stats returned from scan functions are plain dicts. Could be a dataclass:
 ```python
 @dataclass
-class Detection:
-    bib_number: str
-    confidence: float
-    bbox: list[list[float]]
-    region_type: str  # 'white_region' or 'full_image'
+class ScanStats:
+    photos_found: int
+    photos_scanned: int
+    photos_skipped: int
+    bibs_detected: int
 ```
+
+#### Add type alias for Bbox
+The `Bbox` type alias exists in `detection/types.py` but isn't used consistently.
+Update bbox utility functions in `detection/bbox.py` to use `Bbox` type alias.
 
 #### Add structured logging
 **Location:** Multiple entry points
@@ -104,6 +118,22 @@ Add docstrings explaining when to use which.
 - No tests for web UI routes
 - No tests for sources module (Google Photos, local scanning)
 - No tests for edge cases (corrupt images, invalid URLs)
+
+
+### Data structure
+
+I think we are far enough into the code base that we can see a structure arrive. Should be start to have a data structure?
+
+1. Race photo's are on disk and have remote references (cloud bucket, directory)
+2. Optimized images are made of these (grey scale, later on other optimizations). We should have a traceable path to the previous version upto the original of all optimizations.
+3. We detect bibs on there, now we can trace back the locations of the bibs through all resizing and such due to our tracing. We should make sure that if we rescale that we have a way to recalculate where they were in order to show the bibs and other boxes properly.
+
+Maybe there are other datapoints that we can make classes out of.
+
+- Propose a structure for this data, how to store it and how to model it. 
+- Check if the code would become simpler and better to understand. 
+- Then create TODO's to do this.
+
 
 ## Completed
 

@@ -18,7 +18,7 @@ import numpy as np
 from tqdm import tqdm
 
 import db
-from detection import detect_bib_numbers, scale_bbox
+from detection import detect_bib_numbers, Detection
 from preprocessing import PreprocessConfig
 from sources import (
     extract_images_from_album,
@@ -72,7 +72,7 @@ def get_image_dimensions(image_data: bytes) -> tuple[int, int]:
 
 
 def save_detection_artifacts(
-    bibs: list[dict],
+    detections: list[Detection],
     ocr_grayscale: np.ndarray,
     cache_path: Path,
     orig_width: int,
@@ -80,7 +80,7 @@ def save_detection_artifacts(
     """Save visualization artifacts: grayscale bbox image and bib snippets.
 
     Args:
-        bibs: List of detection dicts with bib_number, confidence, bbox
+        detections: List of Detection objects
         ocr_grayscale: Grayscale image used for OCR
         cache_path: Path to cached image file
         orig_width: Original image width (for scaling bbox to grayscale coords)
@@ -89,24 +89,19 @@ def save_detection_artifacts(
     gray_h, gray_w = ocr_grayscale.shape[:2]
     gray_scale = gray_w / orig_width
 
-    # Build scaled detections for visualization (need bbox, bib_number, confidence)
-    scaled_bibs = []
-    for bib in bibs:
-        scaled_bbox = scale_bbox(bib["bbox"], gray_scale)
-        scaled_bibs.append({
-            "bib_number": bib["bib_number"],
-            "confidence": bib["confidence"],
-            "bbox": scaled_bbox,
-        })
-        snippet_path = get_snippet_path(cache_path, bib["bib_number"], bib["bbox"])
-        save_bib_snippet(ocr_grayscale, scaled_bbox, snippet_path)
+    # Scale detections for visualization at grayscale resolution
+    scaled_detections = [det.scale_bbox(gray_scale) for det in detections]
 
-    draw_bounding_boxes_on_gray(ocr_grayscale, scaled_bibs, gray_bbox_path)
+    for det, scaled_det in zip(detections, scaled_detections):
+        snippet_path = get_snippet_path(cache_path, det.bib_number, det.bbox)
+        save_bib_snippet(ocr_grayscale, scaled_det.bbox, snippet_path)
+
+    draw_bounding_boxes_on_gray(ocr_grayscale, scaled_detections, gray_bbox_path)
 
 
 def save_detections_to_db(
     conn,
-    bibs: list[dict],
+    detections: list[Detection],
     photo_url: str,
     thumbnail_url: str,
     album_url: str,
@@ -117,7 +112,7 @@ def save_detections_to_db(
 
     Args:
         conn: Database connection
-        bibs: List of detection dicts with bib_number, confidence, bbox
+        detections: List of Detection objects
         photo_url: URL of the photo
         thumbnail_url: URL of the thumbnail
         album_url: URL of the album
@@ -135,8 +130,8 @@ def save_detections_to_db(
     if not skip_existing:
         db.delete_bib_detections(conn, photo_id)
 
-    for bib in bibs:
-        db.insert_bib_detection(conn, photo_id, bib["bib_number"], bib["confidence"], bib["bbox"])
+    for det in detections:
+        db.insert_bib_detection(conn, photo_id, det.bib_number, det.confidence, det.bbox)
 
     return photo_id
 
@@ -159,16 +154,16 @@ def process_image(
     orig_w, orig_h = get_image_dimensions(image_data)
 
     preprocess_config = PreprocessConfig()
-    bibs, ocr_grayscale = detect_bib_numbers(reader, image_data, preprocess_config)
+    detections, ocr_grayscale = detect_bib_numbers(reader, image_data, preprocess_config)
 
-    if bibs and ocr_grayscale is not None:
-        save_detection_artifacts(bibs, ocr_grayscale, cache_path, orig_w)
+    if detections and ocr_grayscale is not None:
+        save_detection_artifacts(detections, ocr_grayscale, cache_path, orig_w)
 
     save_detections_to_db(
-        conn, bibs, photo_url, thumbnail_url, album_url, cache_path, skip_existing
+        conn, detections, photo_url, thumbnail_url, album_url, cache_path, skip_existing
     )
 
-    return len(bibs)
+    return len(detections)
 
 
 def scan_images(
