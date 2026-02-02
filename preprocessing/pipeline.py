@@ -4,55 +4,37 @@ Preprocessing pipeline that applies all steps in order.
 The pipeline is the main entry point for preprocessing images. It applies
 normalization steps based on the provided configuration and returns all
 intermediate results for debugging and visualization.
+
+This module provides two APIs:
+1. run_pipeline() - Function API that builds and runs a standard pipeline
+2. Pipeline class - Class-based API for composable step sequences
+
+The run_pipeline() function internally uses the Pipeline class.
+
+Pipeline Philosophy:
+- All detection happens on grayscale images
+- The pipeline is: Grayscale → Resize → (future: CLAHE, etc.)
+- Original color image is preserved only for reference
 """
 
 import numpy as np
 
 from .config import PreprocessConfig, PreprocessResult
-from .normalization import to_grayscale, resize_to_width
+from .steps import (
+    Pipeline,
+    GrayscaleStep,
+    ResizeStep,
+    PreprocessStep,
+)
 
 
-def run_pipeline(
-    img: np.ndarray,
-    config: PreprocessConfig | None = None,
-) -> PreprocessResult:
-    """Apply the full preprocessing pipeline to an image.
-
-    This function applies all preprocessing steps in order:
-    1. Convert to grayscale
-    2. Resize to target width (if configured)
-
-    All operations are pure and non-mutating. The original image is preserved.
-
-    Args:
-        img: Input image as numpy array. Expected to be RGB with shape (H, W, 3)
-             and dtype uint8, but other formats are handled gracefully.
-        config: Preprocessing configuration. If None, uses default settings.
-
-    Returns:
-        PreprocessResult containing all intermediate images and metadata.
+def _validate_input(img: np.ndarray) -> None:
+    """Validate input image array.
 
     Raises:
-        ValueError: If configuration is invalid or image cannot be processed.
-        TypeError: If inputs are of wrong type.
-
-    Examples:
-        >>> img = np.zeros((1000, 2000, 3), dtype=np.uint8)
-        >>> result = run_pipeline(img)
-        >>> result.grayscale.shape
-        (1000, 2000)
-        >>> result.resized.shape
-        (640, 1280, 3)
-        >>> result.scale_factor
-        1.5625
+        TypeError: If img is not a numpy array.
+        ValueError: If img has invalid dimensions or is empty.
     """
-    if config is None:
-        config = PreprocessConfig()
-
-    # Validate configuration
-    config.validate()
-
-    # Validate input
     if not isinstance(img, np.ndarray):
         raise TypeError(f"Expected numpy.ndarray, got {type(img).__name__}")
 
@@ -64,26 +46,90 @@ def run_pipeline(
     if img.size == 0:
         raise ValueError("Image array is empty")
 
+
+def build_pipeline(config: PreprocessConfig) -> Pipeline:
+    """Build a Pipeline from a PreprocessConfig.
+
+    Creates the standard grayscale-first preprocessing pipeline:
+    1. GrayscaleStep - Convert to grayscale
+    2. ResizeStep - Resize to target width (if configured)
+    3. (Future: CLAHEStep, etc.)
+
+    Args:
+        config: Preprocessing configuration.
+
+    Returns:
+        Pipeline configured according to the config.
+    """
+    steps: list[PreprocessStep] = []
+
+    # Step 1: Always convert to grayscale first
+    steps.append(GrayscaleStep(dtype=config.grayscale_dtype))
+
+    # Step 2: Resize if configured
+    if config.target_width is not None:
+        steps.append(ResizeStep(target_width=config.target_width))
+
+    # Future: Add CLAHE, adaptive threshold, etc. here
+
+    return Pipeline(steps=steps)
+
+
+def run_pipeline(
+    img: np.ndarray,
+    config: PreprocessConfig | None = None,
+) -> PreprocessResult:
+    """Apply the full preprocessing pipeline to an image.
+
+    This function applies all preprocessing steps in order:
+    1. Convert to grayscale
+    2. Resize to target width (if configured)
+    3. (Future: CLAHE, etc.)
+
+    All operations are pure and non-mutating. The original image is preserved.
+
+    Args:
+        img: Input image as numpy array. Expected to be RGB with shape (H, W, 3)
+             and dtype uint8, but other formats are handled gracefully.
+        config: Preprocessing configuration. If None, uses default settings.
+
+    Returns:
+        PreprocessResult containing original and processed images with metadata.
+
+    Raises:
+        ValueError: If configuration is invalid or image cannot be processed.
+        TypeError: If inputs are of wrong type.
+
+    Examples:
+        >>> img = np.zeros((1000, 2000, 3), dtype=np.uint8)
+        >>> result = run_pipeline(img)
+        >>> result.processed.shape  # Grayscale, resized
+        (640, 1280)
+        >>> result.scale_factor
+        1.5625
+    """
+    if config is None:
+        config = PreprocessConfig()
+
+    # Validate configuration
+    config.validate()
+
+    # Validate input
+    _validate_input(img)
+
     # Store original (make a copy to ensure immutability)
     original = img.copy()
 
-    # Step 1: Convert to grayscale
-    grayscale = to_grayscale(original, dtype=config.grayscale_dtype)
+    # Build and run the pipeline
+    pipeline = build_pipeline(config)
+    pipeline_result = pipeline.run(original)
 
-    # Step 2: Resize if configured
-    resized = None
-    resized_grayscale = None
-    scale_factor = 1.0
-
-    if config.target_width is not None:
-        resized, scale_factor = resize_to_width(original, config.target_width)
-        resized_grayscale = to_grayscale(resized, dtype=config.grayscale_dtype)
+    # Extract scale factor from pipeline metadata
+    scale_factor = pipeline_result.scale_factor
 
     return PreprocessResult(
         original=original,
-        grayscale=grayscale,
-        resized=resized,
-        resized_grayscale=resized_grayscale,
+        processed=pipeline_result.final,
         scale_factor=scale_factor,
         config=config,
     )

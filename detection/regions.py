@@ -111,7 +111,9 @@ def find_bib_candidates(
     Returns structured BibCandidate objects with metadata for debugging.
 
     Args:
-        image_array: RGB image as numpy array.
+        image_array: Grayscale or RGB image as numpy array. If RGB, will be
+                    converted to grayscale. Prefer passing grayscale directly
+                    for efficiency.
         min_area: Minimum contour area to consider (defaults to MIN_CONTOUR_AREA).
         include_rejected: If True, include candidates that failed filters
                          (with rejection_reason set).
@@ -123,8 +125,11 @@ def find_bib_candidates(
     if min_area is None:
         min_area = MIN_CONTOUR_AREA
 
-    # Convert to grayscale
-    gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+    # Convert to grayscale if needed (prefer passing grayscale directly)
+    if image_array.ndim == 3:
+        gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = image_array
 
     # Threshold to find white regions (bibs are white/light colored)
     _, thresh = cv2.threshold(gray, WHITE_THRESHOLD, 255, cv2.THRESH_BINARY)

@@ -6,6 +6,8 @@ Tests cover:
 - resize_to_width: aspect ratio preservation, scale factor calculation
 - run_pipeline: end-to-end preprocessing
 - PreprocessConfig: validation
+- PreprocessStep classes: GrayscaleStep, ResizeStep, CLAHEStep
+- Pipeline: step orchestration and metadata tracking
 """
 
 import numpy as np
@@ -17,6 +19,14 @@ from preprocessing import (
     run_pipeline,
     to_grayscale,
     resize_to_width,
+    # Class-based API
+    PreprocessStep,
+    GrayscaleStep,
+    ResizeStep,
+    CLAHEStep,
+    Pipeline,
+    PipelineStepResults,
+    StepResult,
 )
 
 
@@ -233,9 +243,7 @@ class TestPreprocessResult:
         """Coordinate mapping should use scale factor."""
         result = PreprocessResult(
             original=np.zeros((200, 400, 3)),
-            grayscale=np.zeros((200, 400)),
-            resized=np.zeros((100, 200, 3)),
-            resized_grayscale=np.zeros((100, 200)),
+            processed=np.zeros((100, 200)),  # Grayscale, resized
             scale_factor=2.0,
             config=PreprocessConfig(target_width=200),
         )
@@ -247,9 +255,7 @@ class TestPreprocessResult:
         """Bounding box mapping should scale all points."""
         result = PreprocessResult(
             original=np.zeros((200, 400, 3)),
-            grayscale=np.zeros((200, 400)),
-            resized=np.zeros((100, 200, 3)),
-            resized_grayscale=np.zeros((100, 200)),
+            processed=np.zeros((100, 200)),
             scale_factor=2.0,
             config=PreprocessConfig(target_width=200),
         )
@@ -257,83 +263,69 @@ class TestPreprocessResult:
         mapped = result.map_bbox_to_original(bbox)
         assert mapped == [[20, 20], [40, 20], [40, 40], [20, 40]]
 
-    def test_ocr_image_returns_resized_when_available(self):
-        """ocr_image should return resized image when available."""
-        original = np.zeros((200, 400, 3), dtype=np.uint8)
-        resized = np.zeros((100, 200, 3), dtype=np.uint8)
+    def test_ocr_image_returns_processed(self):
+        """ocr_image should return processed image."""
+        processed = np.zeros((100, 200), dtype=np.uint8)
         result = PreprocessResult(
-            original=original,
-            grayscale=np.zeros((200, 400)),
-            resized=resized,
-            resized_grayscale=np.zeros((100, 200)),
+            original=np.zeros((200, 400, 3), dtype=np.uint8),
+            processed=processed,
             scale_factor=2.0,
             config=PreprocessConfig(target_width=200),
         )
-        assert result.ocr_image is resized
+        assert result.ocr_image is processed
 
-    def test_ocr_image_returns_original_when_no_resize(self):
-        """ocr_image should return original when resized is None."""
-        original = np.zeros((200, 400, 3), dtype=np.uint8)
-        result = PreprocessResult(
-            original=original,
-            grayscale=np.zeros((200, 400)),
-            resized=None,
-            resized_grayscale=None,
-            scale_factor=1.0,
-            config=PreprocessConfig(target_width=None),
-        )
-        assert result.ocr_image is original
-
-    def test_ocr_grayscale_returns_resized_when_available(self):
-        """ocr_grayscale should return resized grayscale when available."""
-        grayscale = np.zeros((200, 400), dtype=np.uint8)
-        resized_grayscale = np.zeros((100, 200), dtype=np.uint8)
+    def test_ocr_grayscale_returns_processed(self):
+        """ocr_grayscale should return processed image (which is grayscale)."""
+        processed = np.zeros((100, 200), dtype=np.uint8)
         result = PreprocessResult(
             original=np.zeros((200, 400, 3)),
-            grayscale=grayscale,
-            resized=np.zeros((100, 200, 3)),
-            resized_grayscale=resized_grayscale,
+            processed=processed,
             scale_factor=2.0,
             config=PreprocessConfig(target_width=200),
         )
-        assert result.ocr_grayscale is resized_grayscale
+        assert result.ocr_grayscale is processed
 
-    def test_ocr_grayscale_returns_original_when_no_resize(self):
-        """ocr_grayscale should return original grayscale when resized is None."""
-        grayscale = np.zeros((200, 400), dtype=np.uint8)
+    def test_ocr_dimensions_returns_processed_dimensions(self):
+        """ocr_dimensions should return (width, height) of processed image."""
         result = PreprocessResult(
             original=np.zeros((200, 400, 3)),
-            grayscale=grayscale,
-            resized=None,
-            resized_grayscale=None,
-            scale_factor=1.0,
-            config=PreprocessConfig(target_width=None),
-        )
-        assert result.ocr_grayscale is grayscale
-
-    def test_ocr_dimensions_returns_resized_dimensions(self):
-        """ocr_dimensions should return (width, height) of resized image."""
-        result = PreprocessResult(
-            original=np.zeros((200, 400, 3)),
-            grayscale=np.zeros((200, 400)),
-            resized=np.zeros((100, 200, 3)),
-            resized_grayscale=np.zeros((100, 200)),
+            processed=np.zeros((100, 200)),
             scale_factor=2.0,
             config=PreprocessConfig(target_width=200),
         )
         assert result.ocr_dimensions == (200, 100)
 
-    def test_ocr_dimensions_returns_original_dimensions_when_no_resize(self):
-        """ocr_dimensions should return original dimensions when no resize."""
+    def test_legacy_grayscale_property(self):
+        """grayscale property should return processed for backwards compat."""
+        processed = np.zeros((100, 200), dtype=np.uint8)
         result = PreprocessResult(
             original=np.zeros((200, 400, 3)),
-            grayscale=np.zeros((200, 400)),
-            resized=None,
-            resized_grayscale=None,
+            processed=processed,
+            scale_factor=2.0,
+            config=PreprocessConfig(target_width=200),
+        )
+        assert result.grayscale is processed
+
+    def test_legacy_resized_property_when_scaled(self):
+        """resized property should return processed when scale_factor != 1."""
+        processed = np.zeros((100, 200), dtype=np.uint8)
+        result = PreprocessResult(
+            original=np.zeros((200, 400, 3)),
+            processed=processed,
+            scale_factor=2.0,
+            config=PreprocessConfig(target_width=200),
+        )
+        assert result.resized is processed
+
+    def test_legacy_resized_property_when_not_scaled(self):
+        """resized property should return None when scale_factor == 1."""
+        result = PreprocessResult(
+            original=np.zeros((200, 400, 3)),
+            processed=np.zeros((200, 400)),
             scale_factor=1.0,
             config=PreprocessConfig(target_width=None),
         )
-        assert result.ocr_dimensions == (400, 200)
+        assert result.resized is None
 
 
 class TestRunPipeline:
@@ -345,10 +337,10 @@ class TestRunPipeline:
         result = run_pipeline(img)
 
         assert result.original.shape == (1000, 2000, 3)
-        assert result.grayscale.shape == (1000, 2000)
-        assert result.resized is not None
-        assert result.resized.shape[1] == 1280  # Default target width
-        assert result.resized_grayscale is not None
+        assert result.processed.ndim == 2  # Grayscale
+        assert result.processed.shape[1] == 1280  # Default target width
+        # Height should be proportionally scaled: 1000 * (1280/2000) = 640
+        assert result.processed.shape[0] == 640
 
     def test_pipeline_with_custom_config(self):
         """Pipeline should respect custom config."""
@@ -356,17 +348,17 @@ class TestRunPipeline:
         config = PreprocessConfig(target_width=1000)
         result = run_pipeline(img, config)
 
-        assert result.resized.shape == (500, 1000, 3)
+        assert result.processed.shape == (500, 1000)  # Grayscale, resized
         assert result.scale_factor == 2.0
 
     def test_pipeline_without_resize(self):
-        """Pipeline with target_width=None should skip resize."""
+        """Pipeline with target_width=None should only convert to grayscale."""
         img = np.zeros((100, 200, 3), dtype=np.uint8)
         config = PreprocessConfig(target_width=None)
         result = run_pipeline(img, config)
 
-        assert result.resized is None
-        assert result.resized_grayscale is None
+        assert result.processed.shape == (100, 200)  # Grayscale, same size
+        assert result.processed.ndim == 2
         assert result.scale_factor == 1.0
 
     def test_pipeline_preserves_original(self):
@@ -389,3 +381,284 @@ class TestRunPipeline:
         """Pipeline with invalid input should raise."""
         with pytest.raises(TypeError):
             run_pipeline("not an image")
+
+    def test_pipeline_produces_grayscale_output(self):
+        """Pipeline output should always be grayscale."""
+        img = np.random.randint(0, 256, (100, 200, 3), dtype=np.uint8)
+        result = run_pipeline(img)
+        assert result.processed.ndim == 2
+        assert result.processed.dtype == np.uint8
+
+
+class TestGrayscaleStep:
+    """Tests for the GrayscaleStep class."""
+
+    def test_apply_converts_rgb_to_grayscale(self):
+        """GrayscaleStep should convert RGB to grayscale."""
+        step = GrayscaleStep()
+        rgb = np.zeros((100, 200, 3), dtype=np.uint8)
+        result = step.apply(rgb)
+        assert result.shape == (100, 200)
+        assert result.ndim == 2
+
+    def test_name_property(self):
+        """GrayscaleStep should have correct name."""
+        step = GrayscaleStep()
+        assert step.name == "grayscale"
+
+    def test_custom_dtype(self):
+        """GrayscaleStep should respect custom dtype."""
+        step = GrayscaleStep(dtype=np.float32)
+        rgb = np.full((10, 10, 3), 128, dtype=np.uint8)
+        result = step.apply(rgb)
+        assert result.dtype == np.float32
+
+    def test_pure_function(self):
+        """GrayscaleStep should not mutate input."""
+        step = GrayscaleStep()
+        rgb = np.full((10, 10, 3), 128, dtype=np.uint8)
+        original = rgb.copy()
+        _ = step.apply(rgb)
+        assert np.array_equal(rgb, original)
+
+    def test_is_frozen_dataclass(self):
+        """GrayscaleStep should be immutable."""
+        step = GrayscaleStep()
+        with pytest.raises(Exception):  # FrozenInstanceError
+            step.dtype = np.float32
+
+    def test_get_metadata_returns_empty(self):
+        """GrayscaleStep should return empty metadata."""
+        step = GrayscaleStep()
+        assert step.get_metadata() == {}
+
+
+class TestResizeStep:
+    """Tests for the ResizeStep class."""
+
+    def test_apply_resizes_image(self):
+        """ResizeStep should resize to target width."""
+        step = ResizeStep(target_width=1000)
+        img = np.zeros((1000, 2000, 3), dtype=np.uint8)
+        result = step.apply(img)
+        assert result.shape == (500, 1000, 3)
+
+    def test_name_property(self):
+        """ResizeStep should have correct name with width."""
+        step = ResizeStep(target_width=1280)
+        assert step.name == "resize(1280)"
+
+    def test_scale_factor_metadata(self):
+        """ResizeStep should track scale factor in metadata."""
+        step = ResizeStep(target_width=1000)
+        img = np.zeros((1000, 2000, 3), dtype=np.uint8)
+        _ = step.apply(img)
+        metadata = step.get_metadata()
+        assert "scale_factor" in metadata
+        assert metadata["scale_factor"] == 2.0
+
+    def test_preserves_aspect_ratio(self):
+        """ResizeStep should preserve aspect ratio."""
+        step = ResizeStep(target_width=500)
+        img = np.zeros((300, 1000, 3), dtype=np.uint8)  # 1000:300 = 10:3
+        result = step.apply(img)
+        # 500:150 = 10:3 (same ratio)
+        assert result.shape == (150, 500, 3)
+
+    def test_pure_function(self):
+        """ResizeStep should not mutate input."""
+        step = ResizeStep(target_width=100)
+        img = np.random.randint(0, 256, (100, 200, 3), dtype=np.uint8)
+        original = img.copy()
+        _ = step.apply(img)
+        assert np.array_equal(img, original)
+
+
+class TestCLAHEStep:
+    """Tests for the CLAHEStep class."""
+
+    def test_apply_enhances_contrast(self):
+        """CLAHEStep should enhance contrast in grayscale image."""
+        step = CLAHEStep()
+        # Create a low-contrast grayscale image
+        gray = np.full((100, 100), 128, dtype=np.uint8)
+        gray[40:60, 40:60] = 138  # Slightly brighter center
+        result = step.apply(gray)
+        # CLAHE should increase contrast (center should be brighter relative to edges)
+        assert result.shape == gray.shape
+        assert result.dtype == gray.dtype
+
+    def test_name_property(self):
+        """CLAHEStep should have correct name with clip limit."""
+        step = CLAHEStep(clip_limit=3.0)
+        assert step.name == "clahe(clip=3.0)"
+
+    def test_default_parameters(self):
+        """CLAHEStep should have sensible defaults."""
+        step = CLAHEStep()
+        assert step.clip_limit == 2.0
+        assert step.tile_size == (8, 8)
+
+    def test_custom_parameters(self):
+        """CLAHEStep should accept custom parameters."""
+        step = CLAHEStep(clip_limit=4.0, tile_size=(16, 16))
+        assert step.clip_limit == 4.0
+        assert step.tile_size == (16, 16)
+
+    def test_requires_grayscale_input(self):
+        """CLAHEStep should raise for non-grayscale input."""
+        step = CLAHEStep()
+        rgb = np.zeros((100, 100, 3), dtype=np.uint8)
+        with pytest.raises(ValueError, match="grayscale input"):
+            step.apply(rgb)
+
+    def test_is_frozen_dataclass(self):
+        """CLAHEStep should be immutable."""
+        step = CLAHEStep()
+        with pytest.raises(Exception):  # FrozenInstanceError
+            step.clip_limit = 5.0
+
+    def test_pure_function(self):
+        """CLAHEStep should not mutate input."""
+        step = CLAHEStep()
+        gray = np.random.randint(0, 256, (100, 100), dtype=np.uint8)
+        original = gray.copy()
+        _ = step.apply(gray)
+        assert np.array_equal(gray, original)
+
+
+class TestPipeline:
+    """Tests for the Pipeline class."""
+
+    def test_empty_pipeline_returns_original(self):
+        """Empty pipeline should return copy of original."""
+        pipeline = Pipeline(steps=[])
+        img = np.random.randint(0, 256, (100, 100, 3), dtype=np.uint8)
+        result = pipeline.run(img)
+        assert np.array_equal(result.final, img)
+        assert result.final is not img  # Should be a copy
+
+    def test_single_step_pipeline(self):
+        """Pipeline with one step should apply that step."""
+        pipeline = Pipeline(steps=[GrayscaleStep()])
+        rgb = np.zeros((100, 200, 3), dtype=np.uint8)
+        result = pipeline.run(rgb)
+        assert result.final.shape == (100, 200)
+        assert result.final.ndim == 2
+
+    def test_multi_step_pipeline(self):
+        """Pipeline should apply steps in order."""
+        pipeline = Pipeline(steps=[
+            GrayscaleStep(),
+            ResizeStep(target_width=100),
+        ])
+        rgb = np.zeros((100, 200, 3), dtype=np.uint8)
+        result = pipeline.run(rgb)
+        # First grayscale (100, 200), then resize to width 100 -> (50, 100)
+        assert result.final.shape == (50, 100)
+
+    def test_tracks_intermediates(self):
+        """Pipeline should track intermediate results."""
+        pipeline = Pipeline(steps=[
+            GrayscaleStep(),
+            ResizeStep(target_width=100),
+        ])
+        rgb = np.zeros((100, 200, 3), dtype=np.uint8)
+        result = pipeline.run(rgb)
+
+        assert len(result.steps) == 2
+        assert result.steps[0].name == "grayscale"
+        assert result.steps[0].image.shape == (100, 200)
+        assert result.steps[1].name == "resize(100)"
+        assert result.steps[1].image.shape == (50, 100)
+
+    def test_get_intermediate_by_name(self):
+        """Should be able to retrieve intermediate by step name."""
+        pipeline = Pipeline(steps=[
+            GrayscaleStep(),
+            ResizeStep(target_width=100),
+        ])
+        rgb = np.zeros((100, 200, 3), dtype=np.uint8)
+        result = pipeline.run(rgb)
+
+        gray = result.get_intermediate("grayscale")
+        assert gray is not None
+        assert gray.shape == (100, 200)
+
+        resized = result.get_intermediate("resize(100)")
+        assert resized is not None
+        assert resized.shape == (50, 100)
+
+    def test_get_intermediate_not_found(self):
+        """get_intermediate should return None for unknown step."""
+        pipeline = Pipeline(steps=[GrayscaleStep()])
+        result = pipeline.run(np.zeros((10, 10, 3), dtype=np.uint8))
+        assert result.get_intermediate("unknown") is None
+
+    def test_aggregates_metadata(self):
+        """Pipeline should aggregate metadata from all steps."""
+        pipeline = Pipeline(steps=[
+            GrayscaleStep(),
+            ResizeStep(target_width=100),
+        ])
+        rgb = np.zeros((100, 200, 3), dtype=np.uint8)
+        result = pipeline.run(rgb)
+
+        assert result.scale_factor == 2.0
+        assert result.get_metadata("scale_factor") == 2.0
+        assert "scale_factor" in result.all_metadata
+
+    def test_len_returns_step_count(self):
+        """len(pipeline) should return number of steps."""
+        pipeline = Pipeline(steps=[GrayscaleStep(), ResizeStep(target_width=100)])
+        assert len(pipeline) == 2
+
+    def test_iter_yields_steps(self):
+        """Iterating pipeline should yield steps."""
+        steps = [GrayscaleStep(), ResizeStep(target_width=100)]
+        pipeline = Pipeline(steps=steps)
+        assert list(pipeline) == steps
+
+    def test_preserves_original(self):
+        """Pipeline should preserve original image."""
+        pipeline = Pipeline(steps=[GrayscaleStep()])
+        img = np.random.randint(0, 256, (100, 200, 3), dtype=np.uint8)
+        result = pipeline.run(img)
+        assert np.array_equal(result.original, img)
+        assert result.original is not img  # Should be a copy
+
+
+class TestPipelineStepResults:
+    """Tests for PipelineStepResults helper methods."""
+
+    def test_final_with_no_steps(self):
+        """final should return original when no steps."""
+        result = PipelineStepResults(original=np.zeros((10, 10)))
+        assert np.array_equal(result.final, result.original)
+
+    def test_scale_factor_default(self):
+        """scale_factor should default to 1.0 when not in metadata."""
+        result = PipelineStepResults(original=np.zeros((10, 10)))
+        assert result.scale_factor == 1.0
+
+    def test_all_metadata_merges(self):
+        """all_metadata should merge metadata from all steps."""
+        result = PipelineStepResults(
+            original=np.zeros((10, 10)),
+            steps=[
+                StepResult(name="step1", image=np.zeros((10, 10)), metadata={"a": 1}),
+                StepResult(name="step2", image=np.zeros((5, 5)), metadata={"b": 2}),
+            ]
+        )
+        assert result.all_metadata == {"a": 1, "b": 2}
+
+    def test_all_metadata_later_overrides(self):
+        """Later step metadata should override earlier for same key."""
+        result = PipelineStepResults(
+            original=np.zeros((10, 10)),
+            steps=[
+                StepResult(name="step1", image=np.zeros((10, 10)), metadata={"x": 1}),
+                StepResult(name="step2", image=np.zeros((5, 5)), metadata={"x": 2}),
+            ]
+        )
+        assert result.all_metadata["x"] == 2

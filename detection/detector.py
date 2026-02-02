@@ -102,12 +102,13 @@ def detect_bib_numbers(
     # Convert to numpy array
     image_array = np.array(image)
 
-    # Apply preprocessing pipeline
+    # Apply preprocessing pipeline (grayscale + resize)
     preprocess_result = run_pipeline(image_array, preprocess_config)
 
-    # Use resized image for OCR if available (more consistent kernel behavior)
-    ocr_image = preprocess_result.ocr_image
-    ocr_grayscale = preprocess_result.ocr_grayscale
+    # Use processed grayscale image for all detection
+    # The pipeline produces a grayscale, resized image ready for OCR
+    ocr_image = preprocess_result.processed
+    ocr_grayscale = preprocess_result.processed  # Same image, it's already grayscale
     scale_factor = preprocess_result.scale_factor
 
     # Find candidate bib regions on the OCR image (resized if preprocessing enabled)

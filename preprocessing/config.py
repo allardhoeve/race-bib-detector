@@ -73,32 +73,32 @@ class PreprocessConfig:
 class PreprocessResult:
     """Result of the preprocessing pipeline.
 
-    Contains all intermediate and final images along with metadata needed
-    to map detections back to original coordinates.
+    Contains the original image and fully processed image ready for detection,
+    along with metadata needed to map detections back to original coordinates.
+
+    The pipeline is grayscale-first: all detection happens on the processed
+    grayscale image. The original color image is preserved only for reference.
 
     Attributes:
-        original: Original input image (RGB, uint8).
-        grayscale: Grayscale version of the image.
-        resized: Resized image (None if resizing was skipped).
-        resized_grayscale: Resized grayscale image (None if resizing was skipped).
-        scale_factor: Ratio of original width to resized width.
+        original: Original input image (RGB, uint8). Preserved for reference only.
+        processed: Final processed image (grayscale, resized, enhanced).
+                  This is the image used for all detection operations.
+        scale_factor: Ratio of original width to processed width.
                      Used to map bounding boxes back to original coordinates.
         config: The configuration used for preprocessing.
     """
 
     original: np.ndarray
-    grayscale: np.ndarray
-    resized: Optional[np.ndarray]
-    resized_grayscale: Optional[np.ndarray]
+    processed: np.ndarray
     scale_factor: float
     config: PreprocessConfig
 
     def map_to_original_coords(self, x: float, y: float) -> tuple[float, float]:
-        """Map coordinates from resized image back to original image.
+        """Map coordinates from processed image back to original image.
 
         Args:
-            x: X coordinate in resized image.
-            y: Y coordinate in resized image.
+            x: X coordinate in processed image.
+            y: Y coordinate in processed image.
 
         Returns:
             Tuple of (x, y) coordinates in original image.
@@ -106,7 +106,7 @@ class PreprocessResult:
         return (x * self.scale_factor, y * self.scale_factor)
 
     def map_bbox_to_original(self, bbox: list[list[float]]) -> list[list[float]]:
-        """Map a bounding box from resized coordinates to original coordinates.
+        """Map a bounding box from processed coordinates to original coordinates.
 
         Args:
             bbox: List of [x, y] points defining the bounding box.
@@ -121,16 +121,45 @@ class PreprocessResult:
 
     @property
     def ocr_image(self) -> np.ndarray:
-        """Get the image to use for OCR (resized if available, else original)."""
-        return self.resized if self.resized is not None else self.original
+        """Get the image to use for OCR and detection.
+
+        This is an alias for `processed` for backwards compatibility.
+        """
+        return self.processed
 
     @property
     def ocr_grayscale(self) -> np.ndarray:
-        """Get grayscale at OCR resolution (resized if available, else original)."""
-        return self.resized_grayscale if self.resized_grayscale is not None else self.grayscale
+        """Get grayscale image at OCR resolution.
+
+        This is an alias for `processed` for backwards compatibility.
+        The processed image is always grayscale.
+        """
+        return self.processed
 
     @property
     def ocr_dimensions(self) -> tuple[int, int]:
-        """Get (width, height) of the OCR image."""
-        h, w = self.ocr_image.shape[:2]
+        """Get (width, height) of the processed image."""
+        h, w = self.processed.shape[:2]
         return w, h
+
+    # Legacy property aliases for backwards compatibility
+    @property
+    def grayscale(self) -> np.ndarray:
+        """Deprecated: Use `processed` instead."""
+        return self.processed
+
+    @property
+    def resized(self) -> np.ndarray | None:
+        """Deprecated: Use `processed` instead.
+
+        Returns processed image (which is always resized if target_width is set).
+        Returns None only if no processing was done (scale_factor == 1.0 and no enhancements).
+        """
+        if self.scale_factor != 1.0:
+            return self.processed
+        return None
+
+    @property
+    def resized_grayscale(self) -> np.ndarray | None:
+        """Deprecated: Use `processed` instead."""
+        return self.resized
