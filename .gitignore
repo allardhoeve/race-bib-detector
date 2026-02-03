@@ -3,3 +3,4 @@ bibs.db
 .DS_Store
 __pycache__
 cache/*
+commit.txt

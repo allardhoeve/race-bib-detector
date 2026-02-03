@@ -1,5 +1,13 @@
 # Claude Code Guidelines
 
+## Contributing
+
+Always write a commit message to commit.txt after changes. If a commit message already exists add to it. You can update
+the commit title if it is necessary.
+
+If the commit message becomes large, suggest to the user that they should commit the code.
+
+
 ## Python Environment
 
 This project uses a virtual environment. Always use the venv when running Python commands:
