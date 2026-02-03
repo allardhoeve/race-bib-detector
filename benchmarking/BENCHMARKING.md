@@ -17,7 +17,8 @@ Ground truth approach:
 - Manual labeling of a fixed test set (Approach A)
 - Start with 200 photos
 - Store bibs per photo as integers, with no duplicates
-- Key photos by 8-character photo hash
+- Key photos by a content hash for dedupe and idempotency
+- Optionally store the 8-character photo hash for integration with existing code
 
 Tagging:
 - Tags are checkbox-style, configurable, and stored per photo
@@ -44,6 +45,8 @@ Each photo entry contains:
 - `bibs`: list of integer bib numbers, no duplicates
 - `tags`: list of zero or more tags from the configured tag list
 - `split`: fixed per-photo label to support iteration vs full set
+- `content_hash`: required, used as canonical identity
+- `photo_hash`: optional, for linking to existing URL/path-based hashing
 
 A future extension is to support advanced labeling with locations per bib. This remains compatible with the current schema by adding optional fields later.
 

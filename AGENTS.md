@@ -8,6 +8,20 @@ the commit title if it is necessary.
 If the commit message becomes large, suggest to the user that they should commit the code.
 
 
+## Idempotency
+
+When creating web or command line tools, strive to make these idempotent. This make the tools less error-prone.
+
+For example:
+
+1. When tagging photos with bibs for the reference set, assume that the directory has been scanned before.
+2. This informs decisions
+   a. Some photo's are already tagged.
+   b. So we should assume tag content is already in our JSON. 
+   c. We must present this in the interface.
+   d. Update the tags if they are edited.
+   e. Some photos might not be scanned before, so let's start with empty or default values.
+
 ## Python Environment
 
 This project uses a virtual environment. Always use the venv when running Python commands:
