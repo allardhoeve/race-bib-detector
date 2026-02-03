@@ -340,6 +340,43 @@ def is_photo_identifier(source: str) -> bool:
     return False
 
 
+def run_scan(source: str, rescan: bool = False, limit: int | None = None) -> int:
+    """Run scan on a source (URL, path, or photo identifier).
+
+    Args:
+        source: URL, local path, photo hash, or photo index
+        rescan: If True, rescan already processed photos
+        limit: Maximum number of photos to process
+
+    Returns:
+        Exit code (0 for success)
+    """
+    is_url = source.startswith("http://") or source.startswith("https://") or "photos.google.com" in source or "photos.app.goo.gl" in source
+
+    if is_url:
+        stats = scan_album(source, skip_existing=not rescan, limit=limit)
+    elif is_photo_identifier(source):
+        stats = rescan_single_photo(source)
+    elif Path(source).exists():
+        stats = scan_local_directory(source, skip_existing=not rescan, limit=limit)
+    elif len(source) <= 8:
+        stats = rescan_single_photo(source)
+    else:
+        print(f"Error: '{source}' is not a valid URL, path, photo hash, or index.")
+        return 1
+
+    print("\n" + "=" * 50)
+    print("Scan Complete!")
+    print("=" * 50)
+    print(f"Photos found:   {stats['photos_found']}")
+    print(f"Photos scanned: {stats['photos_scanned']}")
+    print(f"Photos skipped: {stats['photos_skipped']}")
+    print(f"Bibs detected:  {stats['bibs_detected']}")
+    print("\nResults saved to bibs.db")
+    print("Query example: sqlite3 bibs.db \"SELECT * FROM bib_detections LIMIT 10\"")
+    return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Scan images for bib numbers. Supports Google Photos albums, local directories, or single photo rescan."
@@ -361,31 +398,7 @@ def main():
     )
 
     args = parser.parse_args()
-    source = args.source
-
-    is_url = source.startswith("http://") or source.startswith("https://") or "photos.google.com" in source or "photos.app.goo.gl" in source
-
-    if is_url:
-        stats = scan_album(source, skip_existing=not args.rescan, limit=args.limit)
-    elif is_photo_identifier(source):
-        stats = rescan_single_photo(source)
-    elif Path(source).exists():
-        stats = scan_local_directory(source, skip_existing=not args.rescan, limit=args.limit)
-    elif len(source) <= 8:
-        stats = rescan_single_photo(source)
-    else:
-        print(f"Error: '{source}' is not a valid URL, path, photo hash, or index.")
-        return
-
-    print("\n" + "=" * 50)
-    print("Scan Complete!")
-    print("=" * 50)
-    print(f"Photos found:   {stats['photos_found']}")
-    print(f"Photos scanned: {stats['photos_scanned']}")
-    print(f"Photos skipped: {stats['photos_skipped']}")
-    print(f"Bibs detected:  {stats['bibs_detected']}")
-    print("\nResults saved to bibs.db")
-    print("Query example: sqlite3 bibs.db \"SELECT * FROM bib_detections LIMIT 10\"")
+    return run_scan(args.source, rescan=args.rescan, limit=args.limit)
 
 
 if __name__ == "__main__":

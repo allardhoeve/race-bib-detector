@@ -1,5 +1,18 @@
 # TODO
 
+
+## Usability
+
+- [x] Have a look at the CLI commands in benchmarking. The various CLI tools are becoming much. We should unify them
+      into one top-level "bnr" command (bib number recognizer). I like the git command structure with subcommands.
+      So this would be "bnr benchmark ui" to launch the ui for benchmarking and such. And "bnr serve" to launch the
+      user-facing photo website on 30001.
+      **Done:** Created `bnr.py` with git-style subcommands:
+      - `bnr serve` - Launch photo viewer (port 30001)
+      - `bnr scan <url|path>` - Scan for bib numbers
+      - `bnr benchmark run/ui/list/clean/baseline/scan/stats` - Benchmark commands
+
+
 ---
 
 ## Structural Quality Follow-ups
