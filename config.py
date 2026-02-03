@@ -113,3 +113,7 @@ MAX_BIB_NUMBER = 9999
 # Probability that a new photo is assigned to the "iteration" split
 # (vs "full" split) when labeling for the first time
 ITERATION_SPLIT_PROBABILITY = 0.5
+
+# Tolerance threshold for regression detection (as a fraction, e.g., 0.005 = 0.5%)
+# A drop in precision or recall smaller than this is not considered a regression
+BENCHMARK_REGRESSION_TOLERANCE = 0.005

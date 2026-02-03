@@ -243,6 +243,175 @@ def cmd_ui(args: argparse.Namespace) -> int:
     return labeling_main()
 
 
+def cmd_benchmark(args: argparse.Namespace) -> int:
+    """Run benchmark and report results."""
+    from benchmarking.runner import (
+        run_benchmark,
+        compare_to_baseline,
+        load_baseline,
+        RESULTS_DIR,
+    )
+    from config import BENCHMARK_REGRESSION_TOLERANCE
+
+    split = args.split or "iteration"
+    verbose = not args.quiet
+
+    try:
+        run = run_benchmark(split=split, verbose=verbose)
+    except ValueError as e:
+        print(f"Error: {e}")
+        return 1
+
+    # Print results
+    print("\n" + "=" * 60)
+    print("BENCHMARK RESULTS")
+    print("=" * 60)
+
+    m = run.metrics
+    print(f"\nSplit: {split}")
+    print(f"Photos: {m.total_photos}")
+    print(f"Runtime: {run.metadata.total_runtime_seconds:.1f}s")
+
+    print(f"\nMetrics:")
+    print(f"  Precision: {m.precision:.1%}")
+    print(f"  Recall:    {m.recall:.1%}")
+    print(f"  F1:        {m.f1:.1%}")
+
+    print(f"\nDetection counts:")
+    print(f"  TP: {m.total_tp}  FP: {m.total_fp}  FN: {m.total_fn}")
+
+    print(f"\nPhoto status:")
+    print(f"  PASS:    {m.pass_count:3} ({m.pass_count/m.total_photos:.0%})")
+    print(f"  PARTIAL: {m.partial_count:3} ({m.partial_count/m.total_photos:.0%})")
+    print(f"  MISS:    {m.miss_count:3} ({m.miss_count/m.total_photos:.0%})")
+
+    # Tag breakdown if verbose
+    if verbose and any(r.tags for r in run.photo_results):
+        print(f"\nBy tag:")
+        tag_stats: dict[str, dict] = {}
+        for r in run.photo_results:
+            for tag in r.tags:
+                if tag not in tag_stats:
+                    tag_stats[tag] = {"tp": 0, "fp": 0, "fn": 0, "count": 0}
+                tag_stats[tag]["tp"] += r.tp
+                tag_stats[tag]["fp"] += r.fp
+                tag_stats[tag]["fn"] += r.fn
+                tag_stats[tag]["count"] += 1
+
+        for tag, s in sorted(tag_stats.items()):
+            tp, fp, fn = s["tp"], s["fp"], s["fn"]
+            prec = tp / (tp + fp) if (tp + fp) > 0 else 0
+            rec = tp / (tp + fn) if (tp + fn) > 0 else 0
+            print(f"  {tag}: {s['count']} photos, P={prec:.0%} R={rec:.0%}")
+
+    # Baseline comparison (only for full split)
+    exit_code = 0
+    if split == "full":
+        baseline = load_baseline()
+        if baseline:
+            judgement, details = compare_to_baseline(run, BENCHMARK_REGRESSION_TOLERANCE)
+
+            print(f"\n" + "-" * 60)
+            print("BASELINE COMPARISON")
+            print("-" * 60)
+            print(f"Baseline: {details['baseline_commit']} ({details['baseline_timestamp'][:10]})")
+            print(f"Tolerance: {BENCHMARK_REGRESSION_TOLERANCE:.1%}")
+
+            print(f"\nDeltas:")
+            print(f"  Precision: {details['precision_delta']:+.1%} (was {details['baseline_precision']:.1%})")
+            print(f"  Recall:    {details['recall_delta']:+.1%} (was {details['baseline_recall']:.1%})")
+            print(f"  F1:        {details['f1_delta']:+.1%} (was {details['baseline_f1']:.1%})")
+
+            # Judgement with color/emphasis
+            print(f"\n{'=' * 60}")
+            if judgement == "REGRESSED":
+                print(f"JUDGEMENT: ❌ REGRESSED")
+                exit_code = 1
+            elif judgement == "IMPROVED":
+                print(f"JUDGEMENT: ✅ IMPROVED")
+            else:
+                print(f"JUDGEMENT: ➖ NO CHANGE")
+            print("=" * 60)
+        else:
+            print(f"\nNo baseline exists. Run 'benchmark --split full --update-baseline' to create one.")
+    else:
+        print(f"\n(Baseline comparison only available for 'full' split)")
+
+    # Save results if requested
+    if args.save:
+        timestamp = run.metadata.timestamp.replace(":", "-").replace(".", "-")
+        result_path = RESULTS_DIR / f"run_{split}_{timestamp}.json"
+        run.save(result_path)
+        print(f"\nResults saved to: {result_path}")
+
+    # Update baseline if requested (only for full split)
+    if args.update_baseline:
+        if split != "full":
+            print(f"\nWarning: --update-baseline only works with --split full")
+        else:
+            from benchmarking.runner import save_baseline
+            save_baseline(run)
+            print(f"\n✅ Baseline updated.")
+
+    return exit_code
+
+
+def cmd_update_baseline(args: argparse.Namespace) -> int:
+    """Update baseline after confirming improvement."""
+    from benchmarking.runner import (
+        run_benchmark,
+        compare_to_baseline,
+        load_baseline,
+        save_baseline,
+    )
+    from config import BENCHMARK_REGRESSION_TOLERANCE
+
+    print("Running benchmark on full split to check for improvement...")
+
+    try:
+        run = run_benchmark(split="full", verbose=True)
+    except ValueError as e:
+        print(f"Error: {e}")
+        return 1
+
+    baseline = load_baseline()
+    if not baseline:
+        print(f"\nNo existing baseline. Creating new baseline...")
+        save_baseline(run)
+        print(f"✅ Baseline created.")
+        print(f"   Precision: {run.metrics.precision:.1%}")
+        print(f"   Recall:    {run.metrics.recall:.1%}")
+        print(f"   F1:        {run.metrics.f1:.1%}")
+        return 0
+
+    judgement, details = compare_to_baseline(run, BENCHMARK_REGRESSION_TOLERANCE)
+
+    print(f"\nCurrent vs baseline ({details['baseline_commit'][:8]}):")
+    print(f"  Precision: {run.metrics.precision:.1%} vs {details['baseline_precision']:.1%} ({details['precision_delta']:+.1%})")
+    print(f"  Recall:    {run.metrics.recall:.1%} vs {details['baseline_recall']:.1%} ({details['recall_delta']:+.1%})")
+    print(f"  F1:        {run.metrics.f1:.1%} vs {details['baseline_f1']:.1%} ({details['f1_delta']:+.1%})")
+
+    if judgement == "IMPROVED":
+        if args.force or input("\nMetrics improved. Update baseline? [y/N] ").lower() == "y":
+            save_baseline(run)
+            print(f"✅ Baseline updated.")
+            return 0
+        else:
+            print("Baseline not updated.")
+            return 0
+    elif judgement == "REGRESSED":
+        print(f"\n❌ Metrics regressed. Baseline NOT updated.")
+        return 1
+    else:
+        if args.force or input("\nNo significant change. Update baseline anyway? [y/N] ").lower() == "y":
+            save_baseline(run)
+            print(f"✅ Baseline updated.")
+            return 0
+        else:
+            print("Baseline not updated.")
+            return 0
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Benchmark ground truth management"
@@ -254,6 +423,35 @@ def main():
 
     # ui command
     ui_parser = subparsers.add_parser("ui", help="Launch labeling UI")
+
+    # benchmark command
+    benchmark_parser = subparsers.add_parser("benchmark", help="Run benchmark")
+    benchmark_parser.add_argument(
+        "-s", "--split", choices=["iteration", "full"],
+        default="iteration",
+        help="Which split to run (default: iteration)"
+    )
+    benchmark_parser.add_argument(
+        "-q", "--quiet", action="store_true",
+        help="Suppress per-photo output"
+    )
+    benchmark_parser.add_argument(
+        "--save", action="store_true",
+        help="Save results to file"
+    )
+    benchmark_parser.add_argument(
+        "--update-baseline", action="store_true",
+        help="Update baseline with current results (full split only)"
+    )
+
+    # update-baseline command
+    update_baseline_parser = subparsers.add_parser(
+        "update-baseline", help="Update baseline if metrics improved"
+    )
+    update_baseline_parser.add_argument(
+        "-f", "--force", action="store_true",
+        help="Update without prompting"
+    )
 
     # stats command
     stats_parser = subparsers.add_parser("stats", help="Show statistics")
@@ -293,6 +491,8 @@ def main():
     commands = {
         "scan": cmd_scan,
         "ui": cmd_ui,
+        "benchmark": cmd_benchmark,
+        "update-baseline": cmd_update_baseline,
         "stats": cmd_stats,
         "unlabeled": cmd_unlabeled,
         "show": cmd_show,

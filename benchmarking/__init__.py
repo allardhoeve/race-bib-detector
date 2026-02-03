@@ -15,6 +15,16 @@ from .photo_index import (
     update_photo_index,
     get_path_for_hash,
 )
+from .runner import (
+    run_benchmark,
+    compare_to_baseline,
+    load_baseline,
+    save_baseline,
+    BenchmarkRun,
+    BenchmarkMetrics,
+    PhotoResult,
+    RunMetadata,
+)
 
 __all__ = [
     # Scanner
@@ -33,4 +43,13 @@ __all__ = [
     "save_photo_index",
     "update_photo_index",
     "get_path_for_hash",
+    # Runner
+    "run_benchmark",
+    "compare_to_baseline",
+    "load_baseline",
+    "save_baseline",
+    "BenchmarkRun",
+    "BenchmarkMetrics",
+    "PhotoResult",
+    "RunMetadata",
 ]

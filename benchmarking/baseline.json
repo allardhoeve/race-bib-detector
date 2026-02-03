@@ -1,0 +1,1751 @@
+{
+  "metadata": {
+    "timestamp": "2026-02-03T11:37:08.995577",
+    "split": "full",
+    "git_commit": "64346a1f979577c06c3149ca065e92514772b532",
+    "git_dirty": true,
+    "python_version": "3.14.2",
+    "package_versions": {
+      "easyocr": "1.7.2",
+      "opencv-python": "4.13.0",
+      "torch": "2.10.0",
+      "numpy": "2.4.1"
+    },
+    "hostname": "Mac.localdomain",
+    "gpu_info": null,
+    "total_runtime_seconds": 948.3892970085144
+  },
+  "metrics": {
+    "total_photos": 113,
+    "total_tp": 98,
+    "total_fp": 10,
+    "total_fn": 14,
+    "precision": 0.9074074074074074,
+    "recall": 0.875,
+    "f1": 0.8909090909090909,
+    "pass_count": 91,
+    "partial_count": 13,
+    "miss_count": 9
+  },
+  "photo_results": [
+    {
+      "content_hash": "006c6313cdb2dc07146cdce19d93bae14181f8b589e0cb2ac0b1891e69993659",
+      "expected_bibs": [
+        231
+      ],
+      "detected_bibs": [
+        231
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 4672.231912612915,
+      "tags": []
+    },
+    {
+      "content_hash": "0194a4f9ce72d935d82dec75fa80e9a6bf1312e5e809540f949d5921f5d3257f",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2203.9270401000977,
+      "tags": [
+        "no_bib"
+      ]
+    },
+    {
+      "content_hash": "01d75b89ceff73b7a7da0f5394b75ef0c3bad2e91b2a17ed5e3b0df6409475d7",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 5676.553010940552,
+      "tags": [
+        "no_bib"
+      ]
+    },
+    {
+      "content_hash": "031783826df4363192cf61e5bae25876cf8f3ebd27f0dadfe634925e7495198f",
+      "expected_bibs": [
+        632
+      ],
+      "detected_bibs": [
+        632
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 1889.171838760376,
+      "tags": []
+    },
+    {
+      "content_hash": "0381ad0357bb1ffeae28ec8fea2b1232fec2a0742c368d1a3b52e61e3c2fc5db",
+      "expected_bibs": [
+        401
+      ],
+      "detected_bibs": [
+        401,
+        412
+      ],
+      "tp": 1,
+      "fp": 1,
+      "fn": 0,
+      "status": "PARTIAL",
+      "detection_time_ms": 1664.9038791656494,
+      "tags": [
+        "blurry_bib",
+        "partial_bib"
+      ]
+    },
+    {
+      "content_hash": "066fa20ac08d7dd7a00d809c94f0dfef8df273a47a88b977239833e895d3c59c",
+      "expected_bibs": [
+        326,
+        378
+      ],
+      "detected_bibs": [
+        326
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "status": "PARTIAL",
+      "detection_time_ms": 2005.5439472198486,
+      "tags": []
+    },
+    {
+      "content_hash": "069d02c41c608d4eb7caab2c69cb0ecd9cc0a4f02c656b25e06686b546787357",
+      "expected_bibs": [
+        415,
+        418
+      ],
+      "detected_bibs": [
+        415,
+        418
+      ],
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2269.0460681915283,
+      "tags": []
+    },
+    {
+      "content_hash": "08f4daf0279795996bdf93d2749618b3e94bff80c6d191ec8e24a3f098ac9683",
+      "expected_bibs": [
+        220
+      ],
+      "detected_bibs": [
+        220
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2084.459066390991,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "0a444cef0826b134a3c9a85a60c476202868d96f0bc5ba7272c27219970b93a7",
+      "expected_bibs": [
+        353
+      ],
+      "detected_bibs": [
+        353
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2110.3861331939697,
+      "tags": []
+    },
+    {
+      "content_hash": "0bba03df26c5161b3729a1017c65226756384410912cbfe0d11061e2dc36a71f",
+      "expected_bibs": [
+        414
+      ],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "status": "MISS",
+      "detection_time_ms": 1946.0480213165283,
+      "tags": []
+    },
+    {
+      "content_hash": "0bd75cb4c947ffd075f743c656446fdb2d8a5f6b233f393a52fc1bc939f9337d",
+      "expected_bibs": [
+        632
+      ],
+      "detected_bibs": [
+        632
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 4989.658832550049,
+      "tags": []
+    },
+    {
+      "content_hash": "0e4eb4fac8b521b240121b909221c66d04b9fd8b45840ac74ff7394cab7cb20b",
+      "expected_bibs": [
+        517
+      ],
+      "detected_bibs": [
+        517
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 4813.0738735198975,
+      "tags": []
+    },
+    {
+      "content_hash": "0f1029234763576e9b18087ce66c35edc42c3ba3007ebb3aa4338329efa59f47",
+      "expected_bibs": [
+        506
+      ],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "status": "MISS",
+      "detection_time_ms": 2002.9058456420898,
+      "tags": []
+    },
+    {
+      "content_hash": "0ff6a9f10dc00f19815b7208f180dd087bc0eb030ef2057ccc5261f52eb134b2",
+      "expected_bibs": [
+        306
+      ],
+      "detected_bibs": [
+        306
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 1928.246021270752,
+      "tags": []
+    },
+    {
+      "content_hash": "1105d65cc94e7c2ad882c28b6d38380a30e158fd49b209651ecc37ecec89a6df",
+      "expected_bibs": [
+        527
+      ],
+      "detected_bibs": [
+        527
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2097.538948059082,
+      "tags": []
+    },
+    {
+      "content_hash": "1532427dd7eda7e7c2cba6158ff08b952671b3290e658b2928bc973d363251d3",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 4656.777143478394,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "1720ad2f799e42fbf4aaaeb95cef4de4851060123bc4e4408874cccf93b7d790",
+      "expected_bibs": [
+        226
+      ],
+      "detected_bibs": [
+        226
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 1968.526840209961,
+      "tags": []
+    },
+    {
+      "content_hash": "179fcb91ba71ce3076ee411a64a1cc437912d79793efb537168d69fbe7e04544",
+      "expected_bibs": [
+        331,
+        376
+      ],
+      "detected_bibs": [
+        331,
+        376
+      ],
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2084.264039993286,
+      "tags": []
+    },
+    {
+      "content_hash": "18058f101e9adcdc549687d7564470be6547c67c9b84f79ad09fe6d8ea9cae14",
+      "expected_bibs": [
+        508,
+        529
+      ],
+      "detected_bibs": [
+        43,
+        508,
+        529
+      ],
+      "tp": 2,
+      "fp": 1,
+      "fn": 0,
+      "status": "PARTIAL",
+      "detection_time_ms": 2044.128656387329,
+      "tags": []
+    },
+    {
+      "content_hash": "185f940a5c9db6334e4aa9123ade2ca84357fdd78bd8f38b60606da74aedd889",
+      "expected_bibs": [
+        233
+      ],
+      "detected_bibs": [
+        233
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 4605.440139770508,
+      "tags": []
+    },
+    {
+      "content_hash": "1b67ce6c9294e4b5cc88d42a1266317073642300cbd6ac68db499a081c5b408e",
+      "expected_bibs": [
+        200,
+        201
+      ],
+      "detected_bibs": [
+        201
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "status": "PARTIAL",
+      "detection_time_ms": 5557.207107543945,
+      "tags": []
+    },
+    {
+      "content_hash": "1bb564f2b0b9be9317a1c139ea7425ee3729446db7854de7a7fc6b635276f7b2",
+      "expected_bibs": [
+        423,
+        424
+      ],
+      "detected_bibs": [
+        423,
+        424
+      ],
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2013.6151313781738,
+      "tags": []
+    },
+    {
+      "content_hash": "1c1a58a6f9de7adf16e665012817b04cae1ec2bac03dd7db1d8865189a21d9b8",
+      "expected_bibs": [],
+      "detected_bibs": [
+        23
+      ],
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "status": "PARTIAL",
+      "detection_time_ms": 4515.158891677856,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "1ca633215671328926ccd6c89ad3490fa820f2eb0e0a92738229898e65e70cc5",
+      "expected_bibs": [
+        622
+      ],
+      "detected_bibs": [
+        622
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2511.9051933288574,
+      "tags": []
+    },
+    {
+      "content_hash": "1eac7c8519e5798efcedbfdcbb2f2c75f0b91dbcc1cff54f42591e03d91f9a1e",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 1960.407018661499,
+      "tags": [
+        "no_bib"
+      ]
+    },
+    {
+      "content_hash": "1eb0ea3e97cc01e88e2d60abfa1c1ecbeefe407664f94d0313081eac2e0d8206",
+      "expected_bibs": [
+        377
+      ],
+      "detected_bibs": [
+        377
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 5759.606122970581,
+      "tags": []
+    },
+    {
+      "content_hash": "1eccf4ba86eecfe26473076e66d6ae83be4a94fef2080e3bbafc18cc4e2ae55f",
+      "expected_bibs": [
+        231
+      ],
+      "detected_bibs": [
+        231
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2248.116970062256,
+      "tags": []
+    },
+    {
+      "content_hash": "20de564df790043f55f3c3ce33b42be0ce767ec14fb4b5256915bb02344cd92b",
+      "expected_bibs": [
+        217
+      ],
+      "detected_bibs": [
+        217
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 5028.284788131714,
+      "tags": []
+    },
+    {
+      "content_hash": "219e3a41c3253d5f957202bb4db4362194bf663de84805a999f5ba91cacd164b",
+      "expected_bibs": [
+        227
+      ],
+      "detected_bibs": [
+        227
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 1922.6930141448975,
+      "tags": []
+    },
+    {
+      "content_hash": "21b1517d5f72bec723230eb32a9ee8fb9b42a3c62270eb01c719c826e1b32768",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2072.4411010742188,
+      "tags": [
+        "no_bib"
+      ]
+    },
+    {
+      "content_hash": "23d6b75255337fe40664feaf3bcc69b23e5408fd898130dbe38f022c35b99f6e",
+      "expected_bibs": [
+        400
+      ],
+      "detected_bibs": [
+        400
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2357.728958129883,
+      "tags": []
+    },
+    {
+      "content_hash": "2401059d5cb9c0544d2e433f7689c44e117823e1f7458b2f1118520ef4d8a33f",
+      "expected_bibs": [
+        425
+      ],
+      "detected_bibs": [
+        425
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 1994.0862655639648,
+      "tags": []
+    },
+    {
+      "content_hash": "252e39e6fe55fbf73e77a1b76713f569427a45651ff85ca32f1aeb90736d6f5a",
+      "expected_bibs": [
+        501,
+        516
+      ],
+      "detected_bibs": [
+        501,
+        516
+      ],
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2212.264060974121,
+      "tags": [
+        "blurry_bib"
+      ]
+    },
+    {
+      "content_hash": "25919a4f86ec6dd6de55b7b14d24bca23774503ef77124f33d351f6b290ec9d1",
+      "expected_bibs": [
+        508,
+        543
+      ],
+      "detected_bibs": [
+        508,
+        543
+      ],
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2205.004930496216,
+      "tags": []
+    },
+    {
+      "content_hash": "25bce55674827d8b7797f8eb83e74478291fdaaa7ad4afa0847f04482aa13826",
+      "expected_bibs": [
+        622
+      ],
+      "detected_bibs": [
+        622
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2201.3182640075684,
+      "tags": []
+    },
+    {
+      "content_hash": "25ca09b98afd5896386cfa74eb967f5c891750d419fbc834755b1bd202235aed",
+      "expected_bibs": [
+        403
+      ],
+      "detected_bibs": [
+        403
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2035.3190898895264,
+      "tags": []
+    },
+    {
+      "content_hash": "26fc727ab69fae5e7065c8fcf58342e87913953a250257db61f6c5a5dd536f0b",
+      "expected_bibs": [
+        611
+      ],
+      "detected_bibs": [
+        611
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2065.9000873565674,
+      "tags": []
+    },
+    {
+      "content_hash": "27fcffec898f23728cf2adc2e013f6e090a47edf27f53c9cc8752b0dbf317fc0",
+      "expected_bibs": [
+        415,
+        418
+      ],
+      "detected_bibs": [
+        415,
+        418
+      ],
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2147.3658084869385,
+      "tags": []
+    },
+    {
+      "content_hash": "2894d927d0c5f4a05c82c02552b4721cd76d11b415b68766f3fc76e5641335f9",
+      "expected_bibs": [
+        636
+      ],
+      "detected_bibs": [
+        636
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 1878.4070014953613,
+      "tags": []
+    },
+    {
+      "content_hash": "28c1eabacab37a08f7ed902f78a2bf1950c043ff0501f5aa33969b25131d4b15",
+      "expected_bibs": [
+        200
+      ],
+      "detected_bibs": [
+        200
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 1975.4502773284912,
+      "tags": []
+    },
+    {
+      "content_hash": "2903e32802178df9605cd81cdf9b0bc6cacc3b1428c368a701200e169eace3cf",
+      "expected_bibs": [
+        327
+      ],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "status": "MISS",
+      "detection_time_ms": 2108.604907989502,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "2a693f1733d298114f8e29a7162f7fa277dd85f6765872e869a87e8ef32b76fe",
+      "expected_bibs": [
+        512
+      ],
+      "detected_bibs": [
+        512
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2113.027811050415,
+      "tags": []
+    },
+    {
+      "content_hash": "2b54a20c246e66ee63e8ab3dc4d6ab4abf2fc32e14dd0e70e3beb8f1f7e1cd16",
+      "expected_bibs": [
+        204,
+        205
+      ],
+      "detected_bibs": [
+        205
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "status": "PARTIAL",
+      "detection_time_ms": 2057.7468872070312,
+      "tags": [
+        "blurry_bib"
+      ]
+    },
+    {
+      "content_hash": "2b630a799d968ddd5bd16c36e74135e8f1dafb5ca52381310b246bae8b92b43f",
+      "expected_bibs": [
+        426,
+        431
+      ],
+      "detected_bibs": [
+        426
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 1,
+      "status": "PARTIAL",
+      "detection_time_ms": 1898.6389636993408,
+      "tags": [
+        "blurry_bib"
+      ]
+    },
+    {
+      "content_hash": "2c1a4c98ff7ea9176e2141b29d618257b620fb503067bf711c2e7ce87f18343d",
+      "expected_bibs": [
+        436
+      ],
+      "detected_bibs": [
+        436
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2049.341917037964,
+      "tags": []
+    },
+    {
+      "content_hash": "2d5ff98f49188eda085642ed4d2d1db768d83dd2630930660aa0bf387425ea08",
+      "expected_bibs": [
+        535
+      ],
+      "detected_bibs": [
+        535
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2086.4739418029785,
+      "tags": []
+    },
+    {
+      "content_hash": "2d9ee0ee986c0048e9e68d1b5a798a6312c1a6fc657442f5fb0997f8c88a54c5",
+      "expected_bibs": [
+        429
+      ],
+      "detected_bibs": [
+        429
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2126.7242431640625,
+      "tags": []
+    },
+    {
+      "content_hash": "2e9e10f1fe4719d112047cc144c4d8295b923d6a951450f7b0eadece8c11f24c",
+      "expected_bibs": [
+        200
+      ],
+      "detected_bibs": [
+        200
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2827.871084213257,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "2fef82ba2f0573c46944bf950c75129ebe49eed85d82de870cb5cd0438863398",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2346.2841510772705,
+      "tags": []
+    },
+    {
+      "content_hash": "3133313cdb042f6795c09f322d2b095536a51599ee4988d91bc398f5a1fe8a44",
+      "expected_bibs": [
+        226
+      ],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "status": "MISS",
+      "detection_time_ms": 2110.2511882781982,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "3179f91ca1520b4fe33b794ae272ab239392552dc04138fa34ebd4cb10da2b24",
+      "expected_bibs": [
+        207
+      ],
+      "detected_bibs": [
+        207
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2769.0560817718506,
+      "tags": []
+    },
+    {
+      "content_hash": "3284d0a290d71a3191585fab0b39dd8e46806946dc814e8bb50d3bab59c84e2f",
+      "expected_bibs": [
+        419
+      ],
+      "detected_bibs": [
+        419
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2265.7618522644043,
+      "tags": []
+    },
+    {
+      "content_hash": "329fc2333b08fb4451c0038b0b080d2a7cd93ca325ee7af2ec84586a0971237b",
+      "expected_bibs": [
+        611
+      ],
+      "detected_bibs": [
+        1611
+      ],
+      "tp": 0,
+      "fp": 1,
+      "fn": 1,
+      "status": "MISS",
+      "detection_time_ms": 2247.067928314209,
+      "tags": []
+    },
+    {
+      "content_hash": "331f20b9b1d3a997a2c47ef3f8178887f5907d08bbfc7fe64c13ee0914f39d29",
+      "expected_bibs": [
+        382
+      ],
+      "detected_bibs": [
+        382
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 4624.045848846436,
+      "tags": []
+    },
+    {
+      "content_hash": "3335b7ad8a5a3c19a7d232a90404bdf3094e0f13f182cf1c1d577b861556f0f9",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 616474.5349884033,
+      "tags": [
+        "partial_bib"
+      ]
+    },
+    {
+      "content_hash": "3366fef6e7b8126b3c9e908ef7754b4e16a1e0c54ba5fc93352b52a34d263c3d",
+      "expected_bibs": [
+        354
+      ],
+      "detected_bibs": [
+        354
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 4094.6319103240967,
+      "tags": []
+    },
+    {
+      "content_hash": "33d00c29ca921c492e05badb564ab3687d521118813d52e58acd816406481c07",
+      "expected_bibs": [
+        227
+      ],
+      "detected_bibs": [
+        227
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 3395.638942718506,
+      "tags": []
+    },
+    {
+      "content_hash": "341e02c9fd86b26a9a8dc37748066ccada5fb3a8f058ee9803b68be736eb2e6d",
+      "expected_bibs": [
+        432
+      ],
+      "detected_bibs": [
+        432
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 3077.9409408569336,
+      "tags": []
+    },
+    {
+      "content_hash": "34264ee06bd9fc89407edae66b0c0f0e07b1762cdd08fdbc5920d7849ad55e9a",
+      "expected_bibs": [],
+      "detected_bibs": [
+        30
+      ],
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "status": "PARTIAL",
+      "detection_time_ms": 2060.930013656616,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "344da24c23bd4c96f3e545f049db9f7971dc1483707e1e4918a72a8ac3454abd",
+      "expected_bibs": [
+        413
+      ],
+      "detected_bibs": [
+        413
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2078.701972961426,
+      "tags": []
+    },
+    {
+      "content_hash": "34bfe15a81dc6305d805e84c900fbf9a2b6d92e3fc5eed41dc67ed1b0f3179f2",
+      "expected_bibs": [
+        631
+      ],
+      "detected_bibs": [
+        631
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2024.2412090301514,
+      "tags": []
+    },
+    {
+      "content_hash": "35da088b2f30975f11dc0301631e211739c7319d47c7b079f06dd2bd295e0d69",
+      "expected_bibs": [
+        228
+      ],
+      "detected_bibs": [
+        228
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2417.4041748046875,
+      "tags": []
+    },
+    {
+      "content_hash": "362d11bce7cb89d9c00d1709ee0934fe80cd499f7adbb31954080fb738b914e4",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2916.84889793396,
+      "tags": [
+        "blurry_bib",
+        "partial_bib"
+      ]
+    },
+    {
+      "content_hash": "3fa68b103675543c66252a5f14134a9ae96bea8919102c3c12018eee5d66b082",
+      "expected_bibs": [
+        377
+      ],
+      "detected_bibs": [
+        377
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 4834.471225738525,
+      "tags": []
+    },
+    {
+      "content_hash": "415b961c8adb4226a577571eebf8e94faa14ef8266e8074f7615c752662570aa",
+      "expected_bibs": [
+        223
+      ],
+      "detected_bibs": [
+        223
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 5148.263931274414,
+      "tags": []
+    },
+    {
+      "content_hash": "426e60f9ad2f592114ee7f4aa312a29ebacaae7a5a030654be1300fb8e02f460",
+      "expected_bibs": [
+        611
+      ],
+      "detected_bibs": [
+        611
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 1729.3598651885986,
+      "tags": []
+    },
+    {
+      "content_hash": "437e7c1b41ce9739ffdaa39033ecd8fa409f75c4ad870474e1663b6dffb502f2",
+      "expected_bibs": [
+        350
+      ],
+      "detected_bibs": [
+        350
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 5032.747030258179,
+      "tags": []
+    },
+    {
+      "content_hash": "43afa30828129ff09093cb00afcc4bc2571f6b901de9d5491c47272e6e730889",
+      "expected_bibs": [
+        301
+      ],
+      "detected_bibs": [
+        301
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 1971.8070030212402,
+      "tags": []
+    },
+    {
+      "content_hash": "442afc6b5560af9ea36773bd5824773124f7ba78bcb7af6d0274a54c9f718574",
+      "expected_bibs": [
+        536
+      ],
+      "detected_bibs": [
+        536
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2111.642837524414,
+      "tags": []
+    },
+    {
+      "content_hash": "44a2a2031a9fc46257f93c1e19a1cf8d10dcb53c06c8be4d37dc0f103d246feb",
+      "expected_bibs": [
+        529
+      ],
+      "detected_bibs": [
+        529
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2237.6811504364014,
+      "tags": []
+    },
+    {
+      "content_hash": "460518d262aa4b5d4985e2853000bab031ef461da14a72f7a099e2f24385d27c",
+      "expected_bibs": [
+        327
+      ],
+      "detected_bibs": [
+        327
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2316.2569999694824,
+      "tags": []
+    },
+    {
+      "content_hash": "467542daf5db6de0014d767a696c04b443b59d4d3e16cfcfafee042828e27ae1",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 6378.724813461304,
+      "tags": [
+        "no_bib"
+      ]
+    },
+    {
+      "content_hash": "487f4486f372b912752ac6bfef1db28459b95099bc4bf0f6b00e77cbfb9adde6",
+      "expected_bibs": [
+        622
+      ],
+      "detected_bibs": [
+        622
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 4690.502166748047,
+      "tags": []
+    },
+    {
+      "content_hash": "4897ba6978771078afa6853bae99604d27872cfd913fd019f13a6a319e292d3f",
+      "expected_bibs": [
+        539
+      ],
+      "detected_bibs": [
+        539
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2145.1098918914795,
+      "tags": []
+    },
+    {
+      "content_hash": "48d1d5cd66c0a4de412e633af6696e7cb9640c41d1e06771b3e11ee656912dab",
+      "expected_bibs": [
+        539
+      ],
+      "detected_bibs": [
+        539
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2002.1109580993652,
+      "tags": []
+    },
+    {
+      "content_hash": "4ad9effed5fa34b31c4ab1bc4a0fb4f5780ebd4fbf20f72936550d2745f355e9",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 5828.896045684814,
+      "tags": [
+        "no_bib"
+      ]
+    },
+    {
+      "content_hash": "4c87c475b7fd3ceeca0cd0cde847296a858b42a5f7f9a0d7efe90b71fb4cba11",
+      "expected_bibs": [
+        501
+      ],
+      "detected_bibs": [
+        501
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2129.0440559387207,
+      "tags": []
+    },
+    {
+      "content_hash": "4c9a62b9ac527a40874a9abfb1dd0d2c7f13595d36f30848ff50b26b4fbfbdf3",
+      "expected_bibs": [
+        401,
+        408,
+        434
+      ],
+      "detected_bibs": [
+        401,
+        434
+      ],
+      "tp": 2,
+      "fp": 0,
+      "fn": 1,
+      "status": "PARTIAL",
+      "detection_time_ms": 2045.0561046600342,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "4f82803f7374e99ef716fd7f89b485461ca60875e1ed64c0f0c7fdde4b3e42b5",
+      "expected_bibs": [
+        526,
+        535,
+        539
+      ],
+      "detected_bibs": [
+        526,
+        527,
+        535,
+        539
+      ],
+      "tp": 3,
+      "fp": 1,
+      "fn": 0,
+      "status": "PARTIAL",
+      "detection_time_ms": 2288.372039794922,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "52ba8437d6e7686850386707152657f8858142c9a6c104cac4796bad67549773",
+      "expected_bibs": [
+        431
+      ],
+      "detected_bibs": [
+        421
+      ],
+      "tp": 0,
+      "fp": 1,
+      "fn": 1,
+      "status": "MISS",
+      "detection_time_ms": 2050.755023956299,
+      "tags": []
+    },
+    {
+      "content_hash": "543de7f066e3dcd2b43b304299b5ea12cdf402226d64cc8149b6c794a596524f",
+      "expected_bibs": [
+        205
+      ],
+      "detected_bibs": [
+        205
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2223.008155822754,
+      "tags": []
+    },
+    {
+      "content_hash": "54e3210c4f36217271dac9a22ddd90455abef6d986ab18ceabc34c56f2c121a4",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 6879.454135894775,
+      "tags": [
+        "no_bib"
+      ]
+    },
+    {
+      "content_hash": "560849a021fa4fa878ed74ed5d5ab5d2ea8b3006354b03d55f33c512725ad55e",
+      "expected_bibs": [
+        330
+      ],
+      "detected_bibs": [
+        330
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 5264.91904258728,
+      "tags": []
+    },
+    {
+      "content_hash": "561abfa06448ed726e0a61da5bcebc3ad8bbb5926f22fc65df3c0e7c5e8cbb48",
+      "expected_bibs": [
+        327,
+        353
+      ],
+      "detected_bibs": [
+        327,
+        353
+      ],
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2808.3298206329346,
+      "tags": []
+    },
+    {
+      "content_hash": "5644091c27ce8cab76dae8a6722a0f7e6868023997e266ba23b769673f4dc332",
+      "expected_bibs": [
+        545
+      ],
+      "detected_bibs": [
+        545
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2679.652214050293,
+      "tags": []
+    },
+    {
+      "content_hash": "564d47af825b564d07ad6da70e2bf65390e01d439d6fae639052b769feb21d7a",
+      "expected_bibs": [
+        522,
+        533
+      ],
+      "detected_bibs": [
+        5,
+        522,
+        533
+      ],
+      "tp": 2,
+      "fp": 1,
+      "fn": 0,
+      "status": "PARTIAL",
+      "detection_time_ms": 2742.0871257781982,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "575bfba4e30450d92ff718bba91f54aaeea5f9c75e4679c95afe65897abd5d5a",
+      "expected_bibs": [
+        500
+      ],
+      "detected_bibs": [
+        500
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2600.008964538574,
+      "tags": [
+        "blurry_bib"
+      ]
+    },
+    {
+      "content_hash": "579c691ee7133c853275b341d0aabdfb8897dcc9dfaf9c354ad4d838554542b3",
+      "expected_bibs": [
+        530
+      ],
+      "detected_bibs": [
+        530
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2458.503246307373,
+      "tags": []
+    },
+    {
+      "content_hash": "58a9367a99f4210227de515abadd008a922bc4803ffeb605186fe292a2bf7843",
+      "expected_bibs": [
+        518
+      ],
+      "detected_bibs": [
+        518
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2428.6210536956787,
+      "tags": []
+    },
+    {
+      "content_hash": "58cdb750284a90c0ca7083861e7cd23448cbc22474bcce3c775ed08e97cf9f93",
+      "expected_bibs": [
+        610
+      ],
+      "detected_bibs": [
+        610
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 3288.740873336792,
+      "tags": []
+    },
+    {
+      "content_hash": "592d630cfc7081df6122c49d3f3fd6a9bec6008cad1aaf25c52d8d8b4cc9cb45",
+      "expected_bibs": [
+        325
+      ],
+      "detected_bibs": [
+        325,
+        356
+      ],
+      "tp": 1,
+      "fp": 1,
+      "fn": 0,
+      "status": "PARTIAL",
+      "detection_time_ms": 2640.2292251586914,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "596680462b29f8f0246cc601d07d52ede247f737fd29b75a7d48be045db7a5ff",
+      "expected_bibs": [
+        325,
+        356
+      ],
+      "detected_bibs": [
+        325,
+        356
+      ],
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2794.545888900757,
+      "tags": []
+    },
+    {
+      "content_hash": "59e7c09a16397fdc0f6a8069beaeaf8d0c739fd289e47a1e6ca53b225864db6c",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 8722.867965698242,
+      "tags": [
+        "no_bib"
+      ]
+    },
+    {
+      "content_hash": "5a15cc43eaf2bc170b4b624a1cc47ccc4d9a18dfd708a6da6236a56fb121d363",
+      "expected_bibs": [
+        230
+      ],
+      "detected_bibs": [
+        230
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2458.907127380371,
+      "tags": []
+    },
+    {
+      "content_hash": "5c03e7419f782af21df409576abd46db949e749d5670fffede12cd41b910275e",
+      "expected_bibs": [
+        221
+      ],
+      "detected_bibs": [
+        221
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 5664.926767349243,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "61682341df484d04ebcedac484e0018db7a3538a65029f3c1d505ed31f4bd428",
+      "expected_bibs": [
+        201
+      ],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "status": "MISS",
+      "detection_time_ms": 1972.85795211792,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "627a6259a18c69ad0cf4533bcbf60e7736cb2ee29f1b6f6eca8e65e1b30fd575",
+      "expected_bibs": [
+        217
+      ],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "status": "MISS",
+      "detection_time_ms": 7948.95601272583,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "627defa1ef231140b67b23ad272010ac9bbcd030129644dff7c37db5d103a8c6",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2126.8160343170166,
+      "tags": [
+        "no_bib"
+      ]
+    },
+    {
+      "content_hash": "62aa141d4ac306c3e3b3b30ccf2b07b35eaf727ef946ea7e878008c924c2a865",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 5393.764972686768,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "685e0cfe6167d1fd28f018f0169b0717c6db84cadc680a7e8d2f19e50d211339",
+      "expected_bibs": [
+        205
+      ],
+      "detected_bibs": [
+        205
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2037.7140045166016,
+      "tags": []
+    },
+    {
+      "content_hash": "691438acd71ef95f9fbdc941911211d23f4cc8265e3dc45445b283c545af3e01",
+      "expected_bibs": [],
+      "detected_bibs": [
+        201
+      ],
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "status": "PARTIAL",
+      "detection_time_ms": 1999.6919631958008,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "695cf743866354665fd793ee50b1212338ee15c42ffa91937741a0604ad6de01",
+      "expected_bibs": [
+        523,
+        526
+      ],
+      "detected_bibs": [
+        523,
+        526
+      ],
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 1924.6408939361572,
+      "tags": []
+    },
+    {
+      "content_hash": "6a45d3eea4fce4acba639141a39ca4ed821e2580b45694323c6bf0404bbf3822",
+      "expected_bibs": [
+        631
+      ],
+      "detected_bibs": [
+        631
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2295.553684234619,
+      "tags": []
+    },
+    {
+      "content_hash": "6f112e51586f9cf5b148f58c87a3367d1490f43fe636a1a48c8c2b7af6613b7e",
+      "expected_bibs": [
+        512
+      ],
+      "detected_bibs": [
+        512
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2237.8828525543213,
+      "tags": []
+    },
+    {
+      "content_hash": "6f752497f81e6f8494e6dbf5f82164e0e83e2166873d300caa551f92f8d20fc8",
+      "expected_bibs": [
+        611
+      ],
+      "detected_bibs": [
+        611
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2056.4730167388916,
+      "tags": []
+    },
+    {
+      "content_hash": "705744dedcf946ca1214bdff8ebe63db438268ff6b7efefd0b2fb36af68f18df",
+      "expected_bibs": [
+        636
+      ],
+      "detected_bibs": [
+        636
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 1992.4418926239014,
+      "tags": [
+        "obscured_bib"
+      ]
+    },
+    {
+      "content_hash": "7199a42399af864e181862c1ee8a23a7c484742a846333d486f503d1856a262b",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2289.0470027923584,
+      "tags": [
+        "partial_bib"
+      ]
+    },
+    {
+      "content_hash": "739fe8c77ea2f892ffce0b6b9939bf9e0cb55094002ac062591da73e52cad9a0",
+      "expected_bibs": [
+        507,
+        514
+      ],
+      "detected_bibs": [
+        507,
+        514
+      ],
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 1887.0699405670166,
+      "tags": []
+    },
+    {
+      "content_hash": "74b01e459247f6648c2b80b45597f7150d87559dfd257fdb4d96d8cb5a8bd49f",
+      "expected_bibs": [
+        430
+      ],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 1,
+      "status": "MISS",
+      "detection_time_ms": 2107.2731018066406,
+      "tags": []
+    },
+    {
+      "content_hash": "771430e9096cf4d45a4c66685d488375232c47de7810129779da72f56cb4e47d",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 5605.180025100708,
+      "tags": [
+        "no_bib"
+      ]
+    },
+    {
+      "content_hash": "782bdc64ba27395f3a8e34f98e71b27d9d2eeffd2dc4bdd8cfefdbafb506a9f3",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2152.2529125213623,
+      "tags": [
+        "no_bib"
+      ]
+    },
+    {
+      "content_hash": "78808d836b210b9b89be3fe172eeff9eee8ffd06b48e45fd572bb816a296297f",
+      "expected_bibs": [],
+      "detected_bibs": [],
+      "tp": 0,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2809.765100479126,
+      "tags": [
+        "no_bib"
+      ]
+    },
+    {
+      "content_hash": "792df79b17aac97e67c8bc6485992f4c13768613e53f555373a93569fe766a63",
+      "expected_bibs": [
+        634
+      ],
+      "detected_bibs": [
+        634
+      ],
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "status": "PASS",
+      "detection_time_ms": 2214.8380279541016,
+      "tags": []
+    }
+  ]
+}
