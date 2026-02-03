@@ -105,3 +105,11 @@ SNIPPET_PADDING_RATIO = 0.15
 # Valid bib number range
 MIN_BIB_NUMBER = 1
 MAX_BIB_NUMBER = 9999
+
+# =============================================================================
+# BENCHMARKING
+# =============================================================================
+
+# Probability that a new photo is assigned to the "iteration" split
+# (vs "full" split) when labeling for the first time
+ITERATION_SPLIT_PROBABILITY = 0.5

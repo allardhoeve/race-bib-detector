@@ -5,6 +5,7 @@ Flask application for benchmark labeling UI.
 A fast, simple interface for labeling photos with bib numbers and tags.
 """
 
+import random
 import sys
 from pathlib import Path
 
@@ -21,6 +22,7 @@ from benchmarking.ground_truth import (
     ALLOWED_SPLITS,
 )
 from benchmarking.photo_index import load_photo_index, get_path_for_hash
+from config import ITERATION_SPLIT_PROBABILITY
 
 # Photos directory
 PHOTOS_DIR = Path(__file__).parent.parent / "photos"
@@ -254,7 +256,7 @@ HTML_TEMPLATE = """
             <div class="hash-display">{{ content_hash }}</div>
 
             <div class="keyboard-hint">
-                Keyboard: ← → navigate | Enter save & next | Esc clear bibs
+                ⌘← ⌘→ navigate | Enter save | Esc clear | ⌘O obscured | ⌘N no bib | ⌘B blurry
             </div>
         </div>
     </div>
@@ -279,7 +281,8 @@ HTML_TEMPLATE = """
         function getBibs() {
             const input = document.getElementById('bibs').value;
             if (!input.trim()) return [];
-            return input.split(',')
+            // Split on comma, space, or any combination
+            return input.split(/[\s,]+/)
                        .map(s => parseInt(s.trim(), 10))
                        .filter(n => !isNaN(n));
         }
@@ -330,9 +333,47 @@ HTML_TEMPLATE = """
             window.location.href = '/?filter=' + newFilter;
         }
 
+        function toggleTag(tagName) {
+            const checkbox = document.getElementById('tag_' + tagName);
+            if (checkbox) {
+                checkbox.checked = !checkbox.checked;
+            }
+        }
+
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
-            // Don't intercept when typing in input
+            const mod = e.metaKey || e.ctrlKey;
+
+            // Cmd/Ctrl + Arrow always navigates, even in input
+            if (mod && e.key === 'ArrowLeft') {
+                e.preventDefault();
+                navigate('prev');
+                return;
+            }
+            if (mod && e.key === 'ArrowRight') {
+                e.preventDefault();
+                navigate('next');
+                return;
+            }
+
+            // Cmd/Ctrl + letter for quick tag toggles (work even in input)
+            if (mod && e.key === 'o') {
+                e.preventDefault();
+                toggleTag('obscured_bib');
+                return;
+            }
+            if (mod && e.key === 'n') {
+                e.preventDefault();
+                toggleTag('no_bib');
+                return;
+            }
+            if (mod && e.key === 'b') {
+                e.preventDefault();
+                toggleTag('blurry_bib');
+                return;
+            }
+
+            // Don't intercept other keys when typing in input
             if (e.target.tagName === 'INPUT' && e.key !== 'Enter' && e.key !== 'Escape') {
                 return;
             }
@@ -428,6 +469,12 @@ def create_app() -> Flask:
         gt = load_ground_truth()
         label = gt.get_photo(full_hash)
 
+        # For new photos, randomly assign split based on configured probability
+        if label:
+            default_split = label.split
+        else:
+            default_split = 'iteration' if random.random() < ITERATION_SPLIT_PROBABILITY else 'full'
+
         # Find position
         try:
             idx = hashes.index(full_hash)
@@ -446,7 +493,7 @@ def create_app() -> Flask:
             content_hash=full_hash,
             bibs_str=', '.join(str(b) for b in label.bibs) if label else '',
             tags=label.tags if label else [],
-            split=label.split if label else 'full',
+            split=default_split,
             all_tags=sorted(ALLOWED_TAGS),
             current=idx + 1,
             total=total,
