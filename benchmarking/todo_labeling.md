@@ -2,18 +2,25 @@
 
 Goal: Create a repeatable way to build and maintain the ground-truth sample set from a fixed photo directory, with duplicate detection and editing.
 
-Tasks:
-- [ ] Define a stable image hashing approach for duplicate detection (file hash vs perceptual hash).
-- [ ] Use content hash as canonical identity; store optional photo hash for integration.
-- [ ] Define the fixed source photo directory (global path).
+## Decisions
+
+- **Hashing**: Use SHA256 of file bytes for content hashing (simple, deterministic, duplicates not a significant concern).
+- **Source directory**: `photos/` is the fixed source directory for benchmark photos.
+- **Duplicate handling**: When a duplicate is found, open existing labels for editing rather than creating a new entry.
+
+## Tasks
+
+- [ ] Implement SHA256-based content hashing for photos.
+- [ ] Use content hash as canonical identity; store optional photo hash for integration with existing code.
 - [ ] Add a scanning step that:
-  - iterates photos in the fixed directory
-  - computes hashes
+  - iterates photos in `photos/`
+  - computes SHA256 hashes
   - maps each hash to a canonical ground-truth key
   - detects duplicates and links them to a single entry
-- [ ] Define edit behavior when a duplicate is found (open existing labels vs create new).
 - [ ] Store or update entries in `benchmarking/ground_truth.json` without deleting existing labels.
-- [ ] Track file-to-hash mapping so reruns are stable and incremental (e.g., mapping file).
+- [ ] Track file-to-hash mapping so reruns are stable and incremental (e.g., `benchmarking/photo_index.json`).
 
-Deliverable:
-- A documented flow (CLI or UI) that can build and update the sample set without losing prior labels.
+## Deliverable
+
+- A scanner (CLI) that can build and update the sample set incrementally without losing prior labels.
+- This is a prerequisite for the labeling UI.
