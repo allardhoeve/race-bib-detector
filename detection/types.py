@@ -200,6 +200,7 @@ class PipelineResult:
         original_dimensions: (width, height) of the original input image
         ocr_dimensions: (width, height) of the image used for OCR
         scale_factor: Ratio to map OCR coords back to original (original_width / ocr_width)
+        artifact_paths: Dict mapping artifact names to saved file paths (if artifact saving enabled)
     """
 
     detections: list[Detection]
@@ -208,6 +209,7 @@ class PipelineResult:
     original_dimensions: tuple[int, int]  # (width, height)
     ocr_dimensions: tuple[int, int]  # (width, height)
     scale_factor: float
+    artifact_paths: dict[str, str] = field(default_factory=dict)
 
     @property
     def ocr_scale(self) -> float:

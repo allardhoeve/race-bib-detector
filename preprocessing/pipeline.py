@@ -13,7 +13,7 @@ The run_pipeline() function internally uses the Pipeline class.
 
 Pipeline Philosophy:
 - All detection happens on grayscale images
-- The pipeline is: Grayscale → Resize → (future: CLAHE, etc.)
+- The pipeline is: Grayscale → (CLAHE if needed) → Resize
 - Original color image is preserved only for reference
 """
 
@@ -25,6 +25,7 @@ from .steps import (
     GrayscaleStep,
     ResizeStep,
     PreprocessStep,
+    CLAHEStep,
 )
 
 
@@ -52,8 +53,8 @@ def build_pipeline(config: PreprocessConfig) -> Pipeline:
 
     Creates the standard grayscale-first preprocessing pipeline:
     1. GrayscaleStep - Convert to grayscale
-    2. ResizeStep - Resize to target width (if configured)
-    3. (Future: CLAHEStep, etc.)
+    2. CLAHEStep - Optional contrast enhancement (conditional)
+    3. ResizeStep - Resize to target width (if configured)
 
     Args:
         config: Preprocessing configuration.
@@ -66,11 +67,20 @@ def build_pipeline(config: PreprocessConfig) -> Pipeline:
     # Step 1: Always convert to grayscale first
     steps.append(GrayscaleStep(dtype=config.grayscale_dtype))
 
-    # Step 2: Resize if configured
+    # Step 2: CLAHE contrast enhancement (conditional)
+    if config.clahe_enabled:
+        steps.append(
+            CLAHEStep(
+                clip_limit=config.clahe_clip_limit,
+                tile_size=config.clahe_tile_size,
+                min_dynamic_range=config.clahe_dynamic_range_threshold,
+                percentiles=config.clahe_percentiles,
+            )
+        )
+
+    # Step 3: Resize if configured
     if config.target_width is not None:
         steps.append(ResizeStep(target_width=config.target_width))
-
-    # Future: Add CLAHE, adaptive threshold, etc. here
 
     return Pipeline(steps=steps)
 
@@ -78,13 +88,14 @@ def build_pipeline(config: PreprocessConfig) -> Pipeline:
 def run_pipeline(
     img: np.ndarray,
     config: PreprocessConfig | None = None,
+    artifact_dir: str | None = None,
 ) -> PreprocessResult:
     """Apply the full preprocessing pipeline to an image.
 
     This function applies all preprocessing steps in order:
     1. Convert to grayscale
-    2. Resize to target width (if configured)
-    3. (Future: CLAHE, etc.)
+    2. Optional CLAHE (contrast enhancement)
+    3. Resize to target width (if configured)
 
     All operations are pure and non-mutating. The original image is preserved.
 
@@ -92,6 +103,8 @@ def run_pipeline(
         img: Input image as numpy array. Expected to be RGB with shape (H, W, 3)
              and dtype uint8, but other formats are handled gracefully.
         config: Preprocessing configuration. If None, uses default settings.
+        artifact_dir: Optional directory to save intermediate images.
+                     If provided, saves original.jpg and each step's output.
 
     Returns:
         PreprocessResult containing original and processed images with metadata.
@@ -122,7 +135,7 @@ def run_pipeline(
 
     # Build and run the pipeline
     pipeline = build_pipeline(config)
-    pipeline_result = pipeline.run(original)
+    pipeline_result = pipeline.run(original, artifact_dir=artifact_dir)
 
     # Extract scale factor from pipeline metadata
     scale_factor = pipeline_result.scale_factor
@@ -132,4 +145,5 @@ def run_pipeline(
         processed=pipeline_result.final,
         scale_factor=scale_factor,
         config=config,
+        artifact_paths=pipeline_result.artifact_paths,
     )

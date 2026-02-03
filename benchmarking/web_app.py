@@ -95,6 +95,7 @@ body {
     flex: 1;
     display: flex;
     overflow: hidden;
+    min-height: 0;
 }
 .sidebar {
     width: 280px;
@@ -109,6 +110,8 @@ body {
     justify-content: center;
     padding: 20px;
     background: #0d0d1a;
+    overflow: hidden;
+    min-height: 0;
 }
 .image-panel img {
     max-width: 100%;
@@ -478,6 +481,14 @@ BENCHMARK_LIST_TEMPLATE = """
             font-size: 11px;
             margin-left: 8px;
         }
+        .pipeline-badge {
+            background: #0f3460;
+            color: #eee;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-family: monospace;
+        }
         .metric { font-family: monospace; }
         .no-runs {
             text-align: center;
@@ -514,6 +525,7 @@ BENCHMARK_LIST_TEMPLATE = """
                     <th>Recall</th>
                     <th>F1</th>
                     <th>Commit</th>
+                    <th>Pipeline</th>
                 </tr>
             </thead>
             <tbody>
@@ -532,6 +544,7 @@ BENCHMARK_LIST_TEMPLATE = """
                     <td class="metric">{{ "%.1f%%"|format(run.recall * 100) }}</td>
                     <td class="metric">{{ "%.1f%%"|format(run.f1 * 100) }}</td>
                     <td style="font-family: monospace;">{{ run.git_commit }}</td>
+                    <td><span class="pipeline-badge">{{ run.pipeline or 'unknown' }}</span></td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -585,11 +598,13 @@ BENCHMARK_INSPECT_TEMPLATE = """
         }
         .metric-label { color: #888; }
         .metric-value { font-weight: bold; }
+        .pipeline-info { background: #1a4a7a; }
         .content {
             flex: 1;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            min-height: 0;
         }
         .image-tabs {
             display: flex;
@@ -654,7 +669,7 @@ BENCHMARK_INSPECT_TEMPLATE = """
                 <select class="run-select" id="runSelect" onchange="changeRun()">
                     {% for r in all_runs %}
                     <option value="{{ r.run_id }}" {{ 'selected' if r.run_id == run.metadata.run_id else '' }}>
-                        {{ r.run_id }} ({{ r.timestamp[:10] }}) - {{ r.split }}
+                        {{ r.run_id }} ({{ r.timestamp[:10] }}) - {{ r.split }} [{{ r.pipeline or 'unknown' }}]
                     </option>
                     {% endfor %}
                 </select>
@@ -671,6 +686,10 @@ BENCHMARK_INSPECT_TEMPLATE = """
                 <span class="metric">
                     <span class="metric-label">F1:</span>
                     <span class="metric-value">{{ "%.1f"|format(run.metrics.f1 * 100) }}%</span>
+                </span>
+                <span class="metric pipeline-info">
+                    <span class="metric-label">Pipeline:</span>
+                    <span class="metric-value">{{ pipeline_summary }}</span>
                 </span>
             </div>
         </div>
@@ -708,6 +727,7 @@ BENCHMARK_INSPECT_TEMPLATE = """
             <div class="image-tabs">
                 <button class="image-tab active" data-image="original" onclick="showImage('original')">Original</button>
                 <button class="image-tab" data-image="grayscale" onclick="showImage('grayscale')">Grayscale</button>
+                <button class="image-tab" data-image="clahe" onclick="showImage('clahe')">CLAHE</button>
                 <button class="image-tab" data-image="resize" onclick="showImage('resize')">Resized</button>
                 <button class="image-tab" data-image="candidates" onclick="showImage('candidates')">Candidates</button>
                 <button class="image-tab" data-image="detections" onclick="showImage('detections')">Detections</button>
@@ -750,7 +770,7 @@ BENCHMARK_INSPECT_TEMPLATE = """
             </div>
 
             <div class="keyboard-hint">
-                ← → navigate | 1-5 switch tabs
+                ← → navigate | 1-6 switch tabs
             </div>
         </div>
     </div>
@@ -853,8 +873,8 @@ BENCHMARK_INSPECT_TEMPLATE = """
         document.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowLeft') navigate('prev');
             else if (e.key === 'ArrowRight') navigate('next');
-            else if (e.key >= '1' && e.key <= '5') {
-                const tabs = ['original', 'grayscale', 'resize', 'candidates', 'detections'];
+            else if (e.key >= '1' && e.key <= '6') {
+                const tabs = ['original', 'grayscale', 'clahe', 'resize', 'candidates', 'detections'];
                 const idx = parseInt(e.key) - 1;
                 if (idx < tabs.length) showImage(tabs[idx]);
             }
@@ -1067,6 +1087,11 @@ def create_app() -> Flask:
 
         all_runs = list_runs()
 
+        # Get pipeline summary
+        pipeline_summary = "unknown"
+        if run.metadata.pipeline_config:
+            pipeline_summary = run.metadata.pipeline_config.summary()
+
         return render_template_string(
             BENCHMARK_INSPECT_TEMPLATE,
             run=run,
@@ -1075,6 +1100,7 @@ def create_app() -> Flask:
             filter=filter_type,
             photo_results_json=photo_results_json,
             all_runs=all_runs,
+            pipeline_summary=pipeline_summary,
         )
 
     # -------------------------------------------------------------------------
@@ -1103,6 +1129,7 @@ def create_app() -> Flask:
         filename_map = {
             'original': 'original.jpg',
             'grayscale': 'grayscale.jpg',
+            'clahe': 'clahe.jpg',
             'resize': 'resize.jpg',
             'candidates': 'candidates.jpg',
             'detections': 'detections.jpg',

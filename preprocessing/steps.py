@@ -143,6 +143,10 @@ class CLAHEStep(PreprocessStep):
 
     clip_limit: float = 2.0
     tile_size: tuple[int, int] = (8, 8)
+    min_dynamic_range: float | None = None
+    percentiles: tuple[float, float] = (5.0, 95.0)
+    _applied: bool = field(default=False, init=False, repr=False)
+    _observed_range: float | None = field(default=None, init=False, repr=False)
 
     def apply(self, img: np.ndarray) -> np.ndarray:
         """Apply CLAHE to a grayscale image."""
@@ -151,14 +155,36 @@ class CLAHEStep(PreprocessStep):
                 f"CLAHEStep requires grayscale input (2D array), "
                 f"got {img.ndim}D array with shape {img.shape}"
             )
+        if self.min_dynamic_range is not None:
+            low, high = np.percentile(img, self.percentiles)
+            dynamic_range = float(high - low)
+            should_apply = dynamic_range < self.min_dynamic_range
+            object.__setattr__(self, "_observed_range", dynamic_range)
+            object.__setattr__(self, "_applied", should_apply)
+            if not should_apply:
+                return img.copy()
         clahe = cv2.createCLAHE(
             clipLimit=self.clip_limit, tileGridSize=self.tile_size
         )
-        return clahe.apply(img)
+        result = clahe.apply(img)
+        object.__setattr__(self, "_applied", True)
+        return result
 
     @property
     def name(self) -> str:
         return f"clahe(clip={self.clip_limit})"
+
+    def get_metadata(self) -> dict[str, Any]:
+        metadata = {"clahe_applied": self._applied}
+        if self.min_dynamic_range is not None:
+            metadata.update(
+                {
+                    "clahe_dynamic_range": self._observed_range,
+                    "clahe_min_dynamic_range": self.min_dynamic_range,
+                    "clahe_percentiles": self.percentiles,
+                }
+            )
+        return metadata
 
 
 @dataclass
@@ -169,11 +195,13 @@ class StepResult:
         name: Name of the step that produced this result.
         image: Output image from the step.
         metadata: Any metadata produced by the step (e.g., scale_factor).
+        artifact_path: Path where the image was saved (if artifact saving enabled).
     """
 
     name: str
     image: np.ndarray
     metadata: dict[str, Any] = field(default_factory=dict)
+    artifact_path: str | None = None
 
 
 @dataclass
@@ -185,10 +213,12 @@ class PipelineStepResults:
     Attributes:
         original: The original input image.
         steps: List of StepResult for each step in order.
+        original_artifact_path: Path where original image was saved (if artifact saving enabled).
     """
 
     original: np.ndarray
     steps: list[StepResult] = field(default_factory=list)
+    original_artifact_path: str | None = None
 
     @property
     def final(self) -> np.ndarray:
@@ -243,6 +273,36 @@ class PipelineStepResults:
             result.update(step.metadata)
         return result
 
+    @property
+    def artifact_paths(self) -> dict[str, str]:
+        """Get all artifact paths as a dict mapping step name to path.
+
+        Returns:
+            Dict with keys like "original", "grayscale", etc. and path values.
+            Only includes steps that have artifact_path set.
+        """
+        paths = {}
+        if self.original_artifact_path:
+            paths["original"] = self.original_artifact_path
+        for step in self.steps:
+            if step.artifact_path:
+                # Normalize step name for use as key (e.g., "resize(1280)" -> "resize")
+                key = step.name.split("(")[0]
+                paths[key] = step.artifact_path
+        return paths
+
+
+def _save_image(img: np.ndarray, path: str) -> None:
+    """Save an image to disk.
+
+    Args:
+        img: Image as numpy array (grayscale or BGR).
+        path: Output file path.
+    """
+    from pathlib import Path
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    cv2.imwrite(path, img)
+
 
 @dataclass
 class Pipeline:
@@ -257,11 +317,17 @@ class Pipeline:
 
     steps: list[PreprocessStep]
 
-    def run(self, img: np.ndarray) -> PipelineStepResults:
+    def run(
+        self,
+        img: np.ndarray,
+        artifact_dir: str | None = None,
+    ) -> PipelineStepResults:
         """Run the pipeline on an image.
 
         Args:
             img: Input image as numpy array.
+            artifact_dir: Optional directory to save intermediate images.
+                         If provided, saves original.jpg and each step's output.
 
         Returns:
             PipelineStepResults containing all intermediate images and metadata.
@@ -269,11 +335,35 @@ class Pipeline:
         result = PipelineStepResults(original=img.copy())
         current = img.copy()
 
+        # Save original if artifact_dir provided
+        if artifact_dir:
+            original_path = f"{artifact_dir}/original.jpg"
+            # Convert RGB to BGR for cv2 if color image
+            if img.ndim == 3 and img.shape[2] == 3:
+                _save_image(cv2.cvtColor(img, cv2.COLOR_RGB2BGR), original_path)
+            else:
+                _save_image(img, original_path)
+            result.original_artifact_path = original_path
+
         for step in self.steps:
             output = step.apply(current)
             metadata = step.get_metadata()
+
+            # Save step output if artifact_dir provided
+            artifact_path = None
+            if artifact_dir:
+                # Use normalized step name for filename
+                step_name = step.name.split("(")[0]
+                artifact_path = f"{artifact_dir}/{step_name}.jpg"
+                _save_image(output, artifact_path)
+
             result.steps.append(
-                StepResult(name=step.name, image=output, metadata=metadata)
+                StepResult(
+                    name=step.name,
+                    image=output,
+                    metadata=metadata,
+                    artifact_path=artifact_path,
+                )
             )
             current = output
 

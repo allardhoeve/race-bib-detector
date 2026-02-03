@@ -60,6 +60,16 @@ Handles various input formats:
 - RGBA (4 channels): Drops alpha, then converts
 - Already grayscale: Returns a copy
 
+#### Contrast Enhancement (CLAHE)
+
+CLAHE is optional and only applied when the grayscale image has low global
+contrast. The default heuristic computes the 5th and 95th percentiles and
+applies CLAHE when `p95 - p5` falls below the configured threshold.
+
+Why apply CLAHE conditionally?
+- Avoids amplifying noise in already high-contrast images
+- Keeps processing consistent without a manual toggle
+
 #### Resize to Fixed Width
 
 ```python
@@ -81,16 +91,14 @@ The `scale_factor` is returned for mapping detections back to original coordinat
 from preprocessing import run_pipeline, PreprocessConfig
 
 # Create configuration
-config = PreprocessConfig(target_width=1280)
+config = PreprocessConfig(target_width=1280, clahe_enabled=True)
 
 # Run the pipeline
 result = run_pipeline(image, config)
 
 # Access results
 result.original          # Original image (copy)
-result.grayscale         # Grayscale at original size
-result.resized           # RGB resized to target width
-result.resized_grayscale # Grayscale resized
+result.processed         # Grayscale, CLAHE (if applied), resized (if enabled)
 result.scale_factor      # For coordinate mapping
 ```
 
@@ -115,6 +123,11 @@ bbox_original = result.map_bbox_to_original(bbox_resized)
 | `target_width` | 1280 | Width to resize to (None to skip) |
 | `grayscale_dtype` | uint8 | Dtype for grayscale images |
 | `binary_dtype` | uint8 | Dtype for binary images |
+| `clahe_enabled` | False | Enable CLAHE contrast enhancement |
+| `clahe_clip_limit` | 2.0 | CLAHE clip limit |
+| `clahe_tile_size` | (8, 8) | CLAHE tile grid size |
+| `clahe_dynamic_range_threshold` | 60.0 | Apply CLAHE when `p95 - p5` is below this |
+| `clahe_percentiles` | (5.0, 95.0) | Percentiles used for dynamic range |
 
 ### Recommended Settings
 
@@ -125,9 +138,15 @@ bbox_original = result.map_bbox_to_original(bbox_resized)
 ## Future Extensions
 
 The preprocessing module is designed to be extended with:
-- Contrast enhancement (CLAHE)
+- Advanced contrast heuristics
 - Noise reduction
 - Perspective correction
 - Bib region isolation
 
 Each new operation will follow the same pure function design.
+
+### Optional TODOs: Smarter CLAHE Triggers
+
+- TODO: Tile-based contrast check (apply CLAHE if most tiles are low-contrast)
+- TODO: Use local dynamic range within candidate bib regions (post region proposal)
+- TODO: Use gradient magnitude statistics as a contrast proxy

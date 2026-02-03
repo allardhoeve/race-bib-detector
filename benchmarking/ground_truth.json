@@ -236,7 +236,9 @@
     },
     "0ca6239052eafc2f1777ee4747af294d2d303d929209ef2c95be83636765c464": {
       "content_hash": "0ca6239052eafc2f1777ee4747af294d2d303d929209ef2c95be83636765c464",
-      "bibs": [],
+      "bibs": [
+        224
+      ],
       "tags": [
         "obscured_bib"
       ],

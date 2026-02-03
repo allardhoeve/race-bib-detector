@@ -19,6 +19,13 @@ MIN_TARGET_WIDTH = 256
 # Maximum allowed target width (too large is slow with diminishing returns)
 MAX_TARGET_WIDTH = 4096
 
+# CLAHE (contrast enhancement) defaults
+CLAHE_ENABLED = False
+CLAHE_CLIP_LIMIT = 2.0
+CLAHE_TILE_SIZE = (8, 8)
+CLAHE_DYNAMIC_RANGE_THRESHOLD = 60.0
+CLAHE_PERCENTILES = (5.0, 95.0)
+
 # =============================================================================
 # URL GENERATION (Google Photos)
 # =============================================================================

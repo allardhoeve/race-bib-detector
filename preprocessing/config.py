@@ -10,7 +10,16 @@ from typing import Optional
 
 import numpy as np
 
-from config import TARGET_WIDTH, MIN_TARGET_WIDTH, MAX_TARGET_WIDTH
+from config import (
+    TARGET_WIDTH,
+    MIN_TARGET_WIDTH,
+    MAX_TARGET_WIDTH,
+    CLAHE_ENABLED,
+    CLAHE_CLIP_LIMIT,
+    CLAHE_TILE_SIZE,
+    CLAHE_DYNAMIC_RANGE_THRESHOLD,
+    CLAHE_PERCENTILES,
+)
 
 
 @dataclass(frozen=True)
@@ -28,6 +37,11 @@ class PreprocessConfig:
         grayscale_dtype: Numpy dtype for grayscale images. Default is uint8
                         for compatibility with most CV operations.
         binary_dtype: Numpy dtype for binary (thresholded) images.
+        clahe_enabled: Whether to use CLAHE contrast enhancement.
+        clahe_clip_limit: Contrast limit for CLAHE.
+        clahe_tile_size: Tile grid size for CLAHE.
+        clahe_dynamic_range_threshold: Apply CLAHE only if p95-p5 is below this value.
+        clahe_percentiles: Percentiles used for dynamic range estimation.
     """
 
     # Normalization settings
@@ -36,6 +50,13 @@ class PreprocessConfig:
     # Type normalization
     grayscale_dtype: np.dtype = field(default_factory=lambda: np.dtype(np.uint8))
     binary_dtype: np.dtype = field(default_factory=lambda: np.dtype(np.uint8))
+
+    # CLAHE settings (contrast enhancement)
+    clahe_enabled: bool = CLAHE_ENABLED
+    clahe_clip_limit: float = CLAHE_CLIP_LIMIT
+    clahe_tile_size: tuple[int, int] = CLAHE_TILE_SIZE
+    clahe_dynamic_range_threshold: float = CLAHE_DYNAMIC_RANGE_THRESHOLD
+    clahe_percentiles: tuple[float, float] = CLAHE_PERCENTILES
 
     def validate(self) -> None:
         """Validate configuration parameters.
@@ -68,6 +89,34 @@ class PreprocessConfig:
         except (TypeError, ValueError) as e:
             raise ValueError(f"Invalid binary_dtype: {e}")
 
+        if self.clahe_clip_limit <= 0:
+            raise ValueError(
+                f"clahe_clip_limit must be positive, got {self.clahe_clip_limit}"
+            )
+
+        if (
+            not isinstance(self.clahe_tile_size, tuple)
+            or len(self.clahe_tile_size) != 2
+            or any(size <= 0 for size in self.clahe_tile_size)
+        ):
+            raise ValueError(
+                "clahe_tile_size must be a tuple of two positive integers, "
+                f"got {self.clahe_tile_size}"
+            )
+
+        if self.clahe_dynamic_range_threshold < 0:
+            raise ValueError(
+                "clahe_dynamic_range_threshold must be non-negative, "
+                f"got {self.clahe_dynamic_range_threshold}"
+            )
+
+        low, high = self.clahe_percentiles
+        if not (0.0 <= low < high <= 100.0):
+            raise ValueError(
+                "clahe_percentiles must be in ascending order within [0, 100], "
+                f"got {self.clahe_percentiles}"
+            )
+
 
 @dataclass
 class PreprocessResult:
@@ -86,12 +135,14 @@ class PreprocessResult:
         scale_factor: Ratio of original width to processed width.
                      Used to map bounding boxes back to original coordinates.
         config: The configuration used for preprocessing.
+        artifact_paths: Dict mapping step names to saved file paths (if artifact saving enabled).
     """
 
     original: np.ndarray
     processed: np.ndarray
     scale_factor: float
     config: PreprocessConfig
+    artifact_paths: dict[str, str] = field(default_factory=dict)
 
     def map_to_original_coords(self, x: float, y: float) -> tuple[float, float]:
         """Map coordinates from processed image back to original image.

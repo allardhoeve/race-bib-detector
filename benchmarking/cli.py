@@ -385,16 +385,17 @@ def cmd_benchmark_list(args: argparse.Namespace) -> int:
         return 0
 
     # Print header
-    print(f"{'ID':<10} {'Date':<12} {'Split':<10} {'P':>6} {'R':>6} {'F1':>6} {'Commit':<12}")
-    print("-" * 70)
+    print(f"{'ID':<10} {'Date':<12} {'Split':<10} {'P':>6} {'R':>6} {'F1':>6} {'Commit':<10} {'Pipeline':<20}")
+    print("-" * 90)
 
     for run in runs:
         baseline_marker = " (baseline)" if run.get("is_baseline") else ""
         date = run["timestamp"][:10]
+        pipeline = run.get("pipeline", "unknown")
         print(
             f"{run['run_id']:<10} {date:<12} {run['split']:<10} "
             f"{run['precision']:>5.1%} {run['recall']:>5.1%} {run['f1']:>5.1%} "
-            f"{run['git_commit']}{baseline_marker}"
+            f"{run['git_commit']:<10} {pipeline}{baseline_marker}"
         )
 
     print(f"\nTotal: {len(runs)} runs")

@@ -20,6 +20,7 @@ import torch
 
 from config import BENCHMARK_REGRESSION_TOLERANCE
 from detection import detect_bib_numbers
+from preprocessing import PreprocessConfig
 
 from .ground_truth import load_ground_truth, PhotoLabel, GroundTruth
 from .photo_index import load_photo_index, get_path_for_hash
@@ -51,6 +52,7 @@ class PhotoResult:
     status: Status
     detection_time_ms: float
     tags: list[str] = field(default_factory=list)
+    artifact_paths: dict[str, str] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -63,6 +65,7 @@ class PhotoResult:
             "status": self.status,
             "detection_time_ms": self.detection_time_ms,
             "tags": self.tags,
+            "artifact_paths": self.artifact_paths,
         }
 
     @classmethod
@@ -77,6 +80,7 @@ class PhotoResult:
             status=data["status"],
             detection_time_ms=data.get("detection_time_ms", 0),
             tags=data.get("tags", []),
+            artifact_paths=data.get("artifact_paths", {}),
         )
 
 
@@ -125,8 +129,48 @@ class BenchmarkMetrics:
 
 
 @dataclass
+class PipelineConfig:
+    """Configuration of the preprocessing pipeline used in a benchmark run."""
+    target_width: int | None
+    clahe_enabled: bool
+    clahe_clip_limit: float | None
+    clahe_tile_size: tuple[int, int] | None
+    clahe_dynamic_range_threshold: float | None
+
+    def to_dict(self) -> dict:
+        return {
+            "target_width": self.target_width,
+            "clahe_enabled": self.clahe_enabled,
+            "clahe_clip_limit": self.clahe_clip_limit,
+            "clahe_tile_size": list(self.clahe_tile_size) if self.clahe_tile_size else None,
+            "clahe_dynamic_range_threshold": self.clahe_dynamic_range_threshold,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> PipelineConfig:
+        tile_size = data.get("clahe_tile_size")
+        return cls(
+            target_width=data.get("target_width"),
+            clahe_enabled=data.get("clahe_enabled", False),
+            clahe_clip_limit=data.get("clahe_clip_limit"),
+            clahe_tile_size=tuple(tile_size) if tile_size else None,
+            clahe_dynamic_range_threshold=data.get("clahe_dynamic_range_threshold"),
+        )
+
+    def summary(self) -> str:
+        """Return a short human-readable summary of the pipeline config."""
+        parts = []
+        if self.target_width:
+            parts.append(f"w={self.target_width}")
+        if self.clahe_enabled:
+            parts.append(f"CLAHE")
+        return ", ".join(parts) if parts else "default"
+
+
+@dataclass
 class RunMetadata:
     """Metadata about a benchmark run."""
+    run_id: str
     timestamp: str
     split: str
     git_commit: str
@@ -136,9 +180,11 @@ class RunMetadata:
     hostname: str
     gpu_info: str | None
     total_runtime_seconds: float
+    pipeline_config: PipelineConfig | None = None
 
     def to_dict(self) -> dict:
-        return {
+        result = {
+            "run_id": self.run_id,
             "timestamp": self.timestamp,
             "split": self.split,
             "git_commit": self.git_commit,
@@ -149,10 +195,17 @@ class RunMetadata:
             "gpu_info": self.gpu_info,
             "total_runtime_seconds": self.total_runtime_seconds,
         }
+        if self.pipeline_config:
+            result["pipeline_config"] = self.pipeline_config.to_dict()
+        return result
 
     @classmethod
     def from_dict(cls, data: dict) -> RunMetadata:
+        pipeline_config = None
+        if "pipeline_config" in data:
+            pipeline_config = PipelineConfig.from_dict(data["pipeline_config"])
         return cls(
+            run_id=data.get("run_id", "unknown"),
             timestamp=data["timestamp"],
             split=data["split"],
             git_commit=data["git_commit"],
@@ -162,6 +215,7 @@ class RunMetadata:
             hostname=data["hostname"],
             gpu_info=data.get("gpu_info"),
             total_runtime_seconds=data.get("total_runtime_seconds", 0),
+            pipeline_config=pipeline_config,
         )
 
 
@@ -198,6 +252,13 @@ class BenchmarkRun:
         """Load benchmark run from JSON file."""
         with open(path, "r") as f:
             return cls.from_dict(json.load(f))
+
+
+def generate_run_id() -> str:
+    """Generate a unique run ID based on timestamp."""
+    import hashlib
+    timestamp = datetime.now().isoformat()
+    return hashlib.sha256(timestamp.encode()).hexdigest()[:8]
 
 
 def get_git_info() -> tuple[str, bool]:
@@ -332,6 +393,13 @@ def run_benchmark(
     """
     start_time = time.time()
 
+    # Generate run ID and create results directory
+    run_id = generate_run_id()
+    run_dir = RESULTS_DIR / run_id
+    images_dir = run_dir / "images"
+    run_dir.mkdir(parents=True, exist_ok=True)
+    images_dir.mkdir(parents=True, exist_ok=True)
+
     # Load ground truth and photo index
     gt = load_ground_truth()
     index = load_photo_index()
@@ -349,6 +417,7 @@ def run_benchmark(
 
     if verbose:
         print(f"Running benchmark on {len(photos)} photos (split: {split})")
+        print(f"Run ID: {run_id}")
 
     # Initialize EasyOCR reader
     if verbose:
@@ -368,9 +437,12 @@ def run_benchmark(
         # Read image
         image_data = path.read_bytes()
 
-        # Run detection with timing
+        # Create artifact directory for this photo
+        photo_artifact_dir = str(images_dir / label.content_hash[:16])
+
+        # Run detection with timing and artifact saving
         detect_start = time.time()
-        result = detect_bib_numbers(reader, image_data)
+        result = detect_bib_numbers(reader, image_data, artifact_dir=photo_artifact_dir)
         detect_time_ms = (time.time() - detect_start) * 1000
 
         # Extract detected bib numbers as integers
@@ -381,8 +453,9 @@ def run_benchmark(
             except ValueError:
                 pass
 
-        # Compute result
+        # Compute result with artifact paths
         photo_result = compute_photo_result(label, detected_bibs, detect_time_ms)
+        photo_result.artifact_paths = result.artifact_paths
         photo_results.append(photo_result)
 
         if verbose:
@@ -398,7 +471,18 @@ def run_benchmark(
     git_commit, git_dirty = get_git_info()
     total_runtime = time.time() - start_time
 
+    # Capture pipeline configuration
+    preprocess_config = PreprocessConfig()
+    pipeline_config = PipelineConfig(
+        target_width=preprocess_config.target_width,
+        clahe_enabled=preprocess_config.clahe_enabled,
+        clahe_clip_limit=preprocess_config.clahe_clip_limit if preprocess_config.clahe_enabled else None,
+        clahe_tile_size=preprocess_config.clahe_tile_size if preprocess_config.clahe_enabled else None,
+        clahe_dynamic_range_threshold=preprocess_config.clahe_dynamic_range_threshold if preprocess_config.clahe_enabled else None,
+    )
+
     metadata = RunMetadata(
+        run_id=run_id,
         timestamp=datetime.now().isoformat(),
         split=split,
         git_commit=git_commit,
@@ -408,13 +492,23 @@ def run_benchmark(
         hostname=socket.gethostname(),
         gpu_info=get_gpu_info(),
         total_runtime_seconds=total_runtime,
+        pipeline_config=pipeline_config,
     )
 
-    return BenchmarkRun(
+    benchmark_run = BenchmarkRun(
         metadata=metadata,
         metrics=metrics,
         photo_results=photo_results,
     )
+
+    # Always save results
+    run_json_path = run_dir / "run.json"
+    benchmark_run.save(run_json_path)
+
+    if verbose:
+        print(f"\nResults saved to: {run_dir}")
+
+    return benchmark_run
 
 
 def compare_to_baseline(
@@ -482,3 +576,140 @@ def load_baseline() -> BenchmarkRun | None:
 def save_baseline(run: BenchmarkRun) -> None:
     """Save a run as the new baseline."""
     run.save(BASELINE_PATH)
+
+
+def list_runs() -> list[dict]:
+    """List all saved benchmark runs.
+
+    Returns:
+        List of dicts with run info, sorted by timestamp (newest first).
+    """
+    runs = []
+
+    if not RESULTS_DIR.exists():
+        return runs
+
+    for run_dir in RESULTS_DIR.iterdir():
+        if not run_dir.is_dir():
+            continue
+
+        run_json = run_dir / "run.json"
+        if not run_json.exists():
+            continue
+
+        try:
+            run = BenchmarkRun.load(run_json)
+            run_info = {
+                "run_id": run.metadata.run_id,
+                "timestamp": run.metadata.timestamp,
+                "split": run.metadata.split,
+                "precision": run.metrics.precision,
+                "recall": run.metrics.recall,
+                "f1": run.metrics.f1,
+                "git_commit": run.metadata.git_commit[:8],
+                "total_photos": run.metrics.total_photos,
+                "path": str(run_dir),
+            }
+            # Add pipeline config summary if available
+            if run.metadata.pipeline_config:
+                run_info["pipeline"] = run.metadata.pipeline_config.summary()
+            else:
+                run_info["pipeline"] = "unknown"
+            runs.append(run_info)
+        except Exception:
+            # Skip malformed runs
+            continue
+
+    # Sort by timestamp, newest first
+    runs.sort(key=lambda r: r["timestamp"], reverse=True)
+
+    # Mark baseline
+    baseline = load_baseline()
+    if baseline:
+        for run in runs:
+            if run["run_id"] == baseline.metadata.run_id:
+                run["is_baseline"] = True
+                break
+
+    return runs
+
+
+def get_run(run_id: str) -> BenchmarkRun | None:
+    """Load a specific run by ID.
+
+    Args:
+        run_id: The run ID (or prefix)
+
+    Returns:
+        BenchmarkRun or None if not found
+    """
+    if not RESULTS_DIR.exists():
+        return None
+
+    # Try exact match first
+    run_dir = RESULTS_DIR / run_id
+    if run_dir.exists():
+        run_json = run_dir / "run.json"
+        if run_json.exists():
+            return BenchmarkRun.load(run_json)
+
+    # Try prefix match
+    for d in RESULTS_DIR.iterdir():
+        if d.is_dir() and d.name.startswith(run_id):
+            run_json = d / "run.json"
+            if run_json.exists():
+                return BenchmarkRun.load(run_json)
+
+    return None
+
+
+def get_latest_run() -> BenchmarkRun | None:
+    """Get the most recent benchmark run."""
+    runs = list_runs()
+    if not runs:
+        return None
+    return get_run(runs[0]["run_id"])
+
+
+def clean_runs(keep_count: int = 5, dry_run: bool = False) -> list[dict]:
+    """Remove old benchmark runs, keeping the most recent ones.
+
+    Args:
+        keep_count: Number of recent runs to keep
+        dry_run: If True, don't actually delete, just return what would be deleted
+
+    Returns:
+        List of dicts describing deleted (or would-be-deleted) runs
+    """
+    import shutil
+
+    runs = list_runs()
+
+    if len(runs) <= keep_count:
+        return []
+
+    # Runs are already sorted newest first
+    to_delete = runs[keep_count:]
+    deleted = []
+
+    for run_info in to_delete:
+        run_dir = Path(run_info["path"])
+
+        # Calculate size
+        total_size = 0
+        for f in run_dir.rglob("*"):
+            if f.is_file():
+                total_size += f.stat().st_size
+
+        deleted.append({
+            "run_id": run_info["run_id"],
+            "timestamp": run_info["timestamp"],
+            "split": run_info["split"],
+            "size_mb": total_size / (1024 * 1024),
+            "path": str(run_dir),
+        })
+
+        if not dry_run:
+            shutil.rmtree(run_dir)
+
+    return deleted

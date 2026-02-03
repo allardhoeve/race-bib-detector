@@ -78,6 +78,7 @@ def detect_bib_numbers(
     reader: easyocr.Reader,
     image_data: bytes,
     preprocess_config: PreprocessConfig | None = None,
+    artifact_dir: str | None = None,
 ) -> PipelineResult:
     """Detect bib numbers in an image using EasyOCR.
 
@@ -88,6 +89,7 @@ def detect_bib_numbers(
         reader: EasyOCR reader instance.
         image_data: Raw image bytes.
         preprocess_config: Optional preprocessing configuration.
+        artifact_dir: Optional directory to save intermediate images and visualizations.
 
     Returns:
         PipelineResult containing detections, candidates, and metadata for coordinate mapping.
@@ -103,7 +105,7 @@ def detect_bib_numbers(
     image_array = np.array(image)
 
     # Apply preprocessing pipeline (grayscale + resize)
-    preprocess_result = run_pipeline(image_array, preprocess_config)
+    preprocess_result = run_pipeline(image_array, preprocess_config, artifact_dir=artifact_dir)
 
     # Use processed grayscale image for all detection
     # The pipeline produces a grayscale, resized image ready for OCR
@@ -172,6 +174,26 @@ def detect_bib_numbers(
     orig_h, orig_w = image_array.shape[:2]
     ocr_h, ocr_w = ocr_image.shape[:2]
 
+    # Collect artifact paths from preprocessing
+    artifact_paths = dict(preprocess_result.artifact_paths)
+
+    # Save candidates and detections visualizations if artifact_dir provided
+    if artifact_dir:
+        from pathlib import Path
+        import cv2
+        from utils import draw_candidates_on_image, draw_bounding_boxes_on_gray
+
+        # Save candidates visualization
+        candidates_path = f"{artifact_dir}/candidates.jpg"
+        draw_candidates_on_image(ocr_image, all_candidates, Path(candidates_path))
+        artifact_paths["candidates"] = candidates_path
+
+        # Save detections visualization (use detections at OCR scale for visualization)
+        detections_path = f"{artifact_dir}/detections.jpg"
+        ocr_scale_detections = [det.scale_bbox(1.0 / scale_factor) for det in final_detections] if scale_factor != 1.0 else final_detections
+        draw_bounding_boxes_on_gray(ocr_grayscale, ocr_scale_detections, Path(detections_path))
+        artifact_paths["detections"] = detections_path
+
     return PipelineResult(
         detections=final_detections,
         all_candidates=all_candidates,
@@ -179,4 +201,5 @@ def detect_bib_numbers(
         original_dimensions=(orig_w, orig_h),
         ocr_dimensions=(ocr_w, ocr_h),
         scale_factor=scale_factor,
+        artifact_paths=artifact_paths,
     )
