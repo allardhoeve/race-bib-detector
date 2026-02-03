@@ -253,7 +253,11 @@ HTML_TEMPLATE = """
 
             <div id="status" class="status" style="display: none;"></div>
 
-            <div class="hash-display">{{ content_hash }}</div>
+            <div class="hash-display">
+                {{ content_hash[:16] }}...
+                <a href="http://localhost:30003/?hash={{ content_hash[:16] }}" target="_blank"
+                   style="color: #0f9b0f; margin-left: 10px;">View in Inspector →</a>
+            </div>
 
             <div class="keyboard-hint">
                 ⌘← ⌘→ navigate | Enter save | Esc clear | ⌘O obscured | ⌘N no bib | ⌘B blurry
@@ -282,7 +286,7 @@ HTML_TEMPLATE = """
             const input = document.getElementById('bibs').value;
             if (!input.trim()) return [];
             // Split on comma, space, or any combination
-            return input.split(/[\s,]+/)
+            return input.split(/[\\s,]+/)
                        .map(s => parseInt(s.trim(), 10))
                        .filter(n => !isNaN(n));
         }
@@ -324,7 +328,9 @@ HTML_TEMPLATE = """
         }
 
         function navigate(direction) {
-            const url = direction === 'prev' ? '{{ prev_url }}' : '{{ next_url }}';
+            const prevUrl = {{ prev_url|tojson }};
+            const nextUrl = {{ next_url|tojson }};
+            const url = direction === 'prev' ? prevUrl : nextUrl;
             if (url) window.location.href = url;
         }
 

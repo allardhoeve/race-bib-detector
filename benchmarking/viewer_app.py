@@ -266,8 +266,9 @@ HTML_TEMPLATE = """
                 {% for result in filtered_results %}
                 <li class="photo-item {{ 'active' if loop.index0 == current_idx else '' }}"
                     onclick="selectPhoto({{ loop.index0 }})"
-                    data-idx="{{ loop.index0 }}">
-                    <span class="photo-hash">{{ result.content_hash[:12] }}...</span>
+                    data-idx="{{ loop.index0 }}"
+                    data-hash="{{ result.content_hash[:16] }}">
+                    <span class="photo-hash">{{ result.content_hash[:16] }}...</span>
                     <span class="photo-status status-{{ result.status }}">{{ result.status }}</span>
                 </li>
                 {% endfor %}
@@ -312,6 +313,9 @@ HTML_TEMPLATE = """
                     <div class="detail-item">
                         <span class="detail-label">Tags:</span>
                         <div class="tags-list" id="detailTags"></div>
+                    </div>
+                    <div class="detail-item">
+                        <a href="#" id="editLink" target="_blank" style="color: #0f9b0f;">Edit Labels →</a>
                     </div>
                 </div>
             </div>
@@ -396,6 +400,11 @@ HTML_TEMPLATE = """
                 `<span class="tag">${tag}</span>`
             ).join('') || '<span style="color:#666">none</span>';
             document.getElementById('detailTags').innerHTML = tagsHtml;
+
+            // Edit link - use first 16 chars of hash (consistent with labeling UI)
+            const hashPrefix = result.content_hash.substring(0, 16);
+            document.getElementById('editLink').href =
+                `http://localhost:30002/label/${hashPrefix}`;
         }
 
         function updateImage() {
@@ -474,12 +483,20 @@ def create_app(run: BenchmarkRun) -> Flask:
         """Show inspection UI."""
         filter_type = request.args.get('filter', 'all')
         idx = request.args.get('idx', 0, type=int)
+        hash_query = request.args.get('hash', '')
 
         # Filter results
         filtered = filter_results(run.photo_results, filter_type)
 
         if not filtered:
             return "No photos match the filter.", 404
+
+        # If hash query provided, find matching photo
+        if hash_query:
+            for i, r in enumerate(filtered):
+                if r.content_hash.startswith(hash_query):
+                    idx = i
+                    break
 
         # Clamp index
         idx = max(0, min(idx, len(filtered) - 1))
