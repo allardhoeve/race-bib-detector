@@ -4,3 +4,4 @@ bibs.db
 __pycache__
 cache/*
 commit.txt
+benchmarking/results/

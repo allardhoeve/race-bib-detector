@@ -1,66 +1,94 @@
-# Benchmarking Data Layout
+# Benchmarking System
 
-This directory contains benchmark data and documentation for the bib detection evaluation.
+Evaluate bib number detection accuracy against a manually labeled ground truth.
 
-## Implementation Order
+## Quick Start
 
-1. **todo_labeling.md** - Scanning, hashing, ground_truth.json structure
-2. **todo_ui.md** - Fast labeling interface
-3. **todo_benchmark_runner.md** - Run detection in batch, compare to ground truth
-4. **todo_reporting.md** - Output formatting
-5. **todo_comparison.md** - Diff two runs
+```bash
+# 1. Scan photos directory
+python -m benchmarking.cli scan
 
-## Files
+# 2. Launch web UI for labeling and inspection
+python -m benchmarking.cli ui
+# Open http://localhost:30002
 
-Planned files:
-- `benchmarking/ground_truth.json` - Manual labels (bibs, tags, split) per photo
-- `benchmarking/photo_index.json` - Maps content hashes to file paths
-- `benchmarking/results/` - Stored benchmark run outputs
-- `benchmarking/BENCHMARKING.md` - Design document
+# 3. Run benchmark
+python -m benchmarking.cli benchmark -s full
+
+# 4. Update baseline if improved
+python -m benchmarking.cli update-baseline
+```
+
+## Web UI Routes
+
+The unified web app (http://localhost:30002):
+
+| Route | Description |
+|-------|-------------|
+| `/labels/` | Photo labeling UI |
+| `/labels/<hash>` | Label specific photo |
+| `/benchmark/` | List of benchmark runs |
+| `/benchmark/<run_id>/` | Inspect a specific run |
+
+## CLI Commands
+
+```bash
+# Scanning and labeling
+scan              # Scan photos/ and update index
+stats             # Show labeling statistics
+ui                # Launch web UI
+
+# Benchmarking
+benchmark         # Run on iteration split (fast feedback)
+benchmark -s full # Run on all photos
+benchmark -q      # Quiet mode (no per-photo output)
+update-baseline   # Update baseline if metrics improved
+
+# Run management
+benchmark-list    # List all saved runs
+benchmark-inspect # Show URL to inspect a run
+benchmark-clean   # Clean old runs (--keep-latest N, --keep-baseline)
+```
+
+## Splits
+
+- **iteration**: Subset of photos (~50%) for fast development feedback
+- **full**: ALL labeled photos for comprehensive validation
+
+The `full` split is used for baseline comparison and should be run before committing changes.
+
+## Metrics
+
+| Metric | Description |
+|--------|-------------|
+| Precision | TP / (TP + FP) - How many detections were correct |
+| Recall | TP / (TP + FN) - How many bibs were found |
+| F1 | Harmonic mean of precision and recall |
+
+Per-photo status:
+- **PASS**: All expected bibs found, no false positives
+- **PARTIAL**: Some bibs found or has false positives
+- **MISS**: None of the expected bibs found
+
+## Data Files
+
+| File | Description |
+|------|-------------|
+| `ground_truth.json` | Labels: bibs, tags, split per photo |
+| `photo_index.json` | SHA256 hash → file path mapping |
+| `baseline.json` | Current baseline metrics (full split) |
+| `results/<run_id>/` | Saved runs with artifacts |
 
 ## Ground Truth Schema
 
-Top-level fields:
-- `version`: integer schema version
-- `tags`: list of allowed tag values
-- `photos`: map keyed by content hash (SHA256)
-
-Each photo entry fields:
-- `bibs`: list of integer bib numbers, no duplicates
-- `tags`: list of zero or more tag strings from the allowed set
-- `split`: fixed split label for the photo
-- `content_hash`: required canonical identity (SHA256 of file bytes)
-- `photo_hash`: optional 8-character hash used by existing URL/path-based code
-
-Allowed tag values (initial list):
-- dark_bib
-- no_bib (mnemonic for photos intentionally without bibs, for false-positive testing)
-- blurry_bib
-- light_bib
-- light_faces
-- other_banners
-
-Split labels:
-- `iteration`
-- `full`
-
-Example:
 ```json
 {
   "version": 1,
-  "tags": [
-    "dark_bib",
-    "no_bib",
-    "blurry_bib",
-    "light_bib",
-    "light_faces",
-    "other_banners"
-  ],
+  "tags": ["dark_bib", "no_bib", "blurry_bib", ...],
   "photos": {
-    "8c1a2f4b5d7e9a01...": {
-      "content_hash": "8c1a2f4b5d7e9a01...",
-      "photo_hash": "ae7dc104",
-      "bibs": [600],
+    "<sha256_hash>": {
+      "content_hash": "<sha256_hash>",
+      "bibs": [123, 456],
       "tags": ["dark_bib"],
       "split": "iteration"
     }
@@ -68,14 +96,42 @@ Example:
 }
 ```
 
-## Usage Notes
+### Tags
 
-- The ground truth is manual and authoritative.
-- The split is fixed per photo to keep comparisons stable across runs.
-- Benchmark outputs should support both split-only and full-set reporting.
-- Advanced labeling with bib locations can be added later as optional fields.
+| Tag | Description |
+|-----|-------------|
+| `dark_bib` | Bib is in shadow or poorly lit |
+| `light_bib` | Bib is overexposed or washed out |
+| `blurry_bib` | Bib text is blurry |
+| `obscured_bib` | Bib is partially hidden |
+| `partial_bib` | Only part of bib visible in frame |
+| `no_bib` | Photo intentionally has no bibs (false positive test) |
+| `light_faces` | Faces that might be mistaken for bibs |
+| `other_banners` | Non-bib text/banners in image |
 
-## Photo Index Mapping
+## Regression Detection
 
-`benchmarking/photo_index.json` maps content hashes to one or more file paths.
-This preserves information about duplicates while keeping labels single-entry.
+When running `benchmark -s full`:
+
+| Judgement | Condition | Exit Code |
+|-----------|-----------|-----------|
+| IMPROVED | Precision or recall increased (neither decreased) | 0 |
+| REGRESSED | Precision or recall decreased beyond tolerance | 1 |
+| NO_CHANGE | Within tolerance threshold | 0 |
+
+Tolerance is configured in `config.py` (default: 0.5%).
+
+## Architecture
+
+```
+benchmarking/
+├── cli.py           # CLI entry point
+├── ground_truth.py  # Ground truth data structures
+├── photo_index.py   # File hash → path mapping
+├── runner.py        # Benchmark execution
+├── web_app.py       # Unified Flask web UI
+├── ground_truth.json
+├── photo_index.json
+├── baseline.json
+└── results/         # Saved benchmark runs
+```
