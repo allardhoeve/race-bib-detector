@@ -1,0 +1,360 @@
+{
+  "version": 1,
+  "tags": [
+    "blurry_bib",
+    "dark_bib",
+    "light_bib",
+    "light_faces",
+    "no_bib",
+    "obscured_bib",
+    "other_banners",
+    "partial_bib"
+  ],
+  "photos": {
+    "006c6313cdb2dc07146cdce19d93bae14181f8b589e0cb2ac0b1891e69993659": {
+      "content_hash": "006c6313cdb2dc07146cdce19d93bae14181f8b589e0cb2ac0b1891e69993659",
+      "bibs": [
+        231
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "0194a4f9ce72d935d82dec75fa80e9a6bf1312e5e809540f949d5921f5d3257f": {
+      "content_hash": "0194a4f9ce72d935d82dec75fa80e9a6bf1312e5e809540f949d5921f5d3257f",
+      "bibs": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full"
+    },
+    "01d75b89ceff73b7a7da0f5394b75ef0c3bad2e91b2a17ed5e3b0df6409475d7": {
+      "content_hash": "01d75b89ceff73b7a7da0f5394b75ef0c3bad2e91b2a17ed5e3b0df6409475d7",
+      "bibs": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full"
+    },
+    "01ebd54863e01f72612122362c220bbb7068e0488596b29c5a8eae1134c54799": {
+      "content_hash": "01ebd54863e01f72612122362c220bbb7068e0488596b29c5a8eae1134c54799",
+      "bibs": [
+        206
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "022e0fdecd304b10fd9d6b8d4b2658713885f44b146a03a24d0647357f7450f4": {
+      "content_hash": "022e0fdecd304b10fd9d6b8d4b2658713885f44b146a03a24d0647357f7450f4",
+      "bibs": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full"
+    },
+    "02368141d27b0bdd5a13bc4c6aa431e289160afad3d4d5fe4d7e6f9b6795a11c": {
+      "content_hash": "02368141d27b0bdd5a13bc4c6aa431e289160afad3d4d5fe4d7e6f9b6795a11c",
+      "bibs": [
+        630
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "031783826df4363192cf61e5bae25876cf8f3ebd27f0dadfe634925e7495198f": {
+      "content_hash": "031783826df4363192cf61e5bae25876cf8f3ebd27f0dadfe634925e7495198f",
+      "bibs": [
+        632
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "0381ad0357bb1ffeae28ec8fea2b1232fec2a0742c368d1a3b52e61e3c2fc5db": {
+      "content_hash": "0381ad0357bb1ffeae28ec8fea2b1232fec2a0742c368d1a3b52e61e3c2fc5db",
+      "bibs": [
+        401
+      ],
+      "tags": [
+        "blurry_bib",
+        "partial_bib"
+      ],
+      "split": "full"
+    },
+    "060edd38dc5fe47adb01c9c0baa16d2414e263a526f3ef09c002becd156452eb": {
+      "content_hash": "060edd38dc5fe47adb01c9c0baa16d2414e263a526f3ef09c002becd156452eb",
+      "bibs": [
+        224
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full"
+    },
+    "066fa20ac08d7dd7a00d809c94f0dfef8df273a47a88b977239833e895d3c59c": {
+      "content_hash": "066fa20ac08d7dd7a00d809c94f0dfef8df273a47a88b977239833e895d3c59c",
+      "bibs": [
+        326,
+        378
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "069d02c41c608d4eb7caab2c69cb0ecd9cc0a4f02c656b25e06686b546787357": {
+      "content_hash": "069d02c41c608d4eb7caab2c69cb0ecd9cc0a4f02c656b25e06686b546787357",
+      "bibs": [
+        415,
+        418
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "06b7c0380c94a02ae6e30a8cf6c99cc1156b6a1ff47c9d0e27486d11d255d589": {
+      "content_hash": "06b7c0380c94a02ae6e30a8cf6c99cc1156b6a1ff47c9d0e27486d11d255d589",
+      "bibs": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full"
+    },
+    "06c1ed37b05b6ab90c18aed5d5f6091840697b3c1939c520fe2371d068f171f6": {
+      "content_hash": "06c1ed37b05b6ab90c18aed5d5f6091840697b3c1939c520fe2371d068f171f6",
+      "bibs": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full"
+    },
+    "0708acb2275adc9fd45fda4f907c703b4228710b00006dc07f0314a3e1fe6408": {
+      "content_hash": "0708acb2275adc9fd45fda4f907c703b4228710b00006dc07f0314a3e1fe6408",
+      "bibs": [
+        508,
+        529
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full"
+    },
+    "07590da049f971141c1c31af4f0ea275f5a467b623554b634aeda456c1c29e3c": {
+      "content_hash": "07590da049f971141c1c31af4f0ea275f5a467b623554b634aeda456c1c29e3c",
+      "bibs": [
+        504
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "0836c776fb8919112728bdb13c85c6a4b77e0d9e1d7397017e34c08bcd4a7bff": {
+      "content_hash": "0836c776fb8919112728bdb13c85c6a4b77e0d9e1d7397017e34c08bcd4a7bff",
+      "bibs": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full"
+    },
+    "08f4daf0279795996bdf93d2749618b3e94bff80c6d191ec8e24a3f098ac9683": {
+      "content_hash": "08f4daf0279795996bdf93d2749618b3e94bff80c6d191ec8e24a3f098ac9683",
+      "bibs": [
+        220
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full"
+    },
+    "0934450f79ab39bb34e0f40efef521591a12909f768167897837e62e30ad79a1": {
+      "content_hash": "0934450f79ab39bb34e0f40efef521591a12909f768167897837e62e30ad79a1",
+      "bibs": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full"
+    },
+    "0a29edfe6efe4f8857c71329368f43894042eefd5462f9e3fcee909891f2c634": {
+      "content_hash": "0a29edfe6efe4f8857c71329368f43894042eefd5462f9e3fcee909891f2c634",
+      "bibs": [
+        381
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "0a444cef0826b134a3c9a85a60c476202868d96f0bc5ba7272c27219970b93a7": {
+      "content_hash": "0a444cef0826b134a3c9a85a60c476202868d96f0bc5ba7272c27219970b93a7",
+      "bibs": [
+        353
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "0a941a1709784db60aa1678dd5e27f37c31d0f3210c941a19f7065a5db7bd06b": {
+      "content_hash": "0a941a1709784db60aa1678dd5e27f37c31d0f3210c941a19f7065a5db7bd06b",
+      "bibs": [
+        416
+      ],
+      "tags": [
+        "blurry_bib",
+        "obscured_bib"
+      ],
+      "split": "full"
+    },
+    "0ae8e1bb7119e6c1142d762305846ae2c5421fbd40b5736dd380da0d790c165d": {
+      "content_hash": "0ae8e1bb7119e6c1142d762305846ae2c5421fbd40b5736dd380da0d790c165d",
+      "bibs": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full"
+    },
+    "0b24603befc68927eed71c42b4a293c1815ccdff15f9d034d2467a5a95504662": {
+      "content_hash": "0b24603befc68927eed71c42b4a293c1815ccdff15f9d034d2467a5a95504662",
+      "bibs": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full"
+    },
+    "0bba03df26c5161b3729a1017c65226756384410912cbfe0d11061e2dc36a71f": {
+      "content_hash": "0bba03df26c5161b3729a1017c65226756384410912cbfe0d11061e2dc36a71f",
+      "bibs": [
+        414
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "0bd75cb4c947ffd075f743c656446fdb2d8a5f6b233f393a52fc1bc939f9337d": {
+      "content_hash": "0bd75cb4c947ffd075f743c656446fdb2d8a5f6b233f393a52fc1bc939f9337d",
+      "bibs": [
+        632
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "0ca3ed293765df8e4a3b83f81ea8b4b0c2ca02d8fc182bac41bef5a79af42473": {
+      "content_hash": "0ca3ed293765df8e4a3b83f81ea8b4b0c2ca02d8fc182bac41bef5a79af42473",
+      "bibs": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full"
+    },
+    "0ca6239052eafc2f1777ee4747af294d2d303d929209ef2c95be83636765c464": {
+      "content_hash": "0ca6239052eafc2f1777ee4747af294d2d303d929209ef2c95be83636765c464",
+      "bibs": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full"
+    },
+    "0cd75b1db33893f2b399baad666d322abb85ef5f1fea7f7526189f87a6acb451": {
+      "content_hash": "0cd75b1db33893f2b399baad666d322abb85ef5f1fea7f7526189f87a6acb451",
+      "bibs": [
+        204
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "0e4eb4fac8b521b240121b909221c66d04b9fd8b45840ac74ff7394cab7cb20b": {
+      "content_hash": "0e4eb4fac8b521b240121b909221c66d04b9fd8b45840ac74ff7394cab7cb20b",
+      "bibs": [
+        517
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "0e6c0c286c3750e70769ef292b6cf199ce90d6e03283cdbe1ed41f0637ac3511": {
+      "content_hash": "0e6c0c286c3750e70769ef292b6cf199ce90d6e03283cdbe1ed41f0637ac3511",
+      "bibs": [
+        333
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "0f1029234763576e9b18087ce66c35edc42c3ba3007ebb3aa4338329efa59f47": {
+      "content_hash": "0f1029234763576e9b18087ce66c35edc42c3ba3007ebb3aa4338329efa59f47",
+      "bibs": [
+        506
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "0ff6a9f10dc00f19815b7208f180dd087bc0eb030ef2057ccc5261f52eb134b2": {
+      "content_hash": "0ff6a9f10dc00f19815b7208f180dd087bc0eb030ef2057ccc5261f52eb134b2",
+      "bibs": [
+        306
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "1105d65cc94e7c2ad882c28b6d38380a30e158fd49b209651ecc37ecec89a6df": {
+      "content_hash": "1105d65cc94e7c2ad882c28b6d38380a30e158fd49b209651ecc37ecec89a6df",
+      "bibs": [
+        527
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "12298d5b2b1a9c34be520eeb35b61eb9995d10cf462b1a7f3ac805a8fa65b595": {
+      "content_hash": "12298d5b2b1a9c34be520eeb35b61eb9995d10cf462b1a7f3ac805a8fa65b595",
+      "bibs": [
+        622
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "13a016cc404c3df0665464d2c5a23a22db5a3f70d7fee7033c659972560c795a": {
+      "content_hash": "13a016cc404c3df0665464d2c5a23a22db5a3f70d7fee7033c659972560c795a",
+      "bibs": [
+        600
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "13a8fd10ff647e9d8bc7fadd64fe2f5fd5ee415aaf5b94da00c636e8cef73049": {
+      "content_hash": "13a8fd10ff647e9d8bc7fadd64fe2f5fd5ee415aaf5b94da00c636e8cef73049",
+      "bibs": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full"
+    },
+    "1532427dd7eda7e7c2cba6158ff08b952671b3290e658b2928bc973d363251d3": {
+      "content_hash": "1532427dd7eda7e7c2cba6158ff08b952671b3290e658b2928bc973d363251d3",
+      "bibs": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full"
+    },
+    "1720ad2f799e42fbf4aaaeb95cef4de4851060123bc4e4408874cccf93b7d790": {
+      "content_hash": "1720ad2f799e42fbf4aaaeb95cef4de4851060123bc4e4408874cccf93b7d790",
+      "bibs": [
+        226
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "1731eb59484a8bd8d59e3cdb686e2c16663d26de01a1d770c59c02051a9c90cd": {
+      "content_hash": "1731eb59484a8bd8d59e3cdb686e2c16663d26de01a1d770c59c02051a9c90cd",
+      "bibs": [
+        611
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "179fcb91ba71ce3076ee411a64a1cc437912d79793efb537168d69fbe7e04544": {
+      "content_hash": "179fcb91ba71ce3076ee411a64a1cc437912d79793efb537168d69fbe7e04544",
+      "bibs": [
+        331,
+        376
+      ],
+      "tags": [],
+      "split": "full"
+    },
+    "18058f101e9adcdc549687d7564470be6547c67c9b84f79ad09fe6d8ea9cae14": {
+      "content_hash": "18058f101e9adcdc549687d7564470be6547c67c9b84f79ad09fe6d8ea9cae14",
+      "bibs": [
+        508,
+        529
+      ],
+      "tags": [],
+      "split": "full"
+    }
+  }
+}

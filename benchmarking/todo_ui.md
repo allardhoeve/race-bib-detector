@@ -10,16 +10,30 @@ Goal: Make labeling fast and consistent for manual ground truth.
 
 ## Tasks
 
-- [ ] Build a simple UI to:
+- [x] Build a simple UI to:
   - display photo immediately (no lag)
   - enter bib numbers
   - toggle tags via checkboxes
   - save/update ground truth
   - navigate to next/previous photo
-- [ ] Support duplicate detection and edit existing entries (via content hash lookup).
-- [ ] Provide a view that identifies unlabeled photos in `photos/`.
+- [x] Support duplicate detection and edit existing entries (via content hash lookup).
+- [x] Provide a view that identifies unlabeled photos in `photos/`.
 - [ ] Optionally show cached detection results if they exist (but never block on computing them).
 
 ## Deliverable
 
-- A labeling UI that allows rapid annotation of 200+ photos without friction.
+- [x] A labeling UI that allows rapid annotation of 200+ photos without friction.
+
+## Implementation
+
+- `benchmarking/labeling_app.py` - Flask web UI for labeling
+
+Usage:
+```bash
+python -m benchmarking.cli ui          # Launch labeling UI on http://localhost:30002
+```
+
+Features:
+- Keyboard shortcuts: ← → navigate, Enter save & next, Esc clear bibs
+- Filter dropdown: All / Unlabeled only / Labeled only
+- Dark theme for reduced eye strain during long labeling sessions
