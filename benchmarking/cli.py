@@ -238,9 +238,9 @@ def cmd_label(args: argparse.Namespace) -> int:
 
 
 def cmd_ui(args: argparse.Namespace) -> int:
-    """Launch the labeling UI."""
-    from benchmarking.labeling_app import main as labeling_main
-    return labeling_main()
+    """Launch the unified web UI (labels + benchmark inspection)."""
+    from benchmarking.web_app import main as web_main
+    return web_main()
 
 
 def cmd_benchmark(args: argparse.Namespace) -> int:
@@ -359,21 +359,18 @@ def cmd_benchmark_inspect(args: argparse.Namespace) -> int:
         if not run:
             print(f"Error: Run not found: {args.run_id}")
             return 1
+        run_id = run.metadata.run_id
     else:
         run = get_latest_run()
         if not run:
             print("Error: No benchmark runs found.")
             print("Run 'benchmark' to create one.")
             return 1
+        run_id = run.metadata.run_id
 
-    print(f"Inspecting run: {run.metadata.run_id}")
-    print(f"  Split: {run.metadata.split}")
-    print(f"  Photos: {run.metrics.total_photos}")
-    print(f"  Precision: {run.metrics.precision:.1%}")
-    print(f"  Recall: {run.metrics.recall:.1%}")
-
-    from benchmarking.viewer_app import main as viewer_main
-    return viewer_main(run)
+    print(f"Open http://localhost:30002/benchmark/{run_id}/ in your browser")
+    print(f"Or run 'python -m benchmarking.cli ui' to start the server")
+    return 0
 
 
 def cmd_benchmark_list(args: argparse.Namespace) -> int:
@@ -538,7 +535,7 @@ def main():
     scan_parser = subparsers.add_parser("scan", help="Scan photos directory")
 
     # ui command
-    ui_parser = subparsers.add_parser("ui", help="Launch labeling UI")
+    ui_parser = subparsers.add_parser("ui", help="Launch web UI (labels + benchmark inspection)")
 
     # benchmark command
     benchmark_parser = subparsers.add_parser("benchmark", help="Run benchmark")
@@ -572,7 +569,7 @@ def main():
 
     # benchmark-inspect command
     benchmark_inspect_parser = subparsers.add_parser(
-        "benchmark-inspect", help="Launch visual inspection UI for a benchmark run"
+        "benchmark-inspect", help="Show URL to inspect a benchmark run (use 'ui' command to start server)"
     )
     benchmark_inspect_parser.add_argument(
         "run_id", nargs="?", default=None,
