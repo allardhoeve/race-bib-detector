@@ -337,13 +337,6 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     else:
         print(f"\n(Baseline comparison only available for 'full' split)")
 
-    # Save results if requested
-    if args.save:
-        timestamp = run.metadata.timestamp.replace(":", "-").replace(".", "-")
-        result_path = RESULTS_DIR / f"run_{split}_{timestamp}.json"
-        run.save(result_path)
-        print(f"\nResults saved to: {result_path}")
-
     # Update baseline if requested (only for full split)
     if args.update_baseline:
         if split != "full":
@@ -354,6 +347,129 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
             print(f"\n✅ Baseline updated.")
 
     return exit_code
+
+
+def cmd_benchmark_inspect(args: argparse.Namespace) -> int:
+    """Launch visual inspection UI for a benchmark run."""
+    from benchmarking.runner import get_run, get_latest_run
+
+    # Get the run
+    if args.run_id:
+        run = get_run(args.run_id)
+        if not run:
+            print(f"Error: Run not found: {args.run_id}")
+            return 1
+    else:
+        run = get_latest_run()
+        if not run:
+            print("Error: No benchmark runs found.")
+            print("Run 'benchmark' to create one.")
+            return 1
+
+    print(f"Inspecting run: {run.metadata.run_id}")
+    print(f"  Split: {run.metadata.split}")
+    print(f"  Photos: {run.metrics.total_photos}")
+    print(f"  Precision: {run.metrics.precision:.1%}")
+    print(f"  Recall: {run.metrics.recall:.1%}")
+
+    from benchmarking.viewer_app import main as viewer_main
+    return viewer_main(run)
+
+
+def cmd_benchmark_list(args: argparse.Namespace) -> int:
+    """List all saved benchmark runs."""
+    from benchmarking.runner import list_runs
+
+    runs = list_runs()
+
+    if not runs:
+        print("No benchmark runs found.")
+        print("Run 'benchmark' to create one.")
+        return 0
+
+    # Print header
+    print(f"{'ID':<10} {'Date':<12} {'Split':<10} {'P':>6} {'R':>6} {'F1':>6} {'Commit':<12}")
+    print("-" * 70)
+
+    for run in runs:
+        baseline_marker = " (baseline)" if run.get("is_baseline") else ""
+        date = run["timestamp"][:10]
+        print(
+            f"{run['run_id']:<10} {date:<12} {run['split']:<10} "
+            f"{run['precision']:>5.1%} {run['recall']:>5.1%} {run['f1']:>5.1%} "
+            f"{run['git_commit']}{baseline_marker}"
+        )
+
+    print(f"\nTotal: {len(runs)} runs")
+    return 0
+
+
+def cmd_benchmark_clean(args: argparse.Namespace) -> int:
+    """Clean up old benchmark runs."""
+    from benchmarking.runner import list_runs, clean_runs, load_baseline
+
+    runs = list_runs()
+
+    if not runs:
+        print("No benchmark runs to clean.")
+        return 0
+
+    # Determine what to keep
+    keep_count = args.keep_latest or 5
+    baseline = load_baseline()
+    baseline_id = baseline.metadata.run_id if baseline else None
+
+    # Calculate what would be deleted
+    to_delete = clean_runs(keep_count=keep_count, dry_run=True)
+
+    # Filter out baseline if --keep-baseline
+    if args.keep_baseline and baseline_id:
+        to_delete = [r for r in to_delete if r["run_id"] != baseline_id]
+
+    # Filter by age if --older-than
+    if args.older_than:
+        from datetime import datetime, timedelta
+        cutoff = datetime.now() - timedelta(days=args.older_than)
+        to_delete = [
+            r for r in to_delete
+            if datetime.fromisoformat(r["timestamp"]) < cutoff
+        ]
+
+    if not to_delete:
+        print(f"Nothing to clean. Keeping {min(keep_count, len(runs))} most recent runs.")
+        return 0
+
+    # Show what will be deleted
+    print(f"The following {len(to_delete)} run(s) will be deleted:\n")
+    total_size = 0
+    for run_info in to_delete:
+        size_str = f"{run_info['size_mb']:.1f}MB"
+        baseline_marker = " (baseline)" if run_info["run_id"] == baseline_id else ""
+        print(f"  {run_info['run_id']}  {run_info['timestamp'][:10]}  {run_info['split']:<10}  {size_str}{baseline_marker}")
+        total_size += run_info["size_mb"]
+
+    print(f"\nTotal: {total_size:.1f}MB")
+
+    # Confirm unless --force
+    if not args.force:
+        response = input("\nProceed with deletion? [y/N] ").strip().lower()
+        if response != "y":
+            print("Aborted.")
+            return 0
+
+    # Actually delete
+    import shutil
+    from pathlib import Path
+    deleted_count = 0
+    for run_info in to_delete:
+        run_dir = Path(run_info["path"])
+        if run_dir.exists():
+            shutil.rmtree(run_dir)
+            deleted_count += 1
+            print(f"  Deleted: {run_info['run_id']}")
+
+    print(f"\n✅ Cleaned up {deleted_count} run(s), freed {total_size:.1f}MB")
+    return 0
 
 
 def cmd_update_baseline(args: argparse.Namespace) -> int:
@@ -429,15 +545,11 @@ def main():
     benchmark_parser.add_argument(
         "-s", "--split", choices=["iteration", "full"],
         default="iteration",
-        help="Which split to run (default: iteration)"
+        help="Which split to run: 'full' = all photos, 'iteration' = subset for quick feedback (default: iteration)"
     )
     benchmark_parser.add_argument(
         "-q", "--quiet", action="store_true",
         help="Suppress per-photo output"
-    )
-    benchmark_parser.add_argument(
-        "--save", action="store_true",
-        help="Save results to file"
     )
     benchmark_parser.add_argument(
         "--update-baseline", action="store_true",
@@ -451,6 +563,43 @@ def main():
     update_baseline_parser.add_argument(
         "-f", "--force", action="store_true",
         help="Update without prompting"
+    )
+
+    # benchmark-list command
+    benchmark_list_parser = subparsers.add_parser(
+        "benchmark-list", help="List saved benchmark runs"
+    )
+
+    # benchmark-inspect command
+    benchmark_inspect_parser = subparsers.add_parser(
+        "benchmark-inspect", help="Launch visual inspection UI for a benchmark run"
+    )
+    benchmark_inspect_parser.add_argument(
+        "run_id", nargs="?", default=None,
+        help="Run ID to inspect (defaults to latest)"
+    )
+
+    # benchmark-clean command
+    benchmark_clean_parser = subparsers.add_parser(
+        "benchmark-clean", help="Remove old benchmark runs (like docker system prune)"
+    )
+    benchmark_clean_parser.add_argument(
+        "--keep-latest", type=int, default=5,
+        metavar="N",
+        help="Keep the N most recent runs (default: 5)"
+    )
+    benchmark_clean_parser.add_argument(
+        "--keep-baseline", action="store_true",
+        help="Never delete the baseline run"
+    )
+    benchmark_clean_parser.add_argument(
+        "--older-than", type=int,
+        metavar="DAYS",
+        help="Only delete runs older than N days"
+    )
+    benchmark_clean_parser.add_argument(
+        "-f", "--force", action="store_true",
+        help="Skip confirmation prompt"
     )
 
     # stats command
@@ -493,6 +642,9 @@ def main():
         "ui": cmd_ui,
         "benchmark": cmd_benchmark,
         "update-baseline": cmd_update_baseline,
+        "benchmark-list": cmd_benchmark_list,
+        "benchmark-inspect": cmd_benchmark_inspect,
+        "benchmark-clean": cmd_benchmark_clean,
         "stats": cmd_stats,
         "unlabeled": cmd_unlabeled,
         "show": cmd_show,

@@ -117,7 +117,13 @@ class GroundTruth:
         return False
 
     def get_by_split(self, split: Split) -> list[PhotoLabel]:
-        """Get all photos in a specific split."""
+        """Get all photos in a specific split.
+
+        The "full" split returns ALL photos (for comprehensive testing).
+        The "iteration" split returns only photos marked as "iteration" (for quick feedback).
+        """
+        if split == "full":
+            return list(self.photos.values())
         return [p for p in self.photos.values() if p.split == split]
 
     def get_by_tag(self, tag: str) -> list[PhotoLabel]:
