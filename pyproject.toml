@@ -3,3 +3,7 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v"
+filterwarnings = [
+  "ignore:torch\\.ao\\.quantization is deprecated and will be removed in 2\\.10\\.:DeprecationWarning",
+  "ignore:'pin_memory' argument is set as true but not supported on MPS now, device pinned memory won't be used\\.:UserWarning",
+]
