@@ -124,6 +124,9 @@ Flask-based web interface for browsing results.
 - **app.py**: `create_app()`, `main()` - Flask routes and server
 - **templates.py**: HTML templates as string constants
 
+See `todo_facial_recognition.md` for the facial recognition plan and grouped
+work items.
+
 ## Data Flow
 
 ```
@@ -183,6 +186,20 @@ The `ImagePaths` dataclass consolidates all derived file paths:
 - `gray_bbox_path`: Grayscale image with detection boxes drawn
 - `snippets_dir`: Directory for cropped bib snippets
 - `snippet_path(bib_number, bbox_hash)`: Path for a specific snippet
+- `face_snippets_dir`: Directory for cropped face snippets
+- `face_boxed_dir`: Directory for boxed face previews
+- `face_snippet_path(face_index)`: Path for a specific face snippet
+- `face_boxed_path(face_index)`: Path for a specific boxed face preview
+
+### Planned Face Artifacts
+
+Face artifacts are stored as files alongside the existing bib snippets. The
+proposed layout is:
+
+- `cache/faces/snippets/`: Cropped face snippets keyed by photo hash + face id.
+- `cache/faces/boxed/`: Precomputed previews with face boxes drawn.
+
+See `todo_facial_recognition.md` for the implementation plan.
 
 ## Photo Identification
 

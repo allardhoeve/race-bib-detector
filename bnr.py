@@ -231,6 +231,7 @@ def build_parser() -> argparse.ArgumentParser:
     # -------------------------------------------------------------------------
     # Parse and dispatch
     # -------------------------------------------------------------------------
+    parser.set_defaults(_benchmark_parser=benchmark_parser)
     return parser
 
 
@@ -249,7 +250,7 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_scan(args)
     elif args.command == "benchmark":
         if args.benchmark_command is None:
-            benchmark_parser.print_help()
+            args._benchmark_parser.print_help()
             return 1
 
         dispatch = {

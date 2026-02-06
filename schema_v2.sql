@@ -1,6 +1,7 @@
+-- Draft schema v2 (includes facial recognition tables)
+-- Apply after reviewing and finalizing facial recognition storage decisions.
+
 -- Photos table
--- Draft: facial recognition schema additions are included here for now.
--- See schema_v2.sql for a consolidated draft schema snapshot.
 CREATE TABLE photos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     photo_hash TEXT NOT NULL UNIQUE,  -- 8-char hash derived from photo_url, stable identifier

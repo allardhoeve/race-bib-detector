@@ -2,6 +2,15 @@
 
 This document describes the image preprocessing pipeline used before OCR detection.
 
+## Facial Recognition Preprocessing
+
+Face detection/embedding uses the original RGB image (no CLAHE). This avoids
+contrast artifacts that can distort facial texture and color cues. If needed,
+apply a mild normalization step for detection only, but keep embeddings on the
+original RGB input.
+
+See `todo_facial_recognition.md` for the facial recognition plan.
+
 ## Philosophy
 
 The preprocessing module is designed around these core principles:

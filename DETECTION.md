@@ -2,6 +2,9 @@
 
 This document describes the bib number detection pipeline.
 
+For facial recognition planning and clustering details, see
+`todo_facial_recognition.md`.
+
 ## Overview
 
 The detection module identifies race bib numbers in photos using:

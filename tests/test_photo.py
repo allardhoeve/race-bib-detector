@@ -235,7 +235,12 @@ class TestImagePaths:
 
     def test_for_cache_path_default_dirs(self):
         """for_cache_path should compute paths using default directories."""
-        from photo import DEFAULT_GRAY_BBOX_DIR, DEFAULT_SNIPPETS_DIR
+        from photo import (
+            DEFAULT_FACE_BOXED_DIR,
+            DEFAULT_FACE_SNIPPETS_DIR,
+            DEFAULT_GRAY_BBOX_DIR,
+            DEFAULT_SNIPPETS_DIR,
+        )
 
         cache_path = Path("/cache/abc12345.jpg")
         paths = ImagePaths.for_cache_path(cache_path)
@@ -243,21 +248,29 @@ class TestImagePaths:
         assert paths.cache_path == cache_path
         assert paths.gray_bbox_path == DEFAULT_GRAY_BBOX_DIR / "abc12345.jpg"
         assert paths.snippets_dir == DEFAULT_SNIPPETS_DIR
+        assert paths.face_snippets_dir == DEFAULT_FACE_SNIPPETS_DIR
+        assert paths.face_boxed_dir == DEFAULT_FACE_BOXED_DIR
 
     def test_for_cache_path_custom_dirs(self):
         """for_cache_path should use custom directories when provided."""
         cache_path = Path("/cache/abc12345.jpg")
         custom_gray = Path("/custom/gray")
         custom_snippets = Path("/custom/snippets")
+        custom_face_snippets = Path("/custom/faces/snippets")
+        custom_face_boxed = Path("/custom/faces/boxed")
 
         paths = ImagePaths.for_cache_path(
             cache_path,
             gray_bbox_dir=custom_gray,
             snippets_dir=custom_snippets,
+            face_snippets_dir=custom_face_snippets,
+            face_boxed_dir=custom_face_boxed,
         )
 
         assert paths.gray_bbox_path == custom_gray / "abc12345.jpg"
         assert paths.snippets_dir == custom_snippets
+        assert paths.face_snippets_dir == custom_face_snippets
+        assert paths.face_boxed_dir == custom_face_boxed
 
     def test_snippet_path(self):
         """snippet_path should return correct path for a bib."""
@@ -282,3 +295,27 @@ class TestImagePaths:
         assert path1 != path2
         assert "bib123" in str(path1)
         assert "bib456" in str(path2)
+
+    def test_face_snippet_path(self):
+        """face_snippet_path should return correct path for a face."""
+        cache_path = Path("/cache/abc12345.jpg")
+        paths = ImagePaths.for_cache_path(
+            cache_path,
+            face_snippets_dir=Path("/faces/snippets"),
+        )
+
+        snippet = paths.face_snippet_path(3)
+
+        assert snippet == Path("/faces/snippets/abc12345_face3.jpg")
+
+    def test_face_boxed_path(self):
+        """face_boxed_path should return correct path for a boxed face preview."""
+        cache_path = Path("/cache/abc12345.jpg")
+        paths = ImagePaths.for_cache_path(
+            cache_path,
+            face_boxed_dir=Path("/faces/boxed"),
+        )
+
+        preview = paths.face_boxed_path(7)
+
+        assert preview == Path("/faces/boxed/abc12345_face7_boxed.jpg")

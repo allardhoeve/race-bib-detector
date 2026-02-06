@@ -16,6 +16,8 @@ from typing import Literal
 DEFAULT_CACHE_DIR = Path(__file__).parent / "cache"
 DEFAULT_GRAY_BBOX_DIR = DEFAULT_CACHE_DIR / "gray_bounding"
 DEFAULT_SNIPPETS_DIR = DEFAULT_CACHE_DIR / "snippets"
+DEFAULT_FACE_SNIPPETS_DIR = DEFAULT_CACHE_DIR / "faces" / "snippets"
+DEFAULT_FACE_BOXED_DIR = DEFAULT_CACHE_DIR / "faces" / "boxed"
 
 
 def compute_photo_hash(photo_url: str) -> str:
@@ -163,12 +165,16 @@ class Photo:
         self,
         gray_bbox_dir: Path | None = None,
         snippets_dir: Path | None = None,
+        face_snippets_dir: Path | None = None,
+        face_boxed_dir: Path | None = None,
     ) -> ImagePaths:
         """Get all derived paths for this photo.
 
         Args:
             gray_bbox_dir: Override default gray bounding box directory
             snippets_dir: Override default snippets directory
+            face_snippets_dir: Override default face snippets directory
+            face_boxed_dir: Override default face boxed preview directory
 
         Returns:
             ImagePaths with all computed paths
@@ -183,6 +189,8 @@ class Photo:
             self.cache_path,
             gray_bbox_dir=gray_bbox_dir,
             snippets_dir=snippets_dir,
+            face_snippets_dir=face_snippets_dir,
+            face_boxed_dir=face_boxed_dir,
         )
 
 
@@ -193,6 +201,8 @@ class ImagePaths:
     Given a photo's cache path, computes the paths for:
     - Grayscale image with bounding boxes drawn
     - Snippets directory for bib crops
+    - Face snippets directory
+    - Face boxed preview directory
     - Individual snippet files
 
     This eliminates scattered path computation throughout the codebase.
@@ -201,11 +211,15 @@ class ImagePaths:
         cache_path: Path to the cached original image
         gray_bbox_path: Path to grayscale image with detection boxes drawn
         snippets_dir: Directory containing cropped bib snippets
+        face_snippets_dir: Directory containing cropped face snippets
+        face_boxed_dir: Directory containing boxed face previews
     """
 
     cache_path: Path
     gray_bbox_path: Path
     snippets_dir: Path
+    face_snippets_dir: Path
+    face_boxed_dir: Path
 
     @classmethod
     def for_cache_path(
@@ -213,6 +227,8 @@ class ImagePaths:
         cache_path: Path,
         gray_bbox_dir: Path | None = None,
         snippets_dir: Path | None = None,
+        face_snippets_dir: Path | None = None,
+        face_boxed_dir: Path | None = None,
     ) -> ImagePaths:
         """Create ImagePaths from a cache path.
 
@@ -220,6 +236,8 @@ class ImagePaths:
             cache_path: Path to the cached image file
             gray_bbox_dir: Override default gray bounding box directory
             snippets_dir: Override default snippets directory
+            face_snippets_dir: Override default face snippets directory
+            face_boxed_dir: Override default face boxed preview directory
 
         Returns:
             ImagePaths with all computed paths
@@ -228,11 +246,17 @@ class ImagePaths:
             gray_bbox_dir = DEFAULT_GRAY_BBOX_DIR
         if snippets_dir is None:
             snippets_dir = DEFAULT_SNIPPETS_DIR
+        if face_snippets_dir is None:
+            face_snippets_dir = DEFAULT_FACE_SNIPPETS_DIR
+        if face_boxed_dir is None:
+            face_boxed_dir = DEFAULT_FACE_BOXED_DIR
 
         return cls(
             cache_path=cache_path,
             gray_bbox_path=gray_bbox_dir / cache_path.name,
             snippets_dir=snippets_dir,
+            face_snippets_dir=face_snippets_dir,
+            face_boxed_dir=face_boxed_dir,
         )
 
     def snippet_path(self, bib_number: str, bbox_hash: str) -> Path:
@@ -248,7 +272,19 @@ class ImagePaths:
         stem = self.cache_path.stem
         return self.snippets_dir / f"{stem}_bib{bib_number}_{bbox_hash}.jpg"
 
+    def face_snippet_path(self, face_index: int) -> Path:
+        """Get the path for a specific face snippet."""
+        stem = self.cache_path.stem
+        return self.face_snippets_dir / f"{stem}_face{face_index}.jpg"
+
+    def face_boxed_path(self, face_index: int) -> Path:
+        """Get the path for a specific boxed face preview."""
+        stem = self.cache_path.stem
+        return self.face_boxed_dir / f"{stem}_face{face_index}_boxed.jpg"
+
     def ensure_dirs_exist(self) -> None:
         """Create all necessary directories if they don't exist."""
         self.gray_bbox_path.parent.mkdir(parents=True, exist_ok=True)
         self.snippets_dir.mkdir(parents=True, exist_ok=True)
+        self.face_snippets_dir.mkdir(parents=True, exist_ok=True)
+        self.face_boxed_dir.mkdir(parents=True, exist_ok=True)
