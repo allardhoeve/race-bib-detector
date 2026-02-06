@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from pathlib import Path
 
@@ -38,8 +39,18 @@ def is_photo_identifier(source: str) -> bool:
     return False
 
 
+def _compute_content_hash(path: Path) -> str:
+    hasher = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
 def scan_local_directory(
     directory: str,
+    album_id: str,
+    album_label: str | None,
     skip_existing: bool = True,
     limit: int | None = None,
     run_bib_detection: bool = True,
@@ -73,19 +84,29 @@ def scan_local_directory(
         image_files = image_files[:limit]
         logger.info("Processing limited to %s images", limit)
 
-    album_url = f"local:{directory}"
+    conn = db.get_connection()
+    db.ensure_album(conn, album_id, label=album_label, source_type="local_dir")
+    conn.close()
 
     def make_images():
         for image_path in image_files:
-            photo_url = str(image_path)
+            try:
+                content_hash = _compute_content_hash(image_path)
+            except OSError as exc:
+                logger.warning("Skipping unreadable file %s: %s", image_path, exc)
+                continue
+            photo_url = f"album:{album_id}:content:{content_hash}"
             yield ImageInfo(
                 photo_url=photo_url,
-                thumbnail_url=f"file://{image_path}",
-                album_url=album_url,
+                thumbnail_url=None,
+                album_id=album_id,
+                source_path=str(image_path),
             )
 
-    def fetch_factory(photo_url):
-        return lambda: Path(photo_url).read_bytes()
+    def fetch_factory(info: ImageInfo):
+        if not info.source_path:
+            raise FileNotFoundError("Missing source path for local scan")
+        return lambda: Path(info.source_path).read_bytes()
 
     return scan_images(
         make_images(),
@@ -140,7 +161,8 @@ def rescan_single_photo(
         yield ImageInfo(
             photo_url=photo["photo_url"],
             thumbnail_url=photo["thumbnail_url"],
-            album_url=photo["album_url"],
+            album_id=photo["album_id"],
+            source_path=None,
         )
 
     return scan_images(
@@ -159,6 +181,8 @@ def run_scan(
     limit: int | None = None,
     faces_only: bool = False,
     no_faces: bool = False,
+    album_label: str | None = None,
+    album_id: str | None = None,
 ) -> dict:
     """Run scan on a source (path or photo identifier)."""
     if source.startswith(("http://", "https://")):
@@ -178,8 +202,18 @@ def run_scan(
             run_face_detection=run_face_detection,
         )
     elif Path(source).exists():
+        resolved_album_id = album_id.strip() if album_id else None
+        resolved_label = album_label.strip() if album_label else None
+        if resolved_label == "":
+            resolved_label = None
+        if not resolved_album_id:
+            basis = resolved_label if resolved_label else str(Path(source).resolve())
+            resolved_album_id = db.compute_album_id(basis)
+
         stats = scan_local_directory(
             source,
+            resolved_album_id,
+            resolved_label,
             skip_existing=not rescan,
             limit=limit,
             run_bib_detection=run_bib_detection,

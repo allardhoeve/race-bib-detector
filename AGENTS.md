@@ -12,6 +12,10 @@ the commit title if it is necessary. Make sure the git commit message conforms t
 
 If the commit message becomes large, suggest to the user that they should commit the code.
 
+## Recoring TODOs
+
+TODOs are always written with [ ] syntax so it is clear what is done.
+
 ## Standards
 
 Project-wide conventions live in `STANDARDS.md`. Do not duplicate those rules elsewhere; link to them instead.

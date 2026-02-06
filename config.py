@@ -100,12 +100,25 @@ SNIPPET_PADDING_RATIO = 0.15
 # =============================================================================
 
 # Face backend selection (swappable via config)
-FACE_BACKEND = "opencv_haar"
+FACE_BACKEND = "opencv_dnn_ssd"
 
 # OpenCV Haar cascade detection parameters
 FACE_DETECTION_SCALE_FACTOR = 1.1
-FACE_DETECTION_MIN_NEIGHBORS = 5
-FACE_DETECTION_MIN_SIZE = (30, 30)
+FACE_DETECTION_MIN_NEIGHBORS = 8
+FACE_DETECTION_MIN_SIZE = (60, 60)
+FACE_DETECTION_EYE_CASCADE = "haarcascade_eye.xml"
+FACE_DETECTION_REQUIRE_EYES = 1
+FACE_DETECTION_EYE_MIN_NEIGHBORS = 3
+FACE_DETECTION_EYE_MIN_SIZE = (15, 15)
+
+FACE_DNN_PROTO_PATH = "faces/models/opencv_dnn_ssd/deploy.prototxt"
+FACE_DNN_MODEL_PATH = "faces/models/opencv_dnn_ssd/res10_300x300_ssd_iter_140000.caffemodel"
+FACE_DNN_INPUT_SIZE = (300, 300)
+FACE_DNN_MEAN = (104.0, 177.0, 123.0)
+FACE_DNN_SCALE = 1.0
+FACE_DNN_SWAP_RB = False
+FACE_DNN_CONFIDENCE_MIN = 0.5
+FACE_DNN_NMS_IOU = 0.4
 
 # Simple embedding size (square grayscale image size)
 FACE_EMBEDDING_SIZE = 32

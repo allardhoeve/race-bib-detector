@@ -16,7 +16,12 @@ import db
 from detection import detect_bib_numbers, Detection, DetectionResult
 from preprocessing import PreprocessConfig
 from faces import get_face_backend
-from faces.artifacts import save_face_snippet, save_face_boxed_preview, save_face_evidence_json
+from faces.artifacts import (
+    save_face_candidates_preview,
+    save_face_snippet,
+    save_face_boxed_preview,
+    save_face_evidence_json,
+)
 from faces.types import FaceDetection
 from photo import compute_photo_hash, ImagePaths
 from sources import get_cache_path, cache_image, load_from_cache
@@ -28,6 +33,7 @@ from utils import (
     get_snippet_path,
     save_bib_snippet,
 )
+from warnings_utils import suppress_torch_mps_pin_memory_warning
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +46,9 @@ class ImageInfo:
     """Metadata for an image to be scanned."""
 
     photo_url: str
-    thumbnail_url: str
-    album_url: str
+    thumbnail_url: str | None
+    album_id: str
+    source_path: str | None = None
 
 
 def load_and_cache_image(photo_url: str, fetch_func=None) -> tuple[bytes, Path]:
@@ -82,14 +89,14 @@ def save_detections_to_db(
     conn,
     detections: list[Detection],
     photo_url: str,
-    thumbnail_url: str,
-    album_url: str,
+    thumbnail_url: str | None,
+    album_id: str,
     cache_path: Path,
     skip_existing: bool,
 ) -> int:
     """Save photo and bib detections to database."""
     photo_id = db.insert_photo(
-        conn, album_url, photo_url, thumbnail_url,
+        conn, album_id, photo_url, thumbnail_url,
         cache_path=str(cache_path)
     )
 
@@ -105,13 +112,13 @@ def save_detections_to_db(
 def ensure_photo_record(
     conn,
     photo_url: str,
-    thumbnail_url: str,
-    album_url: str,
+    thumbnail_url: str | None,
+    album_id: str,
     cache_path: Path,
 ) -> int:
     """Ensure a photo record exists and return its ID."""
     return db.insert_photo(
-        conn, album_url, photo_url, thumbnail_url,
+        conn, album_id, photo_url, thumbnail_url,
         cache_path=str(cache_path)
     )
 
@@ -144,8 +151,8 @@ def process_image(
     face_backend,
     conn,
     photo_url: str,
-    thumbnail_url: str,
-    album_url: str,
+    thumbnail_url: str | None,
+    album_id: str,
     image_data: bytes,
     cache_path: Path,
     skip_existing: bool,
@@ -171,11 +178,11 @@ def process_image(
         if result.detections:
             save_detection_artifacts(result, cache_path)
 
-    photo_id = ensure_photo_record(conn, photo_url, thumbnail_url, album_url, cache_path)
+    photo_id = ensure_photo_record(conn, photo_url, thumbnail_url, album_id, cache_path)
 
     if run_bib_detection:
         save_detections_to_db(
-            conn, result.detections, photo_url, thumbnail_url, album_url, cache_path, skip_existing
+            conn, result.detections, photo_url, thumbnail_url, album_id, cache_path, skip_existing
         )
 
     face_detections: list[FaceDetection] = []
@@ -185,7 +192,8 @@ def process_image(
             logger.warning("Failed to decode image for face detection: %s", photo_url)
         else:
             image_rgb = cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB)
-            boxes = face_backend.detect_faces(image_rgb)
+            candidates = face_backend.detect_face_candidates(image_rgb)
+            boxes = [candidate.bbox for candidate in candidates if candidate.passed]
             embeddings = face_backend.embed_faces(image_rgb, boxes)
             model_info = face_backend.model_info()
 
@@ -212,11 +220,20 @@ def process_image(
 
             photo_hash = compute_photo_hash(photo_url)
             evidence_path = paths.face_evidence_path(photo_hash)
+            candidates_path = paths.face_candidates_path()
             bib_evidence = [
                 {"bib_number": det.bib_number, "confidence": det.confidence, "bbox": det.bbox}
                 for det in result.detections
             ]
-            save_face_evidence_json(evidence_path, photo_hash, face_detections, bib_evidence)
+            if candidates:
+                save_face_candidates_preview(image_rgb, candidates, candidates_path)
+            save_face_evidence_json(
+                evidence_path,
+                photo_hash,
+                face_detections,
+                bib_evidence,
+                face_candidates=candidates,
+            )
 
         save_face_detections_to_db(conn, face_detections, photo_id, skip_existing)
 
@@ -247,6 +264,7 @@ def scan_images(
     reader = None
     if run_bib_detection:
         logger.info("Initializing EasyOCR...")
+        suppress_torch_mps_pin_memory_warning()
         import easyocr as _easyocr
         reader = _easyocr.Reader(["en"], gpu=False)
 
@@ -272,12 +290,12 @@ def scan_images(
                 continue
 
         try:
-            fetch_func = fetch_func_factory(info.photo_url) if fetch_func_factory else None
+            fetch_func = fetch_func_factory(info) if fetch_func_factory else None
             image_data, cache_path = load_and_cache_image(info.photo_url, fetch_func)
 
             bibs_count, faces_count = process_image(
                 reader, face_backend, conn,
-                info.photo_url, info.thumbnail_url, info.album_url,
+                info.photo_url, info.thumbnail_url, info.album_id,
                 image_data, cache_path, skip_existing,
                 run_bib_detection=effective_run_bib,
                 run_face_detection=run_face_detection,

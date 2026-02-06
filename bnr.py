@@ -5,6 +5,8 @@ Unified CLI for the Bib Number Recognizer.
 Usage:
     bnr serve                    # Launch photo viewer website (port 30001)
     bnr scan <path>              # Scan local directory or file for bib numbers
+    bnr album list               # List albums and photo counts
+    bnr album forget <album_id>  # Forget an album (DB only)
     bnr benchmark run            # Run benchmark on iteration split
     bnr benchmark run --full     # Run benchmark on all photos
     bnr benchmark ui             # Launch benchmark web UI (labels + inspection)
@@ -19,6 +21,8 @@ import sys
 
 from logging_utils import configure_logging, add_logging_args
 from cli.scan import add_scan_subparser
+from cli.album import add_album_subparser
+from cli.cache import add_cache_subparser
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +193,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     bench_stats.set_defaults(_cmd=cmd_benchmark_stats)
 
+    add_album_subparser(subparsers)
+    add_cache_subparser(subparsers)
+
     parser.set_defaults(_benchmark_parser=benchmark_parser)
     return parser
 
@@ -204,6 +211,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "benchmark" and args.benchmark_command is None:
         args._benchmark_parser.print_help()
+        return 1
+    if args.command == "album" and args.album_command is None:
+        args._album_parser.print_help()
+        return 1
+    if args.command == "cache" and args.cache_command is None:
+        args._cache_parser.print_help()
         return 1
 
     cmd = getattr(args, "_cmd", None)

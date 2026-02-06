@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 
 from faces.artifacts import save_face_snippet, save_face_boxed_preview, save_face_evidence_json
-from faces.types import FaceDetection, FaceModelInfo
+from faces.types import FaceCandidate, FaceDetection, FaceModelInfo
 
 
 def _make_image() -> np.ndarray:
@@ -56,9 +56,18 @@ def test_save_face_evidence_json(tmp_path: Path) -> None:
             preview_path="preview.jpg",
         )
     ]
+    candidates = [
+        FaceCandidate(
+            bbox=[[1, 1], [2, 1], [2, 2], [1, 2]],
+            confidence=0.42,
+            passed=False,
+            rejection_reason="confidence",
+            model=model,
+        )
+    ]
     bibs = [{"bib_number": "123", "confidence": 0.9, "bbox": [[0, 0], [1, 0], [1, 1], [0, 1]]}]
 
-    saved = save_face_evidence_json(output_path, "deadbeef", faces, bibs)
+    saved = save_face_evidence_json(output_path, "deadbeef", faces, bibs, candidates)
 
     assert saved is True
     assert output_path.exists()

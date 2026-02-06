@@ -4,7 +4,7 @@
 CREATE TABLE photos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     photo_hash TEXT NOT NULL UNIQUE,  -- 8-char hash derived from photo_url, stable identifier
-    album_url TEXT NOT NULL,
+    album_id TEXT NOT NULL,
     photo_url TEXT NOT NULL UNIQUE,
     thumbnail_url TEXT,
     cache_path TEXT,
@@ -13,6 +13,16 @@ CREATE TABLE photos (
 
 -- Index for fast hash lookups
 CREATE INDEX idx_photo_hash ON photos(photo_hash);
+CREATE INDEX idx_photo_album_id ON photos(album_id);
+
+-- Albums (metadata only; no raw directory paths)
+CREATE TABLE albums (
+    album_id TEXT PRIMARY KEY,
+    label TEXT,
+    source_type TEXT,
+    source_hint TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
 -- Bib detections (one photo can have multiple bibs)
 CREATE TABLE bib_detections (
@@ -49,7 +59,7 @@ CREATE INDEX idx_face_detections_photo_id ON face_detections(photo_id);
 -- Face clusters (scoped per album/event)
 CREATE TABLE face_clusters (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    album_url TEXT NOT NULL,
+    album_id TEXT NOT NULL,
     model_name TEXT,
     model_version TEXT,
     centroid BLOB,
@@ -58,7 +68,7 @@ CREATE TABLE face_clusters (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE INDEX idx_face_clusters_album_url ON face_clusters(album_url);
+CREATE INDEX idx_face_clusters_album_id ON face_clusters(album_id);
 
 -- Face cluster membership
 CREATE TABLE face_cluster_members (

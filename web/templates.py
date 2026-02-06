@@ -36,6 +36,25 @@ HTML_TEMPLATE = """
             padding: 20px 0 30px;
         }
 
+        .header-links {
+            margin-top: 10px;
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .header-link {
+            color: #64ffda;
+            text-decoration: none;
+            font-size: 0.9rem;
+            border-bottom: 1px dashed rgba(100, 255, 218, 0.6);
+        }
+
+        .header-link:hover {
+            color: #9fffe4;
+            border-bottom-color: #9fffe4;
+        }
+
         h1 {
             font-size: 1.8rem;
             font-weight: 600;
@@ -122,6 +141,41 @@ HTML_TEMPLATE = """
             justify-content: center;
             background: #0a0a0a;
             min-height: 200px;
+        }
+
+        .faces-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 16px;
+            padding: 20px;
+            background: #0a0a0a;
+            min-height: 200px;
+        }
+
+        .face-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .face-card:hover {
+            transform: scale(1.04);
+            border-color: #64ffda;
+        }
+
+        .face-card img {
+            width: 100%;
+            border-radius: 8px;
+            display: block;
+        }
+
+        .face-label {
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: #8892b0;
         }
 
         .snippet-card {
@@ -389,15 +443,21 @@ HTML_TEMPLATE = """
         <header>
             <h1><a href="/">Bib Number Scanner</a></h1>
             <p class="subtitle">Photo {{ current }} of {{ total }}</p>
+            <div class="header-links">
+                <a class="header-link" href="/faces">Face Clusters</a>
+            </div>
         </header>
 
         <div class="main-content">
             <div class="image-section">
-                {% if photo.cache_path %}
+                {% if photo.cache_filename %}
                 <div class="image-tabs">
                     <div class="image-tab active" onclick="showImage('original')">Original</div>
                     <div class="image-tab {% if not photo.has_candidates %}disabled{% endif %}" onclick="showImage('candidates')" {% if not photo.has_candidates %}style="opacity: 0.4; cursor: not-allowed;"{% endif %}>
                         Candidates {% if not photo.has_candidates %}(none){% endif %}
+                    </div>
+                    <div class="image-tab {% if not photo.has_face_candidates %}disabled{% endif %}" onclick="showImage('face-candidates')" {% if not photo.has_face_candidates %}style="opacity: 0.4; cursor: not-allowed;"{% endif %}>
+                        Face Candidates {% if not photo.has_face_candidates %}(none){% endif %}
                     </div>
                     <div class="image-tab {% if not photo.has_gray_bbox %}disabled{% endif %}" onclick="showImage('bbox')" {% if not photo.has_gray_bbox %}style="opacity: 0.4; cursor: not-allowed;"{% endif %}>
                         Detections {% if not photo.has_gray_bbox %}(none){% endif %}
@@ -405,12 +465,21 @@ HTML_TEMPLATE = """
                     <div class="image-tab {% if not photo.has_snippets %}disabled{% endif %}" onclick="showImage('snippets')" {% if not photo.has_snippets %}style="opacity: 0.4; cursor: not-allowed;"{% endif %}>
                         Snippets {% if not photo.has_snippets %}(none){% endif %}
                     </div>
+                    <div class="image-tab {% if not photo.has_faces %}disabled{% endif %}" onclick="showImage('faces')" {% if not photo.has_faces %}style="opacity: 0.4; cursor: not-allowed;"{% endif %}>
+                        Faces {% if not photo.has_faces %}(none){% endif %}
+                    </div>
                 </div>
                 {% endif %}
 
                 <div class="image-container">
                     <div id="view-original" class="image-view active">
-                        <img src="/local/{{ photo.photo_hash }}" alt="Photo {{ current }}">
+                        {% if photo.original_url %}
+                        <img src="{{ photo.original_url }}" alt="Photo {{ current }}">
+                        {% else %}
+                        <div style="padding: 100px; text-align: center; color: #8892b0;">
+                            <p>Cached original not available</p>
+                        </div>
+                        {% endif %}
                     </div>
                     <div id="view-candidates" class="image-view">
                         {% if photo.has_candidates %}
@@ -423,6 +492,20 @@ HTML_TEMPLATE = """
                         <div style="padding: 100px; text-align: center; color: #8892b0;">
                             <p>No candidates image available</p>
                             <p style="margin-top: 10px; font-size: 0.8rem;">Rescan this photo to generate candidates visualization</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div id="view-face-candidates" class="image-view">
+                        {% if photo.has_face_candidates %}
+                        <img src="/cache/faces/candidates/{{ photo.cache_filename }}" alt="Photo {{ current }} with face candidates">
+                        <div class="candidates-legend">
+                            <span class="legend-item legend-passed">● Passed</span>
+                            <span class="legend-item legend-rejected">● Rejected</span>
+                        </div>
+                        {% else %}
+                        <div style="padding: 100px; text-align: center; color: #8892b0;">
+                            <p>No face candidates image available</p>
+                            <p style="margin-top: 10px; font-size: 0.8rem;">Rescan this photo to generate face candidates visualization</p>
                         </div>
                         {% endif %}
                     </div>
@@ -450,6 +533,24 @@ HTML_TEMPLATE = """
                         {% else %}
                         <div style="padding: 100px; text-align: center; color: #8892b0;">
                             <p>No snippets available</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div id="view-faces" class="image-view">
+                        {% if photo.has_faces %}
+                        <div class="faces-grid">
+                            {% for face in faces %}
+                            {% if face.snippet_filename %}
+                            <div class="face-card">
+                                <img src="/cache/faces/snippets/{{ face.snippet_filename }}" alt="Face {{ face.face_index }}">
+                                <div class="face-label">Face {{ face.face_index }}</div>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div style="padding: 100px; text-align: center; color: #8892b0;">
+                            <p>No faces detected</p>
                         </div>
                         {% endif %}
                     </div>
@@ -508,7 +609,7 @@ HTML_TEMPLATE = """
                 </div>
 
                 <div class="keyboard-hint">
-                    <kbd>←</kbd> <kbd>→</kbd> navigate &nbsp;|&nbsp; <kbd>O</kbd> original &nbsp;|&nbsp; <kbd>C</kbd> candidates &nbsp;|&nbsp; <kbd>D</kbd> detections &nbsp;|&nbsp; <kbd>S</kbd> snippets
+                    <kbd>←</kbd> <kbd>→</kbd> navigate &nbsp;|&nbsp; <kbd>O</kbd> original &nbsp;|&nbsp; <kbd>C</kbd> candidates &nbsp;|&nbsp; <kbd>A</kbd> face candidates &nbsp;|&nbsp; <kbd>D</kbd> detections &nbsp;|&nbsp; <kbd>S</kbd> snippets &nbsp;|&nbsp; <kbd>F</kbd> faces
                 </div>
             </div>
         </div>
@@ -520,16 +621,22 @@ HTML_TEMPLATE = """
             if (view === 'candidates' && !{{ 'true' if photo.has_candidates else 'false' }}) {
                 return;
             }
+            if (view === 'face-candidates' && !{{ 'true' if photo.has_face_candidates else 'false' }}) {
+                return;
+            }
             if (view === 'bbox' && !{{ 'true' if photo.has_gray_bbox else 'false' }}) {
                 return;
             }
             if (view === 'snippets' && !{{ 'true' if photo.has_snippets else 'false' }}) {
                 return;
             }
+            if (view === 'faces' && !{{ 'true' if photo.has_faces else 'false' }}) {
+                return;
+            }
 
             // Update tabs
             document.querySelectorAll('.image-tab').forEach(tab => tab.classList.remove('active'));
-            const tabIndex = {'original': 0, 'candidates': 1, 'bbox': 2, 'snippets': 3}[view];
+            const tabIndex = {'original': 0, 'candidates': 1, 'face-candidates': 2, 'bbox': 3, 'snippets': 4, 'faces': 5}[view];
             const tabs = document.querySelectorAll('.image-tab');
             if (tabs[tabIndex]) tabs[tabIndex].classList.add('active');
 
@@ -555,6 +662,15 @@ HTML_TEMPLATE = """
                         showImage('candidates');
                     }
                 }
+            } else if (e.key === 'a' || e.key === 'A') {
+                // Toggle face candidates view with 'a' key
+                if ({{ 'true' if photo.has_face_candidates else 'false' }}) {
+                    if (document.getElementById('view-face-candidates').classList.contains('active')) {
+                        showImage('original');
+                    } else {
+                        showImage('face-candidates');
+                    }
+                }
             } else if (e.key === 'd' || e.key === 'D') {
                 // Toggle detections/bbox view with 'd' key
                 if ({{ 'true' if photo.has_gray_bbox else 'false' }}) {
@@ -571,6 +687,14 @@ HTML_TEMPLATE = """
                         showImage('original');
                     } else {
                         showImage('snippets');
+                    }
+                }
+            } else if (e.key === 'f' || e.key === 'F') {
+                if ({{ 'true' if photo.has_faces else 'false' }}) {
+                    if (document.getElementById('view-faces').classList.contains('active')) {
+                        showImage('original');
+                    } else {
+                        showImage('faces');
                     }
                 }
             }
@@ -628,7 +752,154 @@ EMPTY_TEMPLATE = """
         <div class="icon">📷</div>
         <h1>No Photos Scanned Yet</h1>
         <p>Run the scanner first to add photos to the database.</p>
-        <code>python bnr.py scan &lt;album_url_or_directory&gt;</code>
+        <code>python bnr.py scan &lt;directory&gt; --album-label "Example"</code>
+    </div>
+</body>
+</html>
+"""
+
+FACE_CLUSTERS_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bib Scanner - Face Clusters</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        header {
+            text-align: center;
+            padding: 16px 0 24px;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #8892b0;
+        }
+        .section {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+        .cluster-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+        .cluster-card {
+            background: rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .cluster-title {
+            font-weight: 600;
+            color: #64ffda;
+        }
+        .cluster-meta {
+            margin-top: 8px;
+            font-size: 0.85rem;
+            color: #8892b0;
+        }
+        .faces-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 14px;
+            margin-top: 12px;
+        }
+        .face-card {
+            background: rgba(255,255,255,0.06);
+            border-radius: 10px;
+            padding: 8px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .face-card img {
+            width: 100%;
+            border-radius: 8px;
+            display: block;
+        }
+        .face-label {
+            margin-top: 6px;
+            font-size: 0.75rem;
+            color: #8892b0;
+        }
+        a.link {
+            color: #64ffda;
+            text-decoration: none;
+        }
+        a.link:hover {
+            color: #9fffe4;
+        }
+        .empty {
+            padding: 24px;
+            text-align: center;
+            color: #8892b0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Face Clusters</h1>
+            <p class="subtitle">Read-only inspection view</p>
+            <p><a class="link" href="/">Back to photos</a></p>
+        </header>
+
+        <div class="section">
+            <h2 style="margin-bottom: 12px;">Clusters</h2>
+            {% if clusters %}
+            <div class="cluster-list">
+                {% for cluster in clusters %}
+                <div class="cluster-card">
+                    <div class="cluster-title">Cluster {{ cluster.id }}</div>
+                    <div class="cluster-meta">Album: {{ cluster.album_label or cluster.album_id }}</div>
+                    <div class="cluster-meta">Model: {{ cluster.model_name }} {{ cluster.model_version }}</div>
+                    <div class="cluster-meta">Size: {{ cluster.size or 0 }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty">No clusters yet (run clustering).</div>
+            {% endif %}
+        </div>
+
+        <div class="section">
+            <h2 style="margin-bottom: 12px;">Unclustered Faces</h2>
+            {% if unclustered_faces %}
+            <div class="faces-grid">
+                {% for face in unclustered_faces %}
+                <div class="face-card">
+                    {% if face.snippet_filename %}
+                    <a class="link" href="/photo/{{ face.photo_hash }}">
+                        <img src="/cache/faces/snippets/{{ face.snippet_filename }}" alt="Face {{ face.face_index }}">
+                    </a>
+                    {% else %}
+                    <div class="empty">No snippet</div>
+                    {% endif %}
+                    <div class="face-label">Photo {{ face.photo_hash }}</div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty">No unclustered faces found.</div>
+            {% endif %}
+        </div>
     </div>
 </body>
 </html>

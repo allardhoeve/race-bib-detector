@@ -1,5 +1,6 @@
 """Database helper module for bib number recognizer."""
 
+import hashlib
 import json
 import sqlite3
 from pathlib import Path
@@ -13,6 +14,17 @@ if TYPE_CHECKING:
 
 DB_PATH = Path(__file__).parent / "bibs.db"
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
+
+
+def compute_album_id(source: str) -> str:
+    """Compute a short album identifier from a source string."""
+    return hashlib.sha256(source.encode()).hexdigest()[:8]
+
+
+def _column_exists(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    cursor = conn.cursor()
+    cursor.execute(f"PRAGMA table_info({table})")
+    return any(row[1] == column for row in cursor.fetchall())
 
 
 def get_connection() -> sqlite3.Connection:
@@ -37,7 +49,7 @@ def init_database(conn: sqlite3.Connection) -> None:
 
 
 def ensure_face_tables(conn: sqlite3.Connection) -> None:
-    """Ensure face-related tables exist for legacy databases."""
+    """Ensure face + album tables exist for legacy databases."""
     conn.executescript(
         """
         CREATE TABLE IF NOT EXISTS face_detections (
@@ -60,7 +72,7 @@ def ensure_face_tables(conn: sqlite3.Connection) -> None:
 
         CREATE TABLE IF NOT EXISTS face_clusters (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            album_url TEXT NOT NULL,
+            album_id TEXT NOT NULL,
             model_name TEXT,
             model_version TEXT,
             centroid BLOB,
@@ -68,8 +80,6 @@ def ensure_face_tables(conn: sqlite3.Connection) -> None:
             size INTEGER,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
-
-        CREATE INDEX IF NOT EXISTS idx_face_clusters_album_url ON face_clusters(album_url);
 
         CREATE TABLE IF NOT EXISTS face_cluster_members (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -101,12 +111,82 @@ def ensure_face_tables(conn: sqlite3.Connection) -> None:
         CREATE INDEX IF NOT EXISTS idx_bib_assignments_bib_number ON bib_assignments(bib_number);
         """
     )
+
+    if not _column_exists(conn, "photos", "album_id"):
+        conn.execute("ALTER TABLE photos ADD COLUMN album_id TEXT")
+
+    if not _column_exists(conn, "face_clusters", "album_id"):
+        conn.execute("ALTER TABLE face_clusters ADD COLUMN album_id TEXT")
+
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS albums (
+            album_id TEXT PRIMARY KEY,
+            label TEXT,
+            source_type TEXT,
+            source_hint TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_photo_album_id ON photos(album_id);
+        CREATE INDEX IF NOT EXISTS idx_face_clusters_album_id ON face_clusters(album_id);
+        """
+    )
+
+    if _column_exists(conn, "photos", "album_url"):
+        conn.execute(
+            """
+            UPDATE photos
+            SET album_id = COALESCE(album_id, ?)
+            WHERE album_id IS NULL AND album_url IS NOT NULL
+            """,
+            (compute_album_id("legacy"),),
+        )
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT album_url FROM photos WHERE album_url IS NOT NULL")
+        for (album_url,) in cursor.fetchall():
+            album_id = compute_album_id(album_url)
+            conn.execute(
+                """
+                UPDATE photos
+                SET album_id = ?
+                WHERE album_url = ? AND (album_id IS NULL OR album_id = ?)
+                """,
+                (album_id, album_url, compute_album_id("legacy")),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO albums (album_id, source_type) VALUES (?, ?)",
+                (album_id, "legacy"),
+            )
+
+    if _column_exists(conn, "face_clusters", "album_url"):
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT album_url FROM face_clusters WHERE album_url IS NOT NULL")
+        for (album_url,) in cursor.fetchall():
+            album_id = compute_album_id(album_url)
+            conn.execute(
+                """
+                UPDATE face_clusters
+                SET album_id = ?
+                WHERE album_url = ? AND (album_id IS NULL OR album_id = '')
+                """,
+                (album_id, album_url),
+            )
+            conn.execute(
+                "INSERT OR IGNORE INTO albums (album_id, source_type) VALUES (?, ?)",
+                (album_id, "legacy"),
+            )
+
+    conn.execute(
+        "INSERT OR IGNORE INTO albums (album_id) SELECT DISTINCT album_id FROM photos WHERE album_id IS NOT NULL"
+    )
+
     conn.commit()
 
 
 def insert_photo(
     conn: sqlite3.Connection,
-    album_url: str,
+    album_id: str,
     photo_url: str,
     thumbnail_url: Optional[str] = None,
     cache_path: Optional[str] = None,
@@ -114,13 +194,32 @@ def insert_photo(
     """Insert a photo record and return its ID. Returns existing ID if duplicate."""
     photo_hash = compute_photo_hash(photo_url)
     cursor = conn.cursor()
+    cursor.execute("PRAGMA table_info(photos)")
+    columns = {row[1] for row in cursor.fetchall()}
+
+    insert_columns = ["photo_hash", "photo_url", "thumbnail_url", "cache_path"]
+    insert_values = [photo_hash, photo_url, thumbnail_url, cache_path]
+
+    if "album_id" in columns:
+        insert_columns.insert(1, "album_id")
+        insert_values.insert(1, album_id)
+
+    if "album_url" in columns:
+        insert_columns.insert(1, "album_url")
+        insert_values.insert(1, album_id)
+
+    placeholders = ", ".join("?" for _ in insert_columns)
+    columns_sql = ", ".join(insert_columns)
+
     try:
+        if _column_exists(conn, "albums", "album_id"):
+            conn.execute("INSERT OR IGNORE INTO albums (album_id) VALUES (?)", (album_id,))
         cursor.execute(
-            """
-            INSERT INTO photos (photo_hash, album_url, photo_url, thumbnail_url, cache_path)
-            VALUES (?, ?, ?, ?, ?)
+            f"""
+            INSERT INTO photos ({columns_sql})
+            VALUES ({placeholders})
             """,
-            (photo_hash, album_url, photo_url, thumbnail_url, cache_path),
+            insert_values,
         )
         conn.commit()
         return cursor.lastrowid
@@ -142,6 +241,145 @@ def update_photo_cache_path(
         (cache_path, photo_id),
     )
     conn.commit()
+
+
+def ensure_album(
+    conn: sqlite3.Connection,
+    album_id: str,
+    label: Optional[str] = None,
+    source_type: Optional[str] = None,
+    source_hint: Optional[str] = None,
+) -> None:
+    """Ensure an album record exists and update metadata when provided."""
+    conn.execute(
+        """
+        INSERT OR IGNORE INTO albums (album_id, label, source_type, source_hint)
+        VALUES (?, ?, ?, ?)
+        """,
+        (album_id, label, source_type, source_hint),
+    )
+    if label or source_type or source_hint:
+        conn.execute(
+            """
+            UPDATE albums
+            SET label = COALESCE(?, label),
+                source_type = COALESCE(?, source_type),
+                source_hint = COALESCE(?, source_hint)
+            WHERE album_id = ?
+            """,
+            (label, source_type, source_hint, album_id),
+        )
+    conn.commit()
+
+
+def list_albums(conn: sqlite3.Connection) -> list[dict]:
+    """List all albums with photo counts."""
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT a.album_id,
+               a.label,
+               a.source_type,
+               a.source_hint,
+               a.created_at,
+               COUNT(p.id) AS photo_count
+        FROM albums a
+        LEFT JOIN photos p ON p.album_id = a.album_id
+        GROUP BY a.album_id
+        ORDER BY a.created_at DESC
+        """
+    )
+    return [dict(row) for row in cursor.fetchall()]
+
+
+def forget_album(conn: sqlite3.Connection, album_id: str) -> dict:
+    """Delete all records for an album. Returns counts of deleted rows."""
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id FROM photos WHERE album_id = ?", (album_id,))
+    photo_ids = [row[0] for row in cursor.fetchall()]
+
+    counts = {
+        "bib_detections": 0,
+        "face_detections": 0,
+        "bib_assignments": 0,
+        "photos": 0,
+        "face_cluster_members": 0,
+        "face_clusters": 0,
+        "albums": 0,
+    }
+
+    if photo_ids:
+        placeholders = ",".join("?" for _ in photo_ids)
+        cursor.execute(
+            f"DELETE FROM bib_detections WHERE photo_id IN ({placeholders})",
+            photo_ids,
+        )
+        counts["bib_detections"] = cursor.rowcount
+
+        cursor.execute(
+            f"DELETE FROM face_detections WHERE photo_id IN ({placeholders})",
+            photo_ids,
+        )
+        counts["face_detections"] = cursor.rowcount
+
+        cursor.execute(
+            f"DELETE FROM bib_assignments WHERE photo_id IN ({placeholders})",
+            photo_ids,
+        )
+        counts["bib_assignments"] = cursor.rowcount
+
+        cursor.execute(
+            f"DELETE FROM photos WHERE id IN ({placeholders})",
+            photo_ids,
+        )
+        counts["photos"] = cursor.rowcount
+
+    cursor.execute(
+        """
+        DELETE FROM face_cluster_members
+        WHERE cluster_id IN (SELECT id FROM face_clusters WHERE album_id = ?)
+        """,
+        (album_id,),
+    )
+    counts["face_cluster_members"] = cursor.rowcount
+
+    cursor.execute("DELETE FROM face_clusters WHERE album_id = ?", (album_id,))
+    counts["face_clusters"] = cursor.rowcount
+
+    cursor.execute("DELETE FROM albums WHERE album_id = ?", (album_id,))
+    counts["albums"] = cursor.rowcount
+
+    conn.commit()
+    return counts
+
+
+def list_cache_entries(conn: sqlite3.Connection) -> list[dict]:
+    """List photo hashes and cache paths for all photos."""
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT photo_hash, cache_path
+        FROM photos
+        WHERE cache_path IS NOT NULL
+        """
+    )
+    return [dict(row) for row in cursor.fetchall()]
+
+
+def list_album_cache_entries(conn: sqlite3.Connection, album_id: str) -> list[dict]:
+    """List photo hashes and cache paths for a specific album."""
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT photo_hash, cache_path
+        FROM photos
+        WHERE album_id = ?
+          AND cache_path IS NOT NULL
+        """,
+        (album_id,),
+    )
+    return [dict(row) for row in cursor.fetchall()]
 
 
 def insert_bib_detection(
@@ -222,7 +460,7 @@ def get_photos_by_bib(conn: sqlite3.Connection, bib_numbers: list[str]) -> list[
     cursor = conn.cursor()
     cursor.execute(
         f"""
-        SELECT DISTINCT p.photo_hash, p.photo_url, p.thumbnail_url, p.album_url,
+        SELECT DISTINCT p.photo_hash, p.photo_url, p.thumbnail_url, p.album_id,
                GROUP_CONCAT(DISTINCT bd.bib_number) as matched_bibs
         FROM photos p
         JOIN bib_detections bd ON p.id = bd.photo_id

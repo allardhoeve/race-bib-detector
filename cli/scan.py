@@ -25,6 +25,14 @@ def add_scan_subparser(subparsers: argparse._SubParsersAction) -> None:
         help="Rescan a specific photo by hash or index",
     )
     scan_parser.add_argument(
+        "--album-label",
+        help="Optional album label for grouping (used to derive album ID)",
+    )
+    scan_parser.add_argument(
+        "--album-id",
+        help="Optional explicit album ID (overrides derived ID)",
+    )
+    scan_parser.add_argument(
         "-f", "--force",
         action="store_true",
         help="Force rescan even if already processed",
@@ -70,6 +78,8 @@ def cmd_scan(args: argparse.Namespace) -> int:
                 limit=args.limit,
                 faces_only=args.faces_only,
                 no_faces=args.no_faces,
+                album_label=args.album_label,
+                album_id=args.album_id,
             )
     except ValueError as exc:
         logger.error("%s", exc)

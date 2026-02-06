@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import db
 from faces.types import FaceModelInfo
 from detection import detect_bib_numbers, is_valid_bib_number
+from warnings_utils import suppress_torch_mps_pin_memory_warning
 
 SAMPLES_DIR = Path(__file__).parent / "samples"
 
@@ -21,6 +22,7 @@ SAMPLES_DIR = Path(__file__).parent / "samples"
 @pytest.fixture(scope="module")
 def ocr_reader():
     """Initialize EasyOCR reader once for all tests."""
+    suppress_torch_mps_pin_memory_warning()
     import easyocr
     return easyocr.Reader(["en"], gpu=False)
 
@@ -702,7 +704,7 @@ class TestDatabase:
         """Test inserting a photo and retrieving it."""
         photo_id = db.insert_photo(
             temp_db,
-            album_url="https://photos.google.com/share/test",
+            album_id="album1234",
             photo_url="https://lh3.googleusercontent.com/test123",
             thumbnail_url="https://lh3.googleusercontent.com/test123=w400",
         )
@@ -714,8 +716,8 @@ class TestDatabase:
         """Test that inserting a duplicate photo returns the existing ID."""
         photo_url = "https://lh3.googleusercontent.com/unique123"
 
-        id1 = db.insert_photo(temp_db, "https://album1", photo_url)
-        id2 = db.insert_photo(temp_db, "https://album2", photo_url)
+        id1 = db.insert_photo(temp_db, "album1234", photo_url)
+        id2 = db.insert_photo(temp_db, "album5678", photo_url)
 
         assert id1 == id2
 
@@ -725,21 +727,21 @@ class TestDatabase:
 
         assert not db.photo_exists(temp_db, photo_url)
 
-        db.insert_photo(temp_db, "https://album", photo_url)
+        db.insert_photo(temp_db, "album1234", photo_url)
 
         assert db.photo_exists(temp_db, photo_url)
 
     def test_get_photo_id_by_url(self, temp_db):
         """Test retrieving photo ID by URL."""
         photo_url = "https://lh3.googleusercontent.com/lookup123"
-        photo_id = db.insert_photo(temp_db, "https://album", photo_url)
+        photo_id = db.insert_photo(temp_db, "album1234", photo_url)
 
         assert db.get_photo_id_by_url(temp_db, photo_url) == photo_id
 
     def test_face_detections_exist(self, temp_db):
         """Test face detections existence lookup."""
         photo_url = "https://lh3.googleusercontent.com/face123"
-        photo_id = db.insert_photo(temp_db, "https://album", photo_url)
+        photo_id = db.insert_photo(temp_db, "album1234", photo_url)
 
         assert db.face_detections_exist(temp_db, photo_id) is False
 
@@ -760,7 +762,7 @@ class TestDatabase:
         """Test inserting a bib detection."""
         photo_id = db.insert_photo(
             temp_db,
-            album_url="https://album",
+            album_id="album1234",
             photo_url="https://photo/bib",
         )
 
@@ -778,9 +780,9 @@ class TestDatabase:
     def test_get_photos_by_bib(self, temp_db):
         """Test retrieving photos by bib number."""
         # Insert photos with different bibs
-        photo1_id = db.insert_photo(temp_db, "https://album", "https://photo1")
-        photo2_id = db.insert_photo(temp_db, "https://album", "https://photo2")
-        photo3_id = db.insert_photo(temp_db, "https://album", "https://photo3")
+        photo1_id = db.insert_photo(temp_db, "album1234", "https://photo1")
+        photo2_id = db.insert_photo(temp_db, "album1234", "https://photo2")
+        photo3_id = db.insert_photo(temp_db, "album1234", "https://photo3")
 
         db.insert_bib_detection(temp_db, photo1_id, "100", 0.9, [])
         db.insert_bib_detection(temp_db, photo1_id, "101", 0.8, [])
@@ -801,7 +803,7 @@ class TestDatabase:
 
     def test_get_photos_by_bib_returns_matched_bibs(self, temp_db):
         """Test that matched_bibs field contains the matching bib numbers."""
-        photo_id = db.insert_photo(temp_db, "https://album", "https://photo/multi")
+        photo_id = db.insert_photo(temp_db, "album1234", "https://photo/multi")
         db.insert_bib_detection(temp_db, photo_id, "42", 0.9, [])
         db.insert_bib_detection(temp_db, photo_id, "43", 0.9, [])
 
@@ -813,7 +815,7 @@ class TestDatabase:
         """Test inserting a photo with a cache path."""
         photo_id = db.insert_photo(
             temp_db,
-            album_url="https://album",
+            album_id="album1234",
             photo_url="https://photo/cached",
             cache_path="/path/to/cache/abc123.jpg",
         )
@@ -828,7 +830,7 @@ class TestDatabase:
         """Test updating the cache path for an existing photo."""
         photo_id = db.insert_photo(
             temp_db,
-            album_url="https://album",
+            album_id="album1234",
             photo_url="https://photo/update_cache",
         )
 
@@ -842,7 +844,7 @@ class TestDatabase:
 
     def test_delete_bib_detections(self, temp_db):
         """Test deleting all bib detections for a photo."""
-        photo_id = db.insert_photo(temp_db, "https://album", "https://photo/delete_test")
+        photo_id = db.insert_photo(temp_db, "album1234", "https://photo/delete_test")
         db.insert_bib_detection(temp_db, photo_id, "100", 0.9, [])
         db.insert_bib_detection(temp_db, photo_id, "101", 0.8, [])
 
@@ -862,9 +864,9 @@ class TestDatabase:
     def test_get_photo_by_index(self, temp_db):
         """Test getting a photo by its 1-based index."""
         # Insert 3 photos
-        db.insert_photo(temp_db, "https://album", "https://photo/first")
-        db.insert_photo(temp_db, "https://album", "https://photo/second")
-        db.insert_photo(temp_db, "https://album", "https://photo/third")
+        db.insert_photo(temp_db, "album1234", "https://photo/first")
+        db.insert_photo(temp_db, "album1234", "https://photo/second")
+        db.insert_photo(temp_db, "album1234", "https://photo/third")
 
         # Get photo at index 2 (1-based)
         photo = db.get_photo_by_index(temp_db, 2)
@@ -897,11 +899,11 @@ class TestDatabase:
         assert db.get_photo_count(temp_db) == 0
 
         # Add photos
-        db.insert_photo(temp_db, "https://album", "https://photo/1")
+        db.insert_photo(temp_db, "album1234", "https://photo/1")
         assert db.get_photo_count(temp_db) == 1
 
-        db.insert_photo(temp_db, "https://album", "https://photo/2")
+        db.insert_photo(temp_db, "album1234", "https://photo/2")
         assert db.get_photo_count(temp_db) == 2
 
-        db.insert_photo(temp_db, "https://album", "https://photo/3")
+        db.insert_photo(temp_db, "album1234", "https://photo/3")
         assert db.get_photo_count(temp_db) == 3

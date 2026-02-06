@@ -37,7 +37,7 @@ class TestPhoto:
         """Photo should auto-compute hash if not provided."""
         photo = Photo(
             photo_url="http://example.com/photo.jpg",
-            album_url="http://example.com/album",
+            album_id="album1234",
         )
         assert photo.photo_hash is not None
         assert len(photo.photo_hash) == 8
@@ -46,7 +46,7 @@ class TestPhoto:
         """Photo should use provided hash if given."""
         photo = Photo(
             photo_url="http://example.com/photo.jpg",
-            album_url="http://example.com/album",
+            album_id="album1234",
             photo_hash="custom12",
         )
         assert photo.photo_hash == "custom12"
@@ -55,7 +55,7 @@ class TestPhoto:
         """Local file source should be local."""
         photo = Photo(
             photo_url="/path/to/photo.jpg",
-            album_url="/path/to",
+            album_id="album1234",
             source_type="local_file",
         )
         assert photo.is_local is True
@@ -68,7 +68,7 @@ class TestPhotoFromLocalPath:
         """from_local_path should create photo with local_file source type."""
         photo = Photo.from_local_path(
             file_path="/photos/vacation/img001.jpg",
-            directory="/photos/vacation",
+            album_id="album1234",
         )
         assert photo.source_type == "local_file"
         assert photo.is_local is True
@@ -77,16 +77,16 @@ class TestPhotoFromLocalPath:
         """from_local_path should accept Path objects."""
         photo = Photo.from_local_path(
             file_path=Path("/photos/vacation/img001.jpg"),
-            directory=Path("/photos/vacation"),
+            album_id="album1234",
         )
         assert photo.photo_url == "/photos/vacation/img001.jpg"
-        assert photo.album_url == "/photos/vacation"
+        assert photo.album_id == "album1234"
 
     def test_thumbnail_is_none(self):
         """from_local_path should set thumbnail_url to None."""
         photo = Photo.from_local_path(
             file_path="/photos/img.jpg",
-            directory="/photos",
+            album_id="album1234",
         )
         assert photo.thumbnail_url is None
 
@@ -99,7 +99,7 @@ class TestPhotoFromDbRow:
         row = {
             "id": 42,
             "photo_url": "http://example.com/photo.jpg",
-            "album_url": "http://example.com/album",
+            "album_id": "album1234",
             "thumbnail_url": "http://example.com/thumb.jpg",
             "photo_hash": "abc12345",
             "cache_path": "/cache/abc12345.jpg",
@@ -108,7 +108,7 @@ class TestPhotoFromDbRow:
 
         assert photo.id == 42
         assert photo.photo_url == "http://example.com/photo.jpg"
-        assert photo.album_url == "http://example.com/album"
+        assert photo.album_id == "album1234"
         assert photo.thumbnail_url == "http://example.com/thumb.jpg"
         assert photo.photo_hash == "abc12345"
         assert photo.cache_path == Path("/cache/abc12345.jpg")
@@ -118,7 +118,7 @@ class TestPhotoFromDbRow:
         """from_db_row should default to local_file."""
         row = {
             "photo_url": "/photos/img.jpg",
-            "album_url": "/photos",
+            "album_id": "album1234",
         }
         photo = Photo.from_db_row(row)
         assert photo.source_type == "local_file"
@@ -128,7 +128,7 @@ class TestPhotoFromDbRow:
         """from_db_row should handle missing optional fields."""
         row = {
             "photo_url": "http://example.com/photo.jpg",
-            "album_url": "http://example.com/album",
+            "album_id": "album1234",
         }
         photo = Photo.from_db_row(row)
 
@@ -144,7 +144,7 @@ class TestPhotoToDict:
         """to_dict should include all fields."""
         photo = Photo(
             photo_url="http://example.com/photo.jpg",
-            album_url="http://example.com/album",
+            album_id="album1234",
             thumbnail_url="http://example.com/thumb.jpg",
             photo_hash="abc12345",
             cache_path=Path("/cache/img.jpg"),
@@ -154,7 +154,7 @@ class TestPhotoToDict:
         result = photo.to_dict()
 
         assert result["photo_url"] == "http://example.com/photo.jpg"
-        assert result["album_url"] == "http://example.com/album"
+        assert result["album_id"] == "album1234"
         assert result["thumbnail_url"] == "http://example.com/thumb.jpg"
         assert result["photo_hash"] == "abc12345"
         assert result["cache_path"] == "/cache/img.jpg"
@@ -166,7 +166,7 @@ class TestPhotoToDict:
         """to_dict should serialize None cache_path as None."""
         photo = Photo(
             photo_url="http://example.com/photo.jpg",
-            album_url="http://example.com/album",
+            album_id="album1234",
         )
         result = photo.to_dict()
         assert result["cache_path"] is None
@@ -179,7 +179,7 @@ class TestPhotoGetPaths:
         """get_paths should return ImagePaths for photo with cache_path."""
         photo = Photo(
             photo_url="http://example.com/photo.jpg",
-            album_url="http://example.com/album",
+            album_id="album1234",
             cache_path=Path("/cache/abc12345.jpg"),
         )
         paths = photo.get_paths()
@@ -193,7 +193,7 @@ class TestPhotoGetPaths:
 
         photo = Photo(
             photo_url="http://example.com/photo.jpg",
-            album_url="http://example.com/album",
+            album_id="album1234",
         )
         with pytest.raises(ValueError, match="cache_path is not set"):
             photo.get_paths()
@@ -206,6 +206,7 @@ class TestImagePaths:
         """for_cache_path should compute paths using default directories."""
         from photo import (
             DEFAULT_FACE_BOXED_DIR,
+            DEFAULT_FACE_CANDIDATES_DIR,
             DEFAULT_FACE_EVIDENCE_DIR,
             DEFAULT_FACE_SNIPPETS_DIR,
             DEFAULT_GRAY_BBOX_DIR,
@@ -220,6 +221,7 @@ class TestImagePaths:
         assert paths.snippets_dir == DEFAULT_SNIPPETS_DIR
         assert paths.face_snippets_dir == DEFAULT_FACE_SNIPPETS_DIR
         assert paths.face_boxed_dir == DEFAULT_FACE_BOXED_DIR
+        assert paths.face_candidates_dir == DEFAULT_FACE_CANDIDATES_DIR
         assert paths.face_evidence_dir == DEFAULT_FACE_EVIDENCE_DIR
 
     def test_for_cache_path_custom_dirs(self):
@@ -229,6 +231,7 @@ class TestImagePaths:
         custom_snippets = Path("/custom/snippets")
         custom_face_snippets = Path("/custom/faces/snippets")
         custom_face_boxed = Path("/custom/faces/boxed")
+        custom_face_candidates = Path("/custom/faces/candidates")
         custom_face_evidence = Path("/custom/faces/evidence")
 
         paths = ImagePaths.for_cache_path(
@@ -237,6 +240,7 @@ class TestImagePaths:
             snippets_dir=custom_snippets,
             face_snippets_dir=custom_face_snippets,
             face_boxed_dir=custom_face_boxed,
+            face_candidates_dir=custom_face_candidates,
             face_evidence_dir=custom_face_evidence,
         )
 
@@ -244,6 +248,7 @@ class TestImagePaths:
         assert paths.snippets_dir == custom_snippets
         assert paths.face_snippets_dir == custom_face_snippets
         assert paths.face_boxed_dir == custom_face_boxed
+        assert paths.face_candidates_dir == custom_face_candidates
         assert paths.face_evidence_dir == custom_face_evidence
 
     def test_snippet_path(self):
@@ -305,3 +310,15 @@ class TestImagePaths:
         evidence = paths.face_evidence_path("deadbeef")
 
         assert evidence == Path("/faces/evidence/deadbeef_faces.json")
+
+    def test_face_candidates_path(self):
+        """face_candidates_path should return correct path for candidates preview."""
+        cache_path = Path("/cache/abc12345.jpg")
+        paths = ImagePaths.for_cache_path(
+            cache_path,
+            face_candidates_dir=Path("/faces/candidates"),
+        )
+
+        candidates = paths.face_candidates_path()
+
+        assert candidates == Path("/faces/candidates/abc12345.jpg")

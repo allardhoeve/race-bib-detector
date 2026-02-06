@@ -12,7 +12,7 @@ from flask import Flask, render_template_string, send_from_directory, abort
 from db import get_connection, migrate_add_photo_hash
 from logging_utils import configure_logging, add_logging_args
 from utils import compute_bbox_hash
-from .templates import HTML_TEMPLATE, EMPTY_TEMPLATE
+from .templates import HTML_TEMPLATE, EMPTY_TEMPLATE, FACE_CLUSTERS_TEMPLATE
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,10 @@ CACHE_DIR = Path(__file__).parent.parent / "cache"
 GRAY_BBOX_DIR = CACHE_DIR / "gray_bounding"
 CANDIDATES_DIR = CACHE_DIR / "candidates"
 SNIPPETS_DIR = CACHE_DIR / "snippets"
+FACE_SNIPPETS_DIR = CACHE_DIR / "faces" / "snippets"
+FACE_BOXED_DIR = CACHE_DIR / "faces" / "boxed"
+FACE_CANDIDATES_DIR = CACHE_DIR / "faces" / "candidates"
+FACE_EVIDENCE_DIR = CACHE_DIR / "faces" / "evidence"
 
 
 def create_app() -> Flask:
@@ -43,7 +47,7 @@ def create_app() -> Flask:
         if not photo_hashes:
             return render_template_string(EMPTY_TEMPLATE)
 
-        photo, bibs = get_photo_with_bibs(photo_hash)
+        photo, bibs, faces = get_photo_with_bibs(photo_hash)
 
         if not photo:
             abort(404)
@@ -64,12 +68,23 @@ def create_app() -> Flask:
             HTML_TEMPLATE,
             photo=photo,
             bibs=bibs,
+            faces=faces,
             current=current_index + 1,
             total=total,
             has_prev=has_prev,
             has_next=has_next,
             prev_hash=prev_hash,
             next_hash=next_hash,
+        )
+
+    @app.route('/faces')
+    def view_faces():
+        """Browse face clusters and unclustered faces."""
+        clusters, unclustered_faces = get_face_clusters_and_faces()
+        return render_template_string(
+            FACE_CLUSTERS_TEMPLATE,
+            clusters=clusters,
+            unclustered_faces=unclustered_faces,
         )
 
     @app.route('/cache/<filename>')
@@ -79,22 +94,21 @@ def create_app() -> Flask:
 
     @app.route('/local/<photo_hash>')
     def serve_local(photo_hash):
-        """Serve local image files by their photo hash."""
+        """Serve cached image files by their photo hash (legacy route)."""
         conn = get_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT photo_url FROM photos WHERE photo_hash = ?", (photo_hash,))
+        cursor.execute("SELECT cache_path FROM photos WHERE photo_hash = ?", (photo_hash,))
         row = cursor.fetchone()
         conn.close()
 
         if not row:
             abort(404)
 
-        photo_url = row[0]
-        # Handle file:// prefix if present
-        local_path = photo_url.replace('file://', '') if photo_url.startswith('file://') else photo_url
+        cache_path = row[0]
+        if not cache_path:
+            abort(404)
 
-        # Verify path exists and is a file
-        path = Path(local_path)
+        path = Path(cache_path)
         if not path.is_file():
             abort(404)
 
@@ -109,6 +123,21 @@ def create_app() -> Flask:
     def serve_snippet(filename):
         """Serve bib snippet images."""
         return send_from_directory(SNIPPETS_DIR, filename)
+
+    @app.route('/cache/faces/snippets/<filename>')
+    def serve_face_snippet(filename):
+        """Serve face snippet images."""
+        return send_from_directory(FACE_SNIPPETS_DIR, filename)
+
+    @app.route('/cache/faces/boxed/<filename>')
+    def serve_face_boxed(filename):
+        """Serve face boxed preview images."""
+        return send_from_directory(FACE_BOXED_DIR, filename)
+
+    @app.route('/cache/faces/candidates/<filename>')
+    def serve_face_candidates(filename):
+        """Serve face candidates preview images."""
+        return send_from_directory(FACE_CANDIDATES_DIR, filename)
 
     @app.route('/cache/candidates/<filename>')
     def serve_candidates(filename):
@@ -128,30 +157,31 @@ def get_all_photo_hashes() -> list[str]:
     return hashes
 
 
-def get_photo_with_bibs(photo_hash: str) -> tuple[dict | None, list[dict]]:
+def get_photo_with_bibs(photo_hash: str) -> tuple[dict | None, list[dict], list[dict]]:
     """Get photo details and its bib detections by hash."""
     conn = get_connection()
     cursor = conn.cursor()
 
     # Get photo details
     cursor.execute(
-        "SELECT id, photo_hash, album_url, photo_url, thumbnail_url, cache_path, scanned_at FROM photos WHERE photo_hash = ?",
+        "SELECT id, photo_hash, album_id, photo_url, thumbnail_url, cache_path, scanned_at FROM photos WHERE photo_hash = ?",
         (photo_hash,)
     )
     photo_row = cursor.fetchone()
 
     if not photo_row:
         conn.close()
-        return None, []
+        return None, [], []
 
     photo = dict(photo_row)
 
-    # Local files only - use photo_url directly
-    photo_url = photo['photo_url']
-    local_path = photo_url.replace('file://', '') if photo_url.startswith('file://') else photo_url
-    photo['is_local'] = True
-    photo['local_path'] = local_path
-    photo['cache_filename'] = Path(photo['cache_path']).name if photo['cache_path'] else None
+    cache_path = Path(photo['cache_path']) if photo['cache_path'] else None
+    if cache_path and cache_path.is_file():
+        photo['cache_filename'] = cache_path.name
+        photo['original_url'] = f"/local/{photo_hash}"
+    else:
+        photo['cache_filename'] = None
+        photo['original_url'] = None
 
     # Check if grayscale bounding box image exists
     if photo['cache_filename']:
@@ -160,9 +190,12 @@ def get_photo_with_bibs(photo_hash: str) -> tuple[dict | None, list[dict]]:
         # Check if candidates visualization exists
         candidates_path = CANDIDATES_DIR / photo['cache_filename']
         photo['has_candidates'] = candidates_path.exists()
+        face_candidates_path = FACE_CANDIDATES_DIR / photo['cache_filename']
+        photo['has_face_candidates'] = face_candidates_path.exists()
     else:
         photo['has_gray_bbox'] = False
         photo['has_candidates'] = False
+        photo['has_face_candidates'] = False
 
     # Get bib detections for this photo
     cursor.execute(
@@ -188,8 +221,70 @@ def get_photo_with_bibs(photo_hash: str) -> tuple[dict | None, list[dict]]:
     # Check if any snippets exist for this photo
     photo['has_snippets'] = any(bib.get('snippet_filename') for bib in bibs)
 
+    # Get face detections for this photo
+    cursor.execute(
+        """
+        SELECT face_index, snippet_path, preview_path, model_name, model_version, bbox_json
+        FROM face_detections
+        WHERE photo_id = ?
+        ORDER BY face_index
+        """,
+        (photo['id'],)
+    )
+    faces = [dict(row) for row in cursor.fetchall()]
+    for face in faces:
+        snippet_path = face.get("snippet_path")
+        preview_path = face.get("preview_path")
+        face["snippet_filename"] = Path(snippet_path).name if snippet_path else None
+        face["preview_filename"] = Path(preview_path).name if preview_path else None
+
+    photo['has_faces'] = any(face.get("snippet_filename") for face in faces)
+
     conn.close()
-    return photo, bibs
+    return photo, bibs, faces
+
+
+def get_face_clusters_and_faces() -> tuple[list[dict], list[dict]]:
+    """Get face clusters and unclustered face detections."""
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        """
+        SELECT fc.id,
+               fc.album_id,
+               a.label AS album_label,
+               fc.model_name,
+               fc.model_version,
+               fc.size,
+               fc.created_at
+        FROM face_clusters fc
+        LEFT JOIN albums a ON a.album_id = fc.album_id
+        ORDER BY fc.created_at DESC
+        """
+    )
+    clusters = [dict(row) for row in cursor.fetchall()]
+
+    cursor.execute(
+        """
+        SELECT fd.id, fd.face_index, fd.snippet_path, fd.preview_path, p.photo_hash
+        FROM face_detections fd
+        JOIN photos p ON p.id = fd.photo_id
+        LEFT JOIN face_cluster_members fcm ON fcm.face_id = fd.id
+        WHERE fcm.id IS NULL
+        ORDER BY fd.detected_at DESC
+        LIMIT 200
+        """
+    )
+    unclustered_faces = [dict(row) for row in cursor.fetchall()]
+    for face in unclustered_faces:
+        snippet_path = face.get("snippet_path")
+        preview_path = face.get("preview_path")
+        face["snippet_filename"] = Path(snippet_path).name if snippet_path else None
+        face["preview_filename"] = Path(preview_path).name if preview_path else None
+
+    conn.close()
+    return clusters, unclustered_faces
 
 
 def build_parser() -> argparse.ArgumentParser:

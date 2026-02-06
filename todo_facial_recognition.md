@@ -126,9 +126,9 @@ Date: 2026-02-06
 - [ ] Persist provenance (`bib-detection` vs `face-inherited`) + evidence trail.
 
 ### Group 5: Admin UI (Read-Only)
-- [ ] Add admin-only cluster browsing view.
+- [x] Add admin-only cluster browsing view.
 - [ ] Show bib tags with provenance badge.
-- [ ] Click-through to evidence photo and face snippets (with boxes).
+- [x] Click-through to evidence photo and face snippets (with boxes).
 
 ### Group 6: Benchmarking + Tuning
 - [ ] JSON export of embeddings/artifacts for experiments.

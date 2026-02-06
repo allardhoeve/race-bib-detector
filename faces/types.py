@@ -94,3 +94,33 @@ class FaceDetection:
             snippet_path=data.get("snippet_path"),
             preview_path=data.get("preview_path"),
         )
+
+
+@dataclass(frozen=True)
+class FaceCandidate:
+    """A face candidate proposal with pass/fail metadata."""
+
+    bbox: FaceBbox
+    confidence: float | None
+    passed: bool
+    rejection_reason: str | None
+    model: FaceModelInfo
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "bbox": self.bbox,
+            "confidence": self.confidence,
+            "passed": self.passed,
+            "rejection_reason": self.rejection_reason,
+            "model": self.model.to_dict(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "FaceCandidate":
+        return cls(
+            bbox=data["bbox"],
+            confidence=data.get("confidence"),
+            passed=bool(data["passed"]),
+            rejection_reason=data.get("rejection_reason"),
+            model=FaceModelInfo.from_dict(data["model"]),
+        )

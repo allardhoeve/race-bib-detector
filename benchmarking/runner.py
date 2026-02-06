@@ -22,6 +22,7 @@ import torch
 from config import BENCHMARK_REGRESSION_TOLERANCE
 from detection import detect_bib_numbers
 from preprocessing import PreprocessConfig
+from warnings_utils import suppress_torch_mps_pin_memory_warning
 
 logger = logging.getLogger(__name__)
 
@@ -433,6 +434,7 @@ def run_benchmark(
     # Initialize EasyOCR reader
     if verbose:
         logger.info("Initializing EasyOCR...")
+    suppress_torch_mps_pin_memory_warning()
     reader = easyocr.Reader(["en"], gpu=torch.cuda.is_available())
 
     # Run detection on each photo

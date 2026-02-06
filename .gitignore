@@ -5,3 +5,5 @@ __pycache__
 cache/*
 commit.txt
 benchmarking/results/
+faces/models/opencv_dnn_ssd/deploy.prototxt
+faces/models/opencv_dnn_ssd/res10_300x300_ssd_iter_140000.caffemodel

@@ -19,6 +19,7 @@ DEFAULT_SNIPPETS_DIR = DEFAULT_CACHE_DIR / "snippets"
 DEFAULT_FACE_SNIPPETS_DIR = DEFAULT_CACHE_DIR / "faces" / "snippets"
 DEFAULT_FACE_BOXED_DIR = DEFAULT_CACHE_DIR / "faces" / "boxed"
 DEFAULT_FACE_EVIDENCE_DIR = DEFAULT_CACHE_DIR / "faces" / "evidence"
+DEFAULT_FACE_CANDIDATES_DIR = DEFAULT_CACHE_DIR / "faces" / "candidates"
 
 
 def compute_photo_hash(photo_url: str) -> str:
@@ -51,7 +52,7 @@ class Photo:
 
     Attributes:
         photo_url: Full URL or local file path
-        album_url: URL of containing album (or directory path for local files)
+        album_id: Opaque album identifier
         thumbnail_url: Optional URL for thumbnail display
         photo_hash: 8-char SHA-256 hash of photo_url (computed if not provided)
         cache_path: Path to cached image file on disk
@@ -60,7 +61,7 @@ class Photo:
     """
 
     photo_url: str
-    album_url: str
+    album_id: str
     thumbnail_url: str | None = None
     photo_hash: str | None = None
     cache_path: Path | None = None
@@ -81,20 +82,20 @@ class Photo:
     def from_local_path(
         cls,
         file_path: str | Path,
-        directory: str | Path,
+        album_id: str,
     ) -> Photo:
         """Create a Photo from a local file path.
 
         Args:
             file_path: Path to the image file
-            directory: Parent directory (used as album_url)
+            album_id: Album identifier for grouping
 
         Returns:
             Photo instance with source_type="local_file"
         """
         return cls(
             photo_url=str(file_path),
-            album_url=str(directory),
+            album_id=album_id,
             thumbnail_url=None,
             source_type="local_file",
         )
@@ -104,7 +105,7 @@ class Photo:
         """Create a Photo from a database row.
 
         Args:
-            row: Dict with keys from photos table (photo_url, album_url,
+            row: Dict with keys from photos table (photo_url, album_id,
                  thumbnail_url, photo_hash, cache_path, id)
 
         Returns:
@@ -113,7 +114,7 @@ class Photo:
         cache_path = row.get("cache_path")
         return cls(
             photo_url=row["photo_url"],
-            album_url=row["album_url"],
+            album_id=row.get("album_id") or row.get("album_url"),
             thumbnail_url=row.get("thumbnail_url"),
             photo_hash=row.get("photo_hash"),
             cache_path=Path(cache_path) if cache_path else None,
@@ -129,7 +130,7 @@ class Photo:
         """
         return {
             "photo_url": self.photo_url,
-            "album_url": self.album_url,
+            "album_id": self.album_id,
             "thumbnail_url": self.thumbnail_url,
             "photo_hash": self.photo_hash,
             "cache_path": str(self.cache_path) if self.cache_path else None,
@@ -144,6 +145,7 @@ class Photo:
         snippets_dir: Path | None = None,
         face_snippets_dir: Path | None = None,
         face_boxed_dir: Path | None = None,
+        face_candidates_dir: Path | None = None,
         face_evidence_dir: Path | None = None,
     ) -> ImagePaths:
         """Get all derived paths for this photo.
@@ -170,6 +172,7 @@ class Photo:
             snippets_dir=snippets_dir,
             face_snippets_dir=face_snippets_dir,
             face_boxed_dir=face_boxed_dir,
+            face_candidates_dir=face_candidates_dir,
             face_evidence_dir=face_evidence_dir,
         )
 
@@ -183,6 +186,7 @@ class ImagePaths:
     - Snippets directory for bib crops
     - Face snippets directory
     - Face boxed preview directory
+    - Face candidates preview directory
     - Face evidence JSON directory
     - Individual snippet files
 
@@ -194,6 +198,7 @@ class ImagePaths:
         snippets_dir: Directory containing cropped bib snippets
         face_snippets_dir: Directory containing cropped face snippets
         face_boxed_dir: Directory containing boxed face previews
+        face_candidates_dir: Directory containing face candidate previews
         face_evidence_dir: Directory containing face evidence JSON
     """
 
@@ -202,6 +207,7 @@ class ImagePaths:
     snippets_dir: Path
     face_snippets_dir: Path
     face_boxed_dir: Path
+    face_candidates_dir: Path
     face_evidence_dir: Path
 
     @classmethod
@@ -212,6 +218,7 @@ class ImagePaths:
         snippets_dir: Path | None = None,
         face_snippets_dir: Path | None = None,
         face_boxed_dir: Path | None = None,
+        face_candidates_dir: Path | None = None,
         face_evidence_dir: Path | None = None,
     ) -> ImagePaths:
         """Create ImagePaths from a cache path.
@@ -234,6 +241,8 @@ class ImagePaths:
             face_snippets_dir = DEFAULT_FACE_SNIPPETS_DIR
         if face_boxed_dir is None:
             face_boxed_dir = DEFAULT_FACE_BOXED_DIR
+        if face_candidates_dir is None:
+            face_candidates_dir = DEFAULT_FACE_CANDIDATES_DIR
         if face_evidence_dir is None:
             face_evidence_dir = DEFAULT_FACE_EVIDENCE_DIR
 
@@ -243,6 +252,7 @@ class ImagePaths:
             snippets_dir=snippets_dir,
             face_snippets_dir=face_snippets_dir,
             face_boxed_dir=face_boxed_dir,
+            face_candidates_dir=face_candidates_dir,
             face_evidence_dir=face_evidence_dir,
         )
 
@@ -273,10 +283,15 @@ class ImagePaths:
         """Get the path for face evidence JSON for a given photo hash."""
         return self.face_evidence_dir / f"{photo_hash}_faces.json"
 
+    def face_candidates_path(self) -> Path:
+        """Get the path for face candidates preview image."""
+        return self.face_candidates_dir / self.cache_path.name
+
     def ensure_dirs_exist(self) -> None:
         """Create all necessary directories if they don't exist."""
         self.gray_bbox_path.parent.mkdir(parents=True, exist_ok=True)
         self.snippets_dir.mkdir(parents=True, exist_ok=True)
         self.face_snippets_dir.mkdir(parents=True, exist_ok=True)
         self.face_boxed_dir.mkdir(parents=True, exist_ok=True)
+        self.face_candidates_dir.mkdir(parents=True, exist_ok=True)
         self.face_evidence_dir.mkdir(parents=True, exist_ok=True)

@@ -11,7 +11,7 @@ import numpy as np
 
 from config import FACE_SNIPPET_PADDING_RATIO
 from geometry import Bbox, bbox_to_rect
-from .types import FaceDetection
+from .types import FaceCandidate, FaceDetection
 
 logger = logging.getLogger(__name__)
 
@@ -78,19 +78,74 @@ def save_face_boxed_preview(
         return False
 
 
+def save_face_candidates_preview(
+    image_rgb: np.ndarray,
+    candidates: list[FaceCandidate],
+    output_path: Path,
+    thickness: int = 2,
+) -> bool:
+    """Save a visualization of face candidates (passed/rejected)."""
+    try:
+        _ensure_parent(output_path)
+        image = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        font_scale = 0.6
+        text_thickness = 1
+
+        for candidate in candidates:
+            color = (0, 255, 0) if candidate.passed else (0, 0, 255)
+            pts = np.array(candidate.bbox, np.int32).reshape((-1, 1, 2))
+            cv2.polylines(image, [pts], isClosed=True, color=color, thickness=thickness)
+
+            x_min, y_min, _, _ = bbox_to_rect(candidate.bbox)
+            if candidate.confidence is None:
+                label = "pass" if candidate.passed else "rej"
+            else:
+                label = f"{candidate.confidence:.2f}"
+
+            (text_width, text_height), _ = cv2.getTextSize(label, font, font_scale, text_thickness)
+            label_y = max(y_min - 5, text_height + 5)
+
+            cv2.rectangle(
+                image,
+                (x_min, label_y - text_height - 4),
+                (x_min + text_width + 6, label_y + 2),
+                color,
+                -1,
+            )
+            cv2.putText(
+                image,
+                label,
+                (x_min + 3, label_y - 2),
+                font,
+                font_scale,
+                (0, 0, 0),
+                text_thickness,
+            )
+
+        cv2.imwrite(str(output_path), image)
+        return True
+    except Exception as e:
+        logger.exception("Error saving face candidates preview: %s", e)
+        return False
+
+
 def save_face_evidence_json(
     output_path: Path,
     photo_hash: str,
     face_detections: list[FaceDetection],
     bib_detections: list[dict],
+    face_candidates: list[FaceCandidate] | None = None,
 ) -> bool:
     """Persist face/bib evidence metadata for later linking or inspection."""
     try:
         _ensure_parent(output_path)
+        candidates = face_candidates or []
         payload = {
             "photo_hash": photo_hash,
             "faces": [face.to_dict(include_embedding=False) for face in face_detections],
             "bibs": bib_detections,
+            "face_candidates": [candidate.to_dict() for candidate in candidates],
         }
         with open(output_path, "w") as f:
             json.dump(payload, f, indent=2)
