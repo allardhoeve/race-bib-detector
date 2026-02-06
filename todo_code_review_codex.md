@@ -6,6 +6,9 @@ Structure and Organization
 - TODO: Introduce a small `CachePaths` or reuse `photo.ImagePaths` in `scan_album.py` and `web/app.py` to eliminate repeated path math for cache/gray/candidates/snippets directories.
 - TODO: Replace ad-hoc `print()` calls across `scan_album.py`, `sources/google_photos.py`, and `benchmarking/runner.py` with a shared logging setup so verbosity can be configured and tested.
 - TODO: Split `benchmarking/web_app.py` into `templates.py` + `routes.py` (or blueprint modules) to reduce file size and isolate HTML/CSS from request handlers.
+- TODO: Move inline HTML templates into separate `.tmpl` files (start with `benchmarking/web_app.py` and `web/templates.py`) to improve maintainability.
+- TODO: Move inline CSS into dedicated `.css` files; evaluate whether to serve them as static assets or embed via template includes.
+- TODO: If/when moving CSS/HTML to files, add a small static-file serving strategy in Flask.
 
 Hardcoded Values and Configuration
 - TODO: Move Google Photos URL widths in `sources/google_photos.clean_photo_url` to `config.py` (align with `PHOTO_URL_WIDTH` / `THUMBNAIL_URL_WIDTH`).

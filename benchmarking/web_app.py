@@ -724,13 +724,8 @@ BENCHMARK_INSPECT_TEMPLATE = """
         </div>
 
         <div class="content">
-            <div class="image-tabs">
-                <button class="image-tab active" data-image="original" onclick="showImage('original')">Original</button>
-                <button class="image-tab" data-image="grayscale" onclick="showImage('grayscale')">Grayscale</button>
-                <button class="image-tab" data-image="clahe" onclick="showImage('clahe')">CLAHE</button>
-                <button class="image-tab" data-image="resize" onclick="showImage('resize')">Resized</button>
-                <button class="image-tab" data-image="candidates" onclick="showImage('candidates')">Candidates</button>
-                <button class="image-tab" data-image="detections" onclick="showImage('detections')">Detections</button>
+            <div class="image-tabs" id="imageTabs">
+                <!-- Tabs are dynamically generated based on available artifacts -->
             </div>
 
             <div class="image-panel">
@@ -770,7 +765,7 @@ BENCHMARK_INSPECT_TEMPLATE = """
             </div>
 
             <div class="keyboard-hint">
-                ← → navigate | 1-6 switch tabs
+                ← → navigate | 1-N switch tabs
             </div>
         </div>
     </div>
@@ -780,6 +775,42 @@ BENCHMARK_INSPECT_TEMPLATE = """
         const runId = '{{ run.metadata.run_id }}';
         let currentIdx = {{ current_idx }};
         let currentImageType = 'original';
+        let availableTabs = [];
+
+        // All possible tabs in order, with display names
+        const allTabs = [
+            { key: 'original', label: 'Original', alwaysShow: true },
+            { key: 'grayscale', label: 'Grayscale', alwaysShow: false },
+            { key: 'clahe', label: 'CLAHE', alwaysShow: false },
+            { key: 'resize', label: 'Resized', alwaysShow: false },
+            { key: 'candidates', label: 'Candidates', alwaysShow: false },
+            { key: 'detections', label: 'Detections', alwaysShow: false },
+        ];
+
+        function updateTabs() {
+            const result = photoResults[currentIdx];
+            const artifacts = result.artifact_paths || {};
+
+            // Determine which tabs to show
+            availableTabs = allTabs.filter(tab =>
+                tab.alwaysShow || artifacts[tab.key]
+            ).map(tab => tab.key);
+
+            // Render tabs
+            const tabsContainer = document.getElementById('imageTabs');
+            tabsContainer.innerHTML = allTabs
+                .filter(tab => tab.alwaysShow || artifacts[tab.key])
+                .map((tab, idx) => {
+                    const isActive = tab.key === currentImageType;
+                    const shortcut = idx + 1;
+                    return `<button class="image-tab ${isActive ? 'active' : ''}" data-image="${tab.key}" onclick="showImage('${tab.key}')">${tab.label} <span style="color:#666;font-size:11px">(${shortcut})</span></button>`;
+                }).join('');
+
+            // If current image type is not available, switch to original
+            if (!availableTabs.includes(currentImageType)) {
+                currentImageType = 'original';
+            }
+        }
 
         function selectPhoto(idx) {
             if (idx < 0 || idx >= photoResults.length) return;
@@ -796,6 +827,7 @@ BENCHMARK_INSPECT_TEMPLATE = """
             const activeItem = document.querySelector('.photo-item.active');
             if (activeItem) activeItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
+            updateTabs();
             updateDetails();
             updateImage();
 
@@ -873,13 +905,13 @@ BENCHMARK_INSPECT_TEMPLATE = """
         document.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowLeft') navigate('prev');
             else if (e.key === 'ArrowRight') navigate('next');
-            else if (e.key >= '1' && e.key <= '6') {
-                const tabs = ['original', 'grayscale', 'clahe', 'resize', 'candidates', 'detections'];
+            else if (e.key >= '1' && e.key <= '9') {
                 const idx = parseInt(e.key) - 1;
-                if (idx < tabs.length) showImage(tabs[idx]);
+                if (idx < availableTabs.length) showImage(availableTabs[idx]);
             }
         });
 
+        updateTabs();
         updateDetails();
         updateImage();
     </script>

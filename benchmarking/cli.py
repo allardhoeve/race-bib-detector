@@ -333,18 +333,9 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
                 print(f"JUDGEMENT: ➖ NO CHANGE")
             print("=" * 60)
         else:
-            print(f"\nNo baseline exists. Run 'benchmark --split full --update-baseline' to create one.")
+            print(f"\nNo baseline exists. Run 'bnr benchmark set-baseline' to create one.")
     else:
         print(f"\n(Baseline comparison only available for 'full' split)")
-
-    # Update baseline if requested (only for full split)
-    if args.update_baseline:
-        if split != "full":
-            print(f"\nWarning: --update-baseline only works with --split full")
-        else:
-            from benchmarking.runner import save_baseline
-            save_baseline(run)
-            print(f"\n✅ Baseline updated.")
 
     return exit_code
 
@@ -470,60 +461,66 @@ def cmd_benchmark_clean(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_update_baseline(args: argparse.Namespace) -> int:
-    """Update baseline after confirming improvement."""
+def cmd_set_baseline(args: argparse.Namespace) -> int:
+    """Set a specific run as the baseline."""
     from benchmarking.runner import (
-        run_benchmark,
-        compare_to_baseline,
+        get_run,
+        get_latest_run,
         load_baseline,
         save_baseline,
     )
-    from config import BENCHMARK_REGRESSION_TOLERANCE
 
-    print("Running benchmark on full split to check for improvement...")
-
-    try:
-        run = run_benchmark(split="full", verbose=True)
-    except ValueError as e:
-        print(f"Error: {e}")
-        return 1
-
-    baseline = load_baseline()
-    if not baseline:
-        print(f"\nNo existing baseline. Creating new baseline...")
-        save_baseline(run)
-        print(f"✅ Baseline created.")
-        print(f"   Precision: {run.metrics.precision:.1%}")
-        print(f"   Recall:    {run.metrics.recall:.1%}")
-        print(f"   F1:        {run.metrics.f1:.1%}")
-        return 0
-
-    judgement, details = compare_to_baseline(run, BENCHMARK_REGRESSION_TOLERANCE)
-
-    print(f"\nCurrent vs baseline ({details['baseline_commit'][:8]}):")
-    print(f"  Precision: {run.metrics.precision:.1%} vs {details['baseline_precision']:.1%} ({details['precision_delta']:+.1%})")
-    print(f"  Recall:    {run.metrics.recall:.1%} vs {details['baseline_recall']:.1%} ({details['recall_delta']:+.1%})")
-    print(f"  F1:        {run.metrics.f1:.1%} vs {details['baseline_f1']:.1%} ({details['f1_delta']:+.1%})")
-
-    if judgement == "IMPROVED":
-        if args.force or input("\nMetrics improved. Update baseline? [y/N] ").lower() == "y":
-            save_baseline(run)
-            print(f"✅ Baseline updated.")
-            return 0
-        else:
-            print("Baseline not updated.")
-            return 0
-    elif judgement == "REGRESSED":
-        print(f"\n❌ Metrics regressed. Baseline NOT updated.")
-        return 1
+    # Get the run to set as baseline
+    if args.run_id:
+        run = get_run(args.run_id)
+        if not run:
+            print(f"Error: Run not found: {args.run_id}")
+            return 1
     else:
-        if args.force or input("\nNo significant change. Update baseline anyway? [y/N] ").lower() == "y":
-            save_baseline(run)
-            print(f"✅ Baseline updated.")
+        # Default to latest run
+        run = get_latest_run()
+        if not run:
+            print("Error: No benchmark runs found.")
+            print("Run 'bnr benchmark run --split full' first.")
+            return 1
+
+    # Check if it's a full split run
+    if run.metadata.split != "full":
+        print(f"Warning: Run {run.metadata.run_id} is from '{run.metadata.split}' split, not 'full'.")
+        if not args.force:
+            response = input("Set as baseline anyway? [y/N] ").strip().lower()
+            if response != "y":
+                print("Aborted.")
+                return 0
+
+    # Show current baseline if exists
+    current_baseline = load_baseline()
+    if current_baseline:
+        print(f"Current baseline: {current_baseline.metadata.run_id}")
+        print(f"  Precision: {current_baseline.metrics.precision:.1%}")
+        print(f"  Recall:    {current_baseline.metrics.recall:.1%}")
+        print(f"  F1:        {current_baseline.metrics.f1:.1%}")
+        print()
+
+    # Show new baseline info
+    print(f"New baseline: {run.metadata.run_id}")
+    print(f"  Split:     {run.metadata.split}")
+    print(f"  Precision: {run.metrics.precision:.1%}")
+    print(f"  Recall:    {run.metrics.recall:.1%}")
+    print(f"  F1:        {run.metrics.f1:.1%}")
+    if run.metadata.pipeline_config:
+        print(f"  Pipeline:  {run.metadata.pipeline_config.summary()}")
+
+    # Confirm unless --force
+    if not args.force:
+        response = input("\nSet this run as baseline? [y/N] ").strip().lower()
+        if response != "y":
+            print("Aborted.")
             return 0
-        else:
-            print("Baseline not updated.")
-            return 0
+
+    save_baseline(run)
+    print(f"\n✅ Baseline set to {run.metadata.run_id}")
+    return 0
 
 
 def main():
@@ -549,18 +546,18 @@ def main():
         "-q", "--quiet", action="store_true",
         help="Suppress per-photo output"
     )
-    benchmark_parser.add_argument(
-        "--update-baseline", action="store_true",
-        help="Update baseline with current results (full split only)"
-    )
 
-    # update-baseline command
-    update_baseline_parser = subparsers.add_parser(
-        "update-baseline", help="Update baseline if metrics improved"
+    # set-baseline command
+    set_baseline_parser = subparsers.add_parser(
+        "set-baseline", help="Set a specific run as the baseline"
     )
-    update_baseline_parser.add_argument(
+    set_baseline_parser.add_argument(
+        "run_id", nargs="?", default=None,
+        help="Run ID to set as baseline (defaults to latest)"
+    )
+    set_baseline_parser.add_argument(
         "-f", "--force", action="store_true",
-        help="Update without prompting"
+        help="Skip confirmation prompts"
     )
 
     # benchmark-list command
@@ -639,7 +636,7 @@ def main():
         "scan": cmd_scan,
         "ui": cmd_ui,
         "benchmark": cmd_benchmark,
-        "update-baseline": cmd_update_baseline,
+        "set-baseline": cmd_set_baseline,
         "benchmark-list": cmd_benchmark_list,
         "benchmark-inspect": cmd_benchmark_inspect,
         "benchmark-clean": cmd_benchmark_clean,
