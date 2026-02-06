@@ -8,9 +8,9 @@ from pathlib import Path
 from typing import Iterator
 
 import cv2
-import easyocr
 import numpy as np
 from tqdm import tqdm
+from typing import TYPE_CHECKING
 
 import db
 from detection import detect_bib_numbers, Detection, DetectionResult
@@ -30,6 +30,9 @@ from utils import (
 )
 
 logger = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    import easyocr
 
 
 @dataclass
@@ -137,7 +140,7 @@ def save_face_detections_to_db(
 
 
 def process_image(
-    reader: easyocr.Reader | None,
+    reader: "easyocr.Reader | None",
     face_backend,
     conn,
     photo_url: str,
@@ -244,7 +247,8 @@ def scan_images(
     reader = None
     if run_bib_detection:
         logger.info("Initializing EasyOCR...")
-        reader = easyocr.Reader(["en"], gpu=False)
+        import easyocr as _easyocr
+        reader = _easyocr.Reader(["en"], gpu=False)
 
     face_backend = None
     if run_face_detection:
