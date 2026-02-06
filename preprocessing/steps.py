@@ -147,6 +147,7 @@ class CLAHEStep(PreprocessStep):
     percentiles: tuple[float, float] = (5.0, 95.0)
     _applied: bool = field(default=False, init=False, repr=False)
     _observed_range: float | None = field(default=None, init=False, repr=False)
+    _declined: bool = field(default=False, init=False, repr=False)
 
     def apply(self, img: np.ndarray) -> np.ndarray:
         """Apply CLAHE to a grayscale image."""
@@ -161,6 +162,7 @@ class CLAHEStep(PreprocessStep):
             should_apply = dynamic_range < self.min_dynamic_range
             object.__setattr__(self, "_observed_range", dynamic_range)
             object.__setattr__(self, "_applied", should_apply)
+            object.__setattr__(self, "_declined", not should_apply)
             if not should_apply:
                 return img.copy()
         clahe = cv2.createCLAHE(
@@ -168,6 +170,7 @@ class CLAHEStep(PreprocessStep):
         )
         result = clahe.apply(img)
         object.__setattr__(self, "_applied", True)
+        object.__setattr__(self, "_declined", False)
         return result
 
     @property
@@ -175,15 +178,17 @@ class CLAHEStep(PreprocessStep):
         return f"clahe(clip={self.clip_limit})"
 
     def get_metadata(self) -> dict[str, Any]:
-        metadata = {"clahe_applied": self._applied}
+        status = "applied" if self._applied else "declined"
+        metadata = {
+            "step_status": status,
+            "skip_artifact": self._declined,
+        }
         if self.min_dynamic_range is not None:
-            metadata.update(
-                {
-                    "clahe_dynamic_range": self._observed_range,
-                    "clahe_min_dynamic_range": self.min_dynamic_range,
-                    "clahe_percentiles": self.percentiles,
-                }
-            )
+            metadata["step_metrics"] = {
+                "dynamic_range": self._observed_range,
+                "threshold": self.min_dynamic_range,
+                "percentiles": self.percentiles,
+            }
         return metadata
 
 
@@ -219,6 +224,7 @@ class PipelineStepResults:
     original: np.ndarray
     steps: list[StepResult] = field(default_factory=list)
     original_artifact_path: str | None = None
+    step_metadata: dict[str, dict[str, Any]] = field(default_factory=dict)
 
     @property
     def final(self) -> np.ndarray:
@@ -348,13 +354,20 @@ class Pipeline:
         for step in self.steps:
             output = step.apply(current)
             metadata = step.get_metadata()
+            step_key = step.name.split("(")[0]
+            status = metadata.get("step_status", "applied")
+            step_metrics = metadata.get("step_metrics", {})
+            result.step_metadata[step_key] = {
+                "status": status,
+                "metrics": step_metrics,
+            }
 
             # Save step output if artifact_dir provided
             artifact_path = None
-            if artifact_dir:
+            skip_artifact = bool(metadata.get("skip_artifact", False))
+            if artifact_dir and not skip_artifact:
                 # Use normalized step name for filename
-                step_name = step.name.split("(")[0]
-                artifact_path = f"{artifact_dir}/{step_name}.jpg"
+                artifact_path = f"{artifact_dir}/{step_key}.jpg"
                 _save_image(output, artifact_path)
 
             result.steps.append(

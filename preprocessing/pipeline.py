@@ -146,4 +146,5 @@ def run_pipeline(
         scale_factor=scale_factor,
         config=config,
         artifact_paths=pipeline_result.artifact_paths,
+        metadata={"steps": pipeline_result.step_metadata},
     )

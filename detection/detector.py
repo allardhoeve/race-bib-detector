@@ -176,6 +176,7 @@ def detect_bib_numbers(
 
     # Collect artifact paths from preprocessing
     artifact_paths = dict(preprocess_result.artifact_paths)
+    preprocess_metadata = dict(preprocess_result.metadata)
 
     # Save candidates and detections visualizations if artifact_dir provided
     if artifact_dir:
@@ -202,4 +203,5 @@ def detect_bib_numbers(
         ocr_dimensions=(ocr_w, ocr_h),
         scale_factor=scale_factor,
         artifact_paths=artifact_paths,
+        preprocess_metadata=preprocess_metadata,
     )

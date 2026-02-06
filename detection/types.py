@@ -7,7 +7,7 @@ This module defines the core data structures used throughout the detection pipel
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, Any
 
 import numpy as np
 
@@ -200,6 +200,7 @@ class PipelineResult:
         ocr_dimensions: (width, height) of the image used for OCR
         scale_factor: Ratio to map OCR coords back to original (original_width / ocr_width)
         artifact_paths: Dict mapping artifact names to saved file paths (if artifact saving enabled)
+        preprocess_metadata: Aggregated metadata from preprocessing steps.
     """
 
     detections: list[Detection]
@@ -209,6 +210,7 @@ class PipelineResult:
     ocr_dimensions: tuple[int, int]  # (width, height)
     scale_factor: float
     artifact_paths: dict[str, str] = field(default_factory=dict)
+    preprocess_metadata: dict[str, Any] = field(default_factory=dict)
 
     @property
     def ocr_scale(self) -> float:

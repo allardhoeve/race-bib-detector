@@ -6,7 +6,7 @@ reproducibility and easy experimentation with different settings.
 """
 
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Optional, Any
 
 import numpy as np
 
@@ -136,6 +136,7 @@ class PreprocessResult:
                      Used to map bounding boxes back to original coordinates.
         config: The configuration used for preprocessing.
         artifact_paths: Dict mapping step names to saved file paths (if artifact saving enabled).
+        metadata: Aggregated metadata from all preprocessing steps.
     """
 
     original: np.ndarray
@@ -143,6 +144,7 @@ class PreprocessResult:
     scale_factor: float
     config: PreprocessConfig
     artifact_paths: dict[str, str] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def map_to_original_coords(self, x: float, y: float) -> tuple[float, float]:
         """Map coordinates from processed image back to original image.

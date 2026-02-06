@@ -56,6 +56,7 @@ class PhotoResult:
     detection_time_ms: float
     tags: list[str] = field(default_factory=list)
     artifact_paths: dict[str, str] = field(default_factory=dict)
+    preprocess_metadata: dict[str, object] = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -69,6 +70,7 @@ class PhotoResult:
             "detection_time_ms": self.detection_time_ms,
             "tags": self.tags,
             "artifact_paths": self.artifact_paths,
+            "preprocess_metadata": self.preprocess_metadata,
         }
 
     @classmethod
@@ -84,6 +86,7 @@ class PhotoResult:
             detection_time_ms=data.get("detection_time_ms", 0),
             tags=data.get("tags", []),
             artifact_paths=data.get("artifact_paths", {}),
+            preprocess_metadata=data.get("preprocess_metadata", {}),
         )
 
 
@@ -469,6 +472,7 @@ def run_benchmark(
         # Compute result with artifact paths
         photo_result = compute_photo_result(label, detected_bibs, detect_time_ms)
         photo_result.artifact_paths = result.artifact_paths
+        photo_result.preprocess_metadata = result.preprocess_metadata
         photo_results.append(photo_result)
 
         if verbose:

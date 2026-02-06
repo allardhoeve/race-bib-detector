@@ -633,6 +633,14 @@ BENCHMARK_INSPECT_TEMPLATE = """
         }
         .image-tab:hover { background: #0f3460; color: #eee; }
         .image-tab.active { background: #0f3460; color: #0f9b0f; border-color: #0f9b0f; }
+        .image-tab.declined {
+            background: #141426;
+            border-color: #2a2a40;
+            color: #555;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .image-tab.declined:hover { background: #141426; color: #555; }
         .details-panel {
             padding: 15px;
             background: #16213e;
@@ -804,20 +812,43 @@ BENCHMARK_INSPECT_TEMPLATE = """
         function updateTabs() {
             const result = photoResults[currentIdx];
             const artifacts = result.artifact_paths || {};
+            const preprocess = result.preprocess_metadata || {};
+            const steps = preprocess.steps || {};
+            const claheStep = steps.clahe || {};
+            const claheDeclined = claheStep.status === 'declined';
 
-            // Determine which tabs to show
-            availableTabs = allTabs.filter(tab =>
-                tab.alwaysShow || artifacts[tab.key]
-            ).map(tab => tab.key);
+            const displayTabs = allTabs.filter(tab =>
+                tab.alwaysShow || artifacts[tab.key] || (tab.key === 'clahe' && claheDeclined)
+            );
+            availableTabs = displayTabs
+                .filter(tab => tab.alwaysShow || artifacts[tab.key])
+                .map(tab => tab.key);
 
             // Render tabs
             const tabsContainer = document.getElementById('imageTabs');
-            tabsContainer.innerHTML = allTabs
-                .filter(tab => tab.alwaysShow || artifacts[tab.key])
-                .map((tab, idx) => {
+            tabsContainer.innerHTML = displayTabs
+                .map((tab) => {
+                    const hasArtifact = Boolean(artifacts[tab.key]);
+                    const isDeclined = tab.key === 'clahe' && claheDeclined && !hasArtifact;
                     const isActive = tab.key === currentImageType;
-                    const shortcut = idx + 1;
-                    return `<button class="image-tab ${isActive ? 'active' : ''}" data-image="${tab.key}" onclick="showImage('${tab.key}')">${tab.label} <span style="color:#666;font-size:11px">(${shortcut})</span></button>`;
+                    const shortcutIndex = availableTabs.indexOf(tab.key);
+                    const shortcut = shortcutIndex === -1 ? null : shortcutIndex + 1;
+                    const classes = [
+                        'image-tab',
+                        isActive ? 'active' : '',
+                        isDeclined ? 'declined' : '',
+                    ].filter(Boolean).join(' ');
+                    const claheMetrics = claheStep.metrics || {};
+                    const rangeValue = claheMetrics.dynamic_range ?? 'n/a';
+                    const thresholdValue = claheMetrics.threshold ?? 'n/a';
+                    const title = isDeclined
+                        ? `CLAHE declined (range=${rangeValue}, threshold=${thresholdValue})`
+                        : '';
+                    const onclick = isDeclined ? '' : `onclick="showImage('${tab.key}')"`; 
+                    const disabled = isDeclined ? 'disabled' : '';
+                    const shortcutText = shortcut === null ? '' : ` <span style="color:#666;font-size:11px">(${shortcut})</span>`;
+                    const declinedText = isDeclined ? ' <span style="color:#555;font-size:11px">(declined)</span>' : '';
+                    return `<button class="${classes}" data-image="${tab.key}" ${onclick} ${disabled} title="${title}">${tab.label}${declinedText}${shortcutText}</button>`;
                 }).join('');
 
             // If current image type is not available, switch to original
@@ -1129,6 +1160,7 @@ def create_app() -> Flask:
             'detection_time_ms': r.detection_time_ms,
             'tags': r.tags,
             'artifact_paths': r.artifact_paths,
+            'preprocess_metadata': r.preprocess_metadata,
         } for r in filtered])
 
         all_runs = list_runs()
