@@ -1,6 +1,6 @@
 # Project Structure
 
-This document describes the architecture and organization of the Google Photos Bib Number Recognizer.
+This document describes the architecture and organization of the Bib Number Recognizer.
 
 ## Directory Layout
 
@@ -31,7 +31,6 @@ google-photos-startnumber-recognizer/
 │
 ├── sources/                # Image source adapters
 │   ├── __init__.py         # Module exports
-│   ├── google_photos.py    # Google Photos album scraping
 │   ├── local.py            # Local directory scanning
 │   └── cache.py            # Image caching utilities
 │
@@ -113,9 +112,8 @@ Detects and validates bib numbers in images.
 
 ### sources/
 
-Adapters for different image sources.
+Adapters for local image sources.
 
-- **google_photos.py**: `extract_images_from_album()` - scrapes shared albums
 - **local.py**: `scan_local_images()` - finds images in a directory
 - **cache.py**: `get_cache_path()`, `cache_image()`, `load_from_cache()`
 
@@ -135,9 +133,9 @@ work items.
 ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
 │   sources/  │────▶│ preprocessing│────▶│  detection/ │
 │             │     │              │     │             │
-│ Google      │     │ grayscale    │     │ OCR         │
-│ Photos      │     │ resize       │     │ filtering   │
-│ Local dir   │     │              │     │ validation  │
+│ Local dir   │     │ grayscale    │     │ OCR         │
+│ (files)     │     │ resize       │     │ filtering   │
+│             │     │              │     │ validation  │
 └─────────────┘     └──────────────┘     └─────────────┘
                                                │
                                                ▼
@@ -161,12 +159,6 @@ The `Photo` dataclass serves as the anchor for lineage tracking throughout the p
 
 ```python
 from photo import Photo, ImagePaths, compute_photo_hash
-
-# From Google Photos URL
-photo = Photo.from_url(
-    photo_url="http://photos.google.com/photo.jpg",
-    album_url="http://photos.google.com/album",
-)
 
 # From local file
 photo = Photo.from_local_path(

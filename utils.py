@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
-import json
 import logging
-import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
 from PIL import Image
-import requests
-
-from config import PHOTO_URL_WIDTH, THUMBNAIL_URL_WIDTH, SNIPPET_PADDING_RATIO
+from config import SNIPPET_PADDING_RATIO
 from geometry import Bbox, bbox_to_rect
 
 logger = logging.getLogger(__name__)
@@ -25,51 +21,6 @@ CACHE_DIR = Path(__file__).parent / "cache"
 GRAY_BBOX_DIR = CACHE_DIR / "gray_bounding"
 CANDIDATES_DIR = CACHE_DIR / "candidates"
 SNIPPETS_DIR = CACHE_DIR / "snippets"
-
-
-def clean_photo_url(url: str) -> dict:
-    """Clean a Google Photos URL and return base, full-res, and thumbnail URLs.
-
-    Returns dict with keys: base_url, photo_url, thumbnail_url
-    """
-    # Remove size parameters to get base URL
-    base_url = re.sub(r'=w\d+.*$', '', url)
-    base_url = re.sub(r'=s\d+.*$', '', base_url)
-
-    return {
-        "base_url": base_url,
-        "photo_url": base_url + f"=w{PHOTO_URL_WIDTH}",
-        "thumbnail_url": base_url + f"=w{THUMBNAIL_URL_WIDTH}",
-    }
-
-
-def get_full_res_url(photo_url: str) -> str:
-    """Convert a photo URL to full resolution (original size)."""
-    base_url = re.sub(r'=w\d+.*$', '', photo_url)
-    base_url = re.sub(r'=s\d+.*$', '', base_url)
-    return base_url + "=w0"
-
-
-def download_image(url: str, timeout: int = 30) -> bytes:
-    """Download an image and return its bytes."""
-    response = requests.get(url, timeout=timeout)
-    response.raise_for_status()
-    return response.content
-
-
-def download_image_to_file(url: str, output_path: Path, timeout: int = 60) -> bool:
-    """Download an image to a file path. Returns True on success."""
-    try:
-        response = requests.get(url, timeout=timeout, stream=True)
-        response.raise_for_status()
-
-        with open(output_path, "wb") as f:
-            for chunk in response.iter_content(chunk_size=8192):
-                f.write(chunk)
-        return True
-    except Exception as e:
-        logger.exception("Error downloading %s: %s", url, e)
-        return False
 
 
 def get_gray_bbox_path(cache_path: Path) -> Path:

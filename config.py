@@ -27,16 +27,6 @@ CLAHE_DYNAMIC_RANGE_THRESHOLD = 60.0
 CLAHE_PERCENTILES = (5.0, 95.0)
 
 # =============================================================================
-# URL GENERATION (Google Photos)
-# =============================================================================
-
-# Width parameter for full-resolution photo URLs
-PHOTO_URL_WIDTH = 2048
-
-# Width parameter for thumbnail URLs
-THUMBNAIL_URL_WIDTH = 400
-
-# =============================================================================
 # WHITE REGION DETECTION
 # =============================================================================
 

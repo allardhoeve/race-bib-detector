@@ -5,13 +5,11 @@ import pytest
 
 ENTRYPOINTS = [
     "bnr",
-    "download_by_bib",
     "list_detections",
     "web_viewer",
     "web.app",
     "benchmarking.cli",
     "benchmarking.web_app",
-    "sources.google_photos",
 ]
 
 

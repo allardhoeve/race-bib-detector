@@ -55,7 +55,7 @@ class Photo:
         thumbnail_url: Optional URL for thumbnail display
         photo_hash: 8-char SHA-256 hash of photo_url (computed if not provided)
         cache_path: Path to cached image file on disk
-        source_type: Whether this is from Google Photos or a local file
+        source_type: Whether this is from a local file
         id: Database ID (None until persisted)
     """
 
@@ -64,7 +64,7 @@ class Photo:
     thumbnail_url: str | None = None
     photo_hash: str | None = None
     cache_path: Path | None = None
-    source_type: Literal["google_photos", "local_file"] = "google_photos"
+    source_type: Literal["local_file"] = "local_file"
     id: int | None = None
 
     def __post_init__(self):
@@ -74,32 +74,8 @@ class Photo:
 
     @property
     def is_local(self) -> bool:
-        """Check if this is a local file (not from Google Photos)."""
+        """Check if this is a local file."""
         return self.source_type == "local_file"
-
-    @classmethod
-    def from_url(
-        cls,
-        photo_url: str,
-        album_url: str,
-        thumbnail_url: str | None = None,
-    ) -> Photo:
-        """Create a Photo from a Google Photos URL.
-
-        Args:
-            photo_url: Full URL to the photo
-            album_url: URL of the containing album
-            thumbnail_url: Optional thumbnail URL
-
-        Returns:
-            Photo instance with source_type="google_photos"
-        """
-        return cls(
-            photo_url=photo_url,
-            album_url=album_url,
-            thumbnail_url=thumbnail_url,
-            source_type="google_photos",
-        )
 
     @classmethod
     def from_local_path(
@@ -141,7 +117,7 @@ class Photo:
             thumbnail_url=row.get("thumbnail_url"),
             photo_hash=row.get("photo_hash"),
             cache_path=Path(cache_path) if cache_path else None,
-            source_type="local_file" if row["photo_url"].startswith(("/", "file://")) else "google_photos",
+            source_type="local_file",
             id=row.get("id"),
         )
 

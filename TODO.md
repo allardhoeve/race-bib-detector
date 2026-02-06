@@ -9,7 +9,7 @@
       user-facing photo website on 30001.
       **Done:** Created `bnr.py` with git-style subcommands:
       - `bnr serve` - Launch photo viewer (port 30001)
-      - `bnr scan <url|path>` - Scan for bib numbers
+      - `bnr scan <path>` - Scan for bib numbers
       - `bnr benchmark run/ui/list/clean/baseline/scan/stats` - Benchmark commands
 
 
@@ -55,8 +55,6 @@ These are suggestions identified during a code review. The codebase has excellen
 **Location:** `utils.py`
 
 This file mixes unrelated utilities:
-- URL manipulation (`clean_photo_url`, `get_full_res_url`)
-- Image downloading (`download_image`, `download_image_to_file`)
 - Image manipulation (`save_bib_snippet`, `draw_bounding_boxes_on_gray`)
 - Bounding box utilities (`compute_bbox_hash`, `get_snippet_path`)
 
@@ -102,7 +100,7 @@ Add docstrings explaining when to use which.
 
 - No integration tests for full pipeline
 - No tests for web UI routes
-- No tests for sources module (Google Photos, local scanning)
+- No tests for sources module (local scanning)
 - No tests for edge cases (corrupt images, invalid URLs)
 
 ---

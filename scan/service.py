@@ -6,8 +6,7 @@ import logging
 from pathlib import Path
 
 import db
-from sources import extract_images_from_album, scan_local_images
-from utils import download_image
+from sources import scan_local_images
 
 from .pipeline import ImageInfo, scan_images
 
@@ -37,52 +36,6 @@ def is_photo_identifier(source: str) -> bool:
         except ValueError:
             pass
     return False
-
-
-def scan_album(
-    album_url: str,
-    skip_existing: bool = True,
-    limit: int | None = None,
-    run_bib_detection: bool = True,
-    run_face_detection: bool = True,
-) -> dict:
-    """Scan a Google Photos album for bib numbers and faces."""
-    raw_images = extract_images_from_album(album_url)
-
-    logger.info("Found %s images", len(raw_images))
-    if not raw_images:
-        logger.warning("No images found. The album may be empty or require authentication.")
-        return {
-            "photos_found": 0,
-            "photos_scanned": 0,
-            "photos_skipped": 0,
-            "bibs_detected": 0,
-            "faces_detected": 0,
-        }
-
-    if limit is not None:
-        raw_images = raw_images[:limit]
-        logger.info("Processing limited to %s images", limit)
-
-    def make_images():
-        for img in raw_images:
-            yield ImageInfo(
-                photo_url=img["photo_url"],
-                thumbnail_url=img["thumbnail_url"],
-                album_url=album_url,
-            )
-
-    def fetch_factory(photo_url):
-        return lambda: download_image(photo_url)
-
-    return scan_images(
-        make_images(),
-        len(raw_images),
-        skip_existing,
-        fetch_factory,
-        run_bib_detection=run_bib_detection,
-        run_face_detection=run_face_detection,
-    )
 
 
 def scan_local_directory(
@@ -207,26 +160,18 @@ def run_scan(
     faces_only: bool = False,
     no_faces: bool = False,
 ) -> dict:
-    """Run scan on a source (URL, path, or photo identifier)."""
-    is_url = (
-        source.startswith("http://")
-        or source.startswith("https://")
-        or "photos.google.com" in source
-        or "photos.app.goo.gl" in source
-    )
+    """Run scan on a source (path or photo identifier)."""
+    if source.startswith(("http://", "https://")):
+        raise ValueError("Remote URLs are not supported. Use a local path or --rescan.")
+
+    if source.startswith("file://"):
+        source = source.replace("file://", "", 1)
+
     run_bib_detection, run_face_detection = resolve_face_mode(faces_only, no_faces)
     if not run_bib_detection and not run_face_detection:
         raise ValueError("At least one of bib detection or face detection must be enabled.")
 
-    if is_url:
-        stats = scan_album(
-            source,
-            skip_existing=not rescan,
-            limit=limit,
-            run_bib_detection=run_bib_detection,
-            run_face_detection=run_face_detection,
-        )
-    elif is_photo_identifier(source):
+    if is_photo_identifier(source):
         stats = rescan_single_photo(
             source,
             run_bib_detection=run_bib_detection,
@@ -247,6 +192,6 @@ def run_scan(
             run_face_detection=run_face_detection,
         )
     else:
-        raise ValueError(f"'{source}' is not a valid URL, path, photo hash, or index.")
+        raise ValueError(f"'{source}' is not a valid path, photo hash, or index.")
 
     return stats

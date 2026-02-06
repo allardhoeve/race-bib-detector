@@ -146,25 +146,12 @@ def get_photo_with_bibs(photo_hash: str) -> tuple[dict | None, list[dict]]:
 
     photo = dict(photo_row)
 
-    # Determine if this is a local file or cached remote image
+    # Local files only - use photo_url directly
     photo_url = photo['photo_url']
-    is_local = photo_url.startswith('/') or photo_url.startswith('file://')
-
-    if is_local:
-        # Local file - use photo_url directly
-        # Clean up file:// prefix if present
-        local_path = photo_url.replace('file://', '') if photo_url.startswith('file://') else photo_url
-        photo['is_local'] = True
-        photo['local_path'] = local_path
-        photo['cache_filename'] = Path(photo['cache_path']).name if photo['cache_path'] else None
-    else:
-        # Remote image - use cache
-        photo['is_local'] = False
-        photo['local_path'] = None
-        if photo['cache_path']:
-            photo['cache_filename'] = Path(photo['cache_path']).name
-        else:
-            photo['cache_filename'] = None
+    local_path = photo_url.replace('file://', '') if photo_url.startswith('file://') else photo_url
+    photo['is_local'] = True
+    photo['local_path'] = local_path
+    photo['cache_filename'] = Path(photo['cache_path']).name if photo['cache_path'] else None
 
     # Check if grayscale bounding box image exists
     if photo['cache_filename']:

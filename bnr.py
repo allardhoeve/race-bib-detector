@@ -4,7 +4,7 @@ Unified CLI for the Bib Number Recognizer.
 
 Usage:
     bnr serve                    # Launch photo viewer website (port 30001)
-    bnr scan <url|path>          # Scan album or directory for bib numbers
+    bnr scan <path>              # Scan local directory or file for bib numbers
     bnr benchmark run            # Run benchmark on iteration split
     bnr benchmark run --full     # Run benchmark on all photos
     bnr benchmark ui             # Launch benchmark web UI (labels + inspection)

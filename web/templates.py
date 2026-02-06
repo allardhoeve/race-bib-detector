@@ -409,7 +409,6 @@ HTML_TEMPLATE = """
                 {% endif %}
 
                 <div class="image-container">
-                    {% if photo.is_local %}
                     <div id="view-original" class="image-view active">
                         <img src="/local/{{ photo.photo_hash }}" alt="Photo {{ current }}">
                     </div>
@@ -454,59 +453,6 @@ HTML_TEMPLATE = """
                         </div>
                         {% endif %}
                     </div>
-                    {% elif photo.cache_path %}
-                    <div id="view-original" class="image-view active">
-                        <img src="/cache/{{ photo.cache_filename }}" alt="Photo {{ current }}">
-                    </div>
-                    <div id="view-candidates" class="image-view">
-                        {% if photo.has_candidates %}
-                        <img src="/cache/candidates/{{ photo.cache_filename }}" alt="Photo {{ current }} with candidates">
-                        <div class="candidates-legend">
-                            <span class="legend-item legend-passed">● Passed</span>
-                            <span class="legend-item legend-rejected">● Rejected</span>
-                        </div>
-                        {% else %}
-                        <div style="padding: 100px; text-align: center; color: #8892b0;">
-                            <p>No candidates image available</p>
-                            <p style="margin-top: 10px; font-size: 0.8rem;">Rescan this photo to generate candidates visualization</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div id="view-bbox" class="image-view">
-                        {% if photo.has_gray_bbox %}
-                        <img src="/cache/gray_bounding/{{ photo.cache_filename }}" alt="Photo {{ current }} with bounding boxes">
-                        {% else %}
-                        <div style="padding: 100px; text-align: center; color: #8892b0;">
-                            <p>No bounding box image available</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                    <div id="view-snippets" class="image-view">
-                        {% if photo.has_snippets %}
-                        <div class="snippets-grid">
-                            {% for bib in bibs %}
-                            {% if bib.snippet_filename %}
-                            <div class="snippet-card">
-                                <img src="/cache/snippets/{{ bib.snippet_filename }}" alt="Bib {{ bib.bib_number }}">
-                                <div class="snippet-label">{{ bib.bib_number }} <span class="snippet-conf">({{ "%.0f"|format(bib.confidence * 100) }}%)</span></div>
-                            </div>
-                            {% endif %}
-                            {% endfor %}
-                        </div>
-                        {% else %}
-                        <div style="padding: 100px; text-align: center; color: #8892b0;">
-                            <p>No snippets available</p>
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% else %}
-                    <div style="padding: 100px; text-align: center; color: #8892b0;">
-                        <p>Image not cached locally</p>
-                        <p style="margin-top: 10px; font-size: 0.8rem;">
-                            <a href="{{ photo.photo_url }}=w1200" target="_blank" style="color: #64ffda;">View on Google Photos</a>
-                        </p>
-                    </div>
-                    {% endif %}
                 </div>
 
                 <div class="photo-info">

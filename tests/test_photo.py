@@ -51,15 +51,6 @@ class TestPhoto:
         )
         assert photo.photo_hash == "custom12"
 
-    def test_is_local_false_for_google_photos(self):
-        """Google Photos source should not be local."""
-        photo = Photo(
-            photo_url="http://photos.google.com/photo.jpg",
-            album_url="http://photos.google.com/album",
-            source_type="google_photos",
-        )
-        assert photo.is_local is False
-
     def test_is_local_true_for_local_file(self):
         """Local file source should be local."""
         photo = Photo(
@@ -68,28 +59,6 @@ class TestPhoto:
             source_type="local_file",
         )
         assert photo.is_local is True
-
-
-class TestPhotoFromUrl:
-    """Tests for Photo.from_url factory method."""
-
-    def test_creates_google_photos_source(self):
-        """from_url should create photo with google_photos source type."""
-        photo = Photo.from_url(
-            photo_url="http://photos.google.com/photo.jpg",
-            album_url="http://photos.google.com/album",
-        )
-        assert photo.source_type == "google_photos"
-        assert photo.is_local is False
-
-    def test_sets_thumbnail_url(self):
-        """from_url should set thumbnail_url if provided."""
-        photo = Photo.from_url(
-            photo_url="http://photos.google.com/photo.jpg",
-            album_url="http://photos.google.com/album",
-            thumbnail_url="http://photos.google.com/thumb.jpg",
-        )
-        assert photo.thumbnail_url == "http://photos.google.com/thumb.jpg"
 
 
 class TestPhotoFromLocalPath:
@@ -143,10 +112,10 @@ class TestPhotoFromDbRow:
         assert photo.thumbnail_url == "http://example.com/thumb.jpg"
         assert photo.photo_hash == "abc12345"
         assert photo.cache_path == Path("/cache/abc12345.jpg")
-        assert photo.source_type == "google_photos"
+        assert photo.source_type == "local_file"
 
     def test_detects_local_file_from_url(self):
-        """from_db_row should detect local files from photo_url."""
+        """from_db_row should default to local_file."""
         row = {
             "photo_url": "/photos/img.jpg",
             "album_url": "/photos",
@@ -179,7 +148,7 @@ class TestPhotoToDict:
             thumbnail_url="http://example.com/thumb.jpg",
             photo_hash="abc12345",
             cache_path=Path("/cache/img.jpg"),
-            source_type="google_photos",
+            source_type="local_file",
             id=42,
         )
         result = photo.to_dict()
@@ -189,9 +158,9 @@ class TestPhotoToDict:
         assert result["thumbnail_url"] == "http://example.com/thumb.jpg"
         assert result["photo_hash"] == "abc12345"
         assert result["cache_path"] == "/cache/img.jpg"
-        assert result["source_type"] == "google_photos"
+        assert result["source_type"] == "local_file"
         assert result["id"] == 42
-        assert result["is_local"] is False
+        assert result["is_local"] is True
 
     def test_cache_path_none_serializes_as_none(self):
         """to_dict should serialize None cache_path as None."""

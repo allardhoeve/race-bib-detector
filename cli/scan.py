@@ -12,12 +12,12 @@ logger = logging.getLogger(__name__)
 def add_scan_subparser(subparsers: argparse._SubParsersAction) -> None:
     scan_parser = subparsers.add_parser(
         "scan",
-        help="Scan album URL or local directory for bib numbers",
+        help="Scan a local directory or file for bib numbers",
     )
     scan_parser.add_argument(
         "source",
         nargs="?",
-        help="Google Photos album URL or local directory path",
+        help="Local directory or image file path",
     )
     scan_parser.add_argument(
         "--rescan",
@@ -51,7 +51,7 @@ def add_scan_subparser(subparsers: argparse._SubParsersAction) -> None:
 
 def cmd_scan(args: argparse.Namespace) -> int:
     if not args.source and not args.rescan:
-        logger.error("Please provide a source (URL or path) or --rescan ID")
+        logger.error("Please provide a local path or --rescan ID")
         return 1
 
     try:
