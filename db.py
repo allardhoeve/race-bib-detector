@@ -241,6 +241,21 @@ def photo_exists(conn: sqlite3.Connection, photo_url: str) -> bool:
     return cursor.fetchone() is not None
 
 
+def get_photo_id_by_url(conn: sqlite3.Connection, photo_url: str) -> Optional[int]:
+    """Get a photo ID by its URL."""
+    cursor = conn.cursor()
+    cursor.execute("SELECT id FROM photos WHERE photo_url = ?", (photo_url,))
+    row = cursor.fetchone()
+    return row[0] if row else None
+
+
+def face_detections_exist(conn: sqlite3.Connection, photo_id: int) -> bool:
+    """Check if a photo already has face detections."""
+    cursor = conn.cursor()
+    cursor.execute("SELECT 1 FROM face_detections WHERE photo_id = ? LIMIT 1", (photo_id,))
+    return cursor.fetchone() is not None
+
+
 def get_photo_by_hash(conn: sqlite3.Connection, photo_hash: str) -> Optional[dict]:
     """Get a photo by its hash."""
     cursor = conn.cursor()

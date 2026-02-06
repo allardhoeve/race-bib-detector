@@ -259,9 +259,17 @@ def scan_images(
 
     logger.info("Scanning images for bib numbers...")
     for info in tqdm(images, total=total, desc="Processing"):
+        effective_run_bib = run_bib_detection
         if skip_existing and db.photo_exists(conn, info.photo_url):
-            stats["photos_skipped"] += 1
-            continue
+            if run_face_detection:
+                photo_id = db.get_photo_id_by_url(conn, info.photo_url)
+                if photo_id is not None and db.face_detections_exist(conn, photo_id):
+                    stats["photos_skipped"] += 1
+                    continue
+                effective_run_bib = False
+            else:
+                stats["photos_skipped"] += 1
+                continue
 
         try:
             fetch_func = fetch_func_factory(info.photo_url) if fetch_func_factory else None
@@ -271,7 +279,7 @@ def scan_images(
                 reader, face_backend, conn,
                 info.photo_url, info.thumbnail_url, info.album_url,
                 image_data, cache_path, skip_existing,
-                run_bib_detection=run_bib_detection,
+                run_bib_detection=effective_run_bib,
                 run_face_detection=run_face_detection,
             )
             stats["bibs_detected"] += bibs_count

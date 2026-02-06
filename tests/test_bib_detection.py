@@ -12,6 +12,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import db
+from faces.types import FaceModelInfo
 from detection import detect_bib_numbers, is_valid_bib_number
 
 SAMPLES_DIR = Path(__file__).parent / "samples"
@@ -727,6 +728,33 @@ class TestDatabase:
         db.insert_photo(temp_db, "https://album", photo_url)
 
         assert db.photo_exists(temp_db, photo_url)
+
+    def test_get_photo_id_by_url(self, temp_db):
+        """Test retrieving photo ID by URL."""
+        photo_url = "https://lh3.googleusercontent.com/lookup123"
+        photo_id = db.insert_photo(temp_db, "https://album", photo_url)
+
+        assert db.get_photo_id_by_url(temp_db, photo_url) == photo_id
+
+    def test_face_detections_exist(self, temp_db):
+        """Test face detections existence lookup."""
+        photo_url = "https://lh3.googleusercontent.com/face123"
+        photo_id = db.insert_photo(temp_db, "https://album", photo_url)
+
+        assert db.face_detections_exist(temp_db, photo_id) is False
+
+        db.insert_face_detection(
+            temp_db,
+            photo_id=photo_id,
+            face_index=0,
+            bbox=[[1, 1], [2, 1], [2, 2], [1, 2]],
+            embedding=None,
+            model_info=FaceModelInfo(name="test", version="1", embedding_dim=4),
+            snippet_path=None,
+            preview_path=None,
+        )
+
+        assert db.face_detections_exist(temp_db, photo_id) is True
 
     def test_insert_bib_detection(self, temp_db):
         """Test inserting a bib detection."""
