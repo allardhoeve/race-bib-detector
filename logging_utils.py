@@ -16,6 +16,26 @@ LOG_LEVELS = {
 
 LOG_LEVEL_CHOICES: Iterable[str] = tuple(LOG_LEVELS.keys())
 
+def add_logging_args(parser) -> None:
+    """Add standard logging options to an argparse parser."""
+    parser.add_argument(
+        "--log-level",
+        choices=LOG_LEVEL_CHOICES,
+        help="Set log verbosity (debug, info, warning, error, critical)",
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="count",
+        default=0,
+        help="Increase log verbosity (use -vv for more detail)",
+    )
+    parser.add_argument(
+        "-q", "--quiet",
+        action="count",
+        default=0,
+        help="Reduce log verbosity (use -qq for errors only)",
+    )
+
 
 def resolve_log_level(
     log_level: str | None = None,

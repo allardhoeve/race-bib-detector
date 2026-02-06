@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 from playwright.sync_api import sync_playwright
 
-from logging_utils import configure_logging, LOG_LEVEL_CHOICES
+from logging_utils import configure_logging, add_logging_args
 from utils import clean_photo_url
 
 logger = logging.getLogger(__name__)
@@ -158,31 +158,19 @@ def extract_images_from_album(album_url: str) -> list[dict]:
     return images
 
 
-def main() -> int:
-    """CLI helper to test album extraction."""
+def build_parser() -> "argparse.ArgumentParser":
     import argparse
 
     parser = argparse.ArgumentParser(description="Extract Google Photos album images")
     parser.add_argument("album_url", help="Google Photos shared album URL")
-    parser.add_argument(
-        "--log-level",
-        choices=LOG_LEVEL_CHOICES,
-        help="Set log verbosity (debug, info, warning, error, critical)",
-    )
-    parser.add_argument(
-        "-v", "--verbose",
-        action="count",
-        default=0,
-        help="Increase log verbosity (use -vv for more detail)",
-    )
-    parser.add_argument(
-        "-q", "--quiet",
-        action="count",
-        default=0,
-        help="Reduce log verbosity (use -qq for errors only)",
-    )
+    add_logging_args(parser)
+    return parser
 
-    args = parser.parse_args()
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI helper to test album extraction."""
+    parser = build_parser()
+    args = parser.parse_args(argv)
     configure_logging(args.log_level, args.verbose, args.quiet)
     images = extract_images_from_album(args.album_url)
     logger.info("Extracted %s images", len(images))

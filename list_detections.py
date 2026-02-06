@@ -2,20 +2,31 @@
 """List all photos and their detected bib numbers."""
 
 import argparse
+import logging
 
 import db
+from logging_utils import add_logging_args, configure_logging
+
+logger = logging.getLogger(__name__)
 
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="List photos and detected bibs")
+    add_logging_args(parser)
     parser.add_argument("--cache", "-c", action="store_true",
                         help="Show cache file paths instead of URLs")
     parser.add_argument("--hash", type=str, help="Show details for a specific photo hash")
-    args = parser.parse_args()
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    configure_logging(args.log_level, args.verbose, args.quiet)
 
     if not db.DB_PATH.exists():
-        print("Database not found. Run scan_album.py first.")
-        return
+        logger.error("Database not found. Run scan_album.py first.")
+        return 1
 
     conn = db.get_connection()
     cursor = conn.cursor()
@@ -33,14 +44,14 @@ def main():
         row = cursor.fetchone()
         if row:
             photo_hash, photo_url, cache_path, bibs = row
-            print(f"Photo Hash:  {photo_hash}")
-            print(f"Bibs:        {bibs or '(none)'}")
-            print(f"Cache:       {cache_path or '(not cached)'}")
-            print(f"URL:         {photo_url}")
+            logger.info("Photo Hash:  %s", photo_hash)
+            logger.info("Bibs:        %s", bibs or "(none)")
+            logger.info("Cache:       %s", cache_path or "(not cached)")
+            logger.info("URL:         %s", photo_url)
         else:
-            print(f"Photo hash {args.hash} not found.")
+            logger.warning("Photo hash %s not found.", args.hash)
         conn.close()
-        return
+        return 0
 
     # Get all photos with their detected bibs
     cursor.execute("""
@@ -58,22 +69,22 @@ def main():
     rows = cursor.fetchall()
 
     if not rows:
-        print("No photos in database.")
-        return
+        logger.info("No photos in database.")
+        return 0
 
     if args.cache:
-        print(f"{'Hash':<10} {'Bibs Detected':<40} {'Cache Path'}")
-        print("-" * 94)
+        logger.info("%-10s %-40s %s", "Hash", "Bibs Detected", "Cache Path")
+        logger.info("%s", "-" * 94)
         for photo_hash, photo_url, cache_path, bibs in rows:
             bibs_str = bibs if bibs else "(none)"
             cache_display = cache_path if cache_path else "(not cached)"
-            print(f"{photo_hash:<10} {bibs_str:<40} {cache_display}")
+            logger.info("%-10s %-40s %s", photo_hash, bibs_str, cache_display)
     else:
-        print(f"{'Hash':<10} {'Bibs Detected':<40} {'Photo URL'}")
-        print("-" * 104)
+        logger.info("%-10s %-40s %s", "Hash", "Bibs Detected", "Photo URL")
+        logger.info("%s", "-" * 104)
         for photo_hash, photo_url, cache_path, bibs in rows:
             bibs_str = bibs if bibs else "(none)"
-            print(f"{photo_hash:<10} {bibs_str:<40} {photo_url}")
+            logger.info("%-10s %-40s %s", photo_hash, bibs_str, photo_url)
 
     # Summary stats
     cursor.execute("SELECT COUNT(*) FROM photos")
@@ -85,10 +96,16 @@ def main():
     cursor.execute("SELECT COUNT(DISTINCT bib_number) FROM bib_detections")
     unique_bibs = cursor.fetchone()[0]
 
-    print("-" * 100)
-    print(f"Total: {total_photos} photos, {total_detections} detections, {unique_bibs} unique bibs")
+    logger.info("%s", "-" * 100)
+    logger.info(
+        "Total: %s photos, %s detections, %s unique bibs",
+        total_photos,
+        total_detections,
+        unique_bibs,
+    )
 
     conn.close()
+    return 0
 
 
 if __name__ == "__main__":

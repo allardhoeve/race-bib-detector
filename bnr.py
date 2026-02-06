@@ -17,7 +17,7 @@ import argparse
 import logging
 import sys
 
-from logging_utils import configure_logging, LOG_LEVEL_CHOICES
+from logging_utils import configure_logging, add_logging_args
 
 logger = logging.getLogger(__name__)
 
@@ -97,23 +97,7 @@ def build_parser() -> argparse.ArgumentParser:
         prog="bnr",
         description="Bib Number Recognizer - detect race bib numbers in photos",
     )
-    parser.add_argument(
-        "--log-level",
-        choices=LOG_LEVEL_CHOICES,
-        help="Set log verbosity (debug, info, warning, error, critical)",
-    )
-    parser.add_argument(
-        "-v", "--verbose",
-        action="count",
-        default=0,
-        help="Increase log verbosity (use -vv for more detail)",
-    )
-    parser.add_argument(
-        "-q", "--quiet",
-        action="count",
-        default=0,
-        help="Reduce log verbosity (use -qq for errors only)",
-    )
+    add_logging_args(parser)
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # -------------------------------------------------------------------------

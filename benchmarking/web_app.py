@@ -8,6 +8,8 @@ Routes:
 - /benchmark/<run_id>/ - Inspection UI for a specific run
 """
 
+import argparse
+import logging
 import json
 import random
 import sys
@@ -44,6 +46,9 @@ from benchmarking.runner import (
     RESULTS_DIR,
 )
 from config import ITERATION_SPLIT_PROBABILITY
+from logging_utils import add_logging_args, configure_logging
+
+logger = logging.getLogger(__name__)
 
 # Photos directory
 PHOTOS_DIR = Path(__file__).parent.parent / "photos"
@@ -1245,25 +1250,34 @@ def filter_results(results, filter_type):
 # MAIN
 # =============================================================================
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Launch the benchmark labeling/inspection UI (port 30002)."
+    )
+    add_logging_args(parser)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
     """Run the web server."""
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    configure_logging(args.log_level, args.verbose, args.quiet)
     index = load_photo_index()
     if not index:
-        print("No photo index found. Run 'python -m benchmarking.cli scan' first.")
+        logger.error("No photo index found. Run 'python -m benchmarking.cli scan' first.")
         return 1
 
     app = create_app()
 
-    print("Starting Benchmark Web UI...")
-    print(f"Found {len(index)} photos in index")
-    print()
-    print("Routes:")
-    print("  /labels/              - Label photos")
-    print("  /benchmark/           - List benchmark runs")
-    print("  /benchmark/<run_id>/  - Inspect a run")
-    print()
-    print("Open http://localhost:30002 in your browser")
-    print("Press Ctrl+C to stop")
+    logger.info("Starting Benchmark Web UI...")
+    logger.info("Found %s photos in index", len(index))
+    logger.info("Routes:")
+    logger.info("  /labels/              - Label photos")
+    logger.info("  /benchmark/           - List benchmark runs")
+    logger.info("  /benchmark/<run_id>/  - Inspect a run")
+    logger.info("Open http://localhost:30002 in your browser")
+    logger.info("Press Ctrl+C to stop")
     app.run(host='localhost', port=30002, debug=False)
     return 0
 

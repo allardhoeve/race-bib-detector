@@ -20,6 +20,7 @@ This document captures shared, stable conventions so they do not get repeated ac
 ## Entrypoints
 - Any new runnable script must start with `#!/usr/bin/env python`.
 - Entry points must be `chmod 755`.
+- If you add a new entrypoint, include it in `tests/test_entrypoints.py` so the smoke test covers it.
 
 ## Configuration
 - All tunable detection parameters live in `config.py`.

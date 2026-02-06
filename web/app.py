@@ -2,6 +2,7 @@
 Flask application for the bib scanner web interface.
 """
 
+import argparse
 import json
 import logging
 from pathlib import Path
@@ -9,7 +10,7 @@ from pathlib import Path
 from flask import Flask, render_template_string, send_from_directory, abort
 
 from db import get_connection, migrate_add_photo_hash
-from logging_utils import configure_logging
+from logging_utils import configure_logging, add_logging_args
 from utils import compute_bbox_hash
 from .templates import HTML_TEMPLATE, EMPTY_TEMPLATE
 
@@ -204,9 +205,19 @@ def get_photo_with_bibs(photo_hash: str) -> tuple[dict | None, list[dict]]:
     return photo, bibs
 
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Launch the bib scanner web viewer (port 30001)."
+    )
+    add_logging_args(parser)
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
     """Run the web server."""
-    configure_logging()
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    configure_logging(args.log_level, args.verbose, args.quiet)
     # Ensure database has photo hashes (migrate if needed)
     conn = get_connection()
     migrate_add_photo_hash(conn)
@@ -218,6 +229,7 @@ def main():
     logger.info("Open http://localhost:30001 in your browser")
     logger.info("Press Ctrl+C to stop")
     app.run(host='localhost', port=30001, debug=False)
+    return 0
 
 
 if __name__ == '__main__':

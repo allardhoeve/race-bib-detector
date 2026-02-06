@@ -27,7 +27,7 @@ from sources import (
     cache_image,
     load_from_cache,
 )
-from logging_utils import configure_logging, LOG_LEVEL_CHOICES
+from logging_utils import configure_logging, add_logging_args
 from utils import (
     get_gray_bbox_path,
     get_candidates_path,
@@ -394,23 +394,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Rescan photos that have already been processed"
     )
-    parser.add_argument(
-        "--log-level",
-        choices=LOG_LEVEL_CHOICES,
-        help="Set log verbosity (debug, info, warning, error, critical)",
-    )
-    parser.add_argument(
-        "-v", "--verbose",
-        action="count",
-        default=0,
-        help="Increase log verbosity (use -vv for more detail)",
-    )
-    parser.add_argument(
-        "-q", "--quiet",
-        action="count",
-        default=0,
-        help="Reduce log verbosity (use -qq for errors only)",
-    )
+    add_logging_args(parser)
     parser.add_argument(
         "--limit", "-n",
         type=int,

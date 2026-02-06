@@ -2,12 +2,16 @@
 """Download photos containing specific bib numbers."""
 
 import argparse
+import logging
 from pathlib import Path
 
 from tqdm import tqdm
 
 import db
+from logging_utils import add_logging_args, configure_logging
 from utils import download_image_to_file, get_full_res_url
+
+logger = logging.getLogger(__name__)
 
 
 def download_by_bib(bib_numbers: list[str], output_dir: Path) -> dict:
@@ -22,10 +26,14 @@ def download_by_bib(bib_numbers: list[str], output_dir: Path) -> dict:
     photos = db.get_photos_by_bib(conn, bib_numbers)
 
     if not photos:
-        print(f"No photos found for bib number(s): {', '.join(bib_numbers)}")
+        logger.warning("No photos found for bib number(s): %s", ", ".join(bib_numbers))
         return {"found": 0, "downloaded": 0, "failed": 0}
 
-    print(f"Found {len(photos)} photo(s) matching bib number(s): {', '.join(bib_numbers)}")
+    logger.info(
+        "Found %s photo(s) matching bib number(s): %s",
+        len(photos),
+        ", ".join(bib_numbers),
+    )
 
     stats = {"found": len(photos), "downloaded": 0, "failed": 0}
 
@@ -41,7 +49,7 @@ def download_by_bib(bib_numbers: list[str], output_dir: Path) -> dict:
 
         # Skip if already downloaded
         if output_path.exists():
-            print(f"\nSkipping (exists): {filename}")
+            logger.info("Skipping (exists): %s", filename)
             stats["downloaded"] += 1
             continue
 
@@ -61,6 +69,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Download photos containing specific bib numbers"
     )
+    add_logging_args(parser)
     parser.add_argument(
         "bib_numbers",
         help="Bib number(s) to search for (comma-separated for multiple)"
@@ -77,24 +86,25 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    configure_logging(args.log_level, args.verbose, args.quiet)
 
     # Parse bib numbers (handle comma-separated input)
     bib_numbers = [b.strip() for b in args.bib_numbers.split(",")]
     bib_numbers = [b for b in bib_numbers if b]  # Remove empty strings
 
     if not bib_numbers:
-        print("Error: No valid bib numbers provided")
+        logger.error("No valid bib numbers provided")
         return 1
 
     stats = download_by_bib(bib_numbers, args.output)
 
-    print("\n" + "=" * 50)
-    print("Download Complete!")
-    print("=" * 50)
-    print(f"Photos found:      {stats['found']}")
-    print(f"Photos downloaded: {stats['downloaded']}")
-    print(f"Failed downloads:  {stats['failed']}")
-    print(f"\nPhotos saved to: {args.output.absolute()}")
+    logger.info("%s", "=" * 50)
+    logger.info("Download Complete!")
+    logger.info("%s", "=" * 50)
+    logger.info("Photos found:      %s", stats["found"])
+    logger.info("Photos downloaded: %s", stats["downloaded"])
+    logger.info("Failed downloads:  %s", stats["failed"])
+    logger.info("Photos saved to: %s", args.output.absolute())
     return 0
 
 
