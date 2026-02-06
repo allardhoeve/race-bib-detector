@@ -17,6 +17,7 @@ from benchmarking.ground_truth import (
     PhotoLabel,
     ALLOWED_TAGS,
 )
+from logging_utils import configure_logging, LOG_LEVEL_CHOICES
 from benchmarking.photo_index import (
     update_photo_index,
     load_photo_index,
@@ -530,6 +531,23 @@ def main():
     parser = argparse.ArgumentParser(
         description="Benchmark ground truth management"
     )
+    parser.add_argument(
+        "--log-level",
+        choices=LOG_LEVEL_CHOICES,
+        help="Set log verbosity (debug, info, warning, error, critical)",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="count",
+        default=0,
+        help="Increase log verbosity (use --verbose --verbose for more detail)",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="count",
+        default=0,
+        help="Reduce log verbosity (use --quiet --quiet for errors only)",
+    )
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # scan command
@@ -635,6 +653,7 @@ def main():
     )
 
     args = parser.parse_args()
+    configure_logging(args.log_level, args.verbose, args.quiet)
 
     if args.command is None:
         parser.print_help()

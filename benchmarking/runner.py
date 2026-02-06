@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import platform
 import socket
 import subprocess
@@ -21,6 +22,8 @@ import torch
 from config import BENCHMARK_REGRESSION_TOLERANCE
 from detection import detect_bib_numbers
 from preprocessing import PreprocessConfig
+
+logger = logging.getLogger(__name__)
 
 from .ground_truth import load_ground_truth, PhotoLabel, GroundTruth
 from .photo_index import load_photo_index, get_path_for_hash
@@ -421,12 +424,12 @@ def run_benchmark(
         raise ValueError(f"No photos in split '{split}'")
 
     if verbose:
-        print(f"Running benchmark on {len(photos)} photos (split: {split})")
-        print(f"Run ID: {run_id}")
+        logger.info("Running benchmark on %s photos (split: %s)", len(photos), split)
+        logger.info("Run ID: %s", run_id)
 
     # Initialize EasyOCR reader
     if verbose:
-        print("Initializing EasyOCR...")
+        logger.info("Initializing EasyOCR...")
     reader = easyocr.Reader(["en"], gpu=torch.cuda.is_available())
 
     # Run detection on each photo
@@ -436,7 +439,12 @@ def run_benchmark(
         path = get_path_for_hash(label.content_hash, PHOTOS_DIR, index)
         if not path or not path.exists():
             if verbose:
-                print(f"  [{i+1}/{len(photos)}] SKIP (file not found): {label.content_hash[:16]}...")
+                logger.info(
+                    "  [%s/%s] SKIP (file not found): %s...",
+                    i + 1,
+                    len(photos),
+                    label.content_hash[:16],
+                )
             continue
 
         # Read image
@@ -465,9 +473,16 @@ def run_benchmark(
 
         if verbose:
             status_icon = {"PASS": "✓", "PARTIAL": "◐", "MISS": "✗"}[photo_result.status]
-            print(f"  [{i+1}/{len(photos)}] {status_icon} {photo_result.status:7} "
-                  f"exp={photo_result.expected_bibs} det={photo_result.detected_bibs} "
-                  f"({detect_time_ms:.0f}ms)")
+            logger.info(
+                "  [%s/%s] %s %-7s exp=%s det=%s (%.0fms)",
+                i + 1,
+                len(photos),
+                status_icon,
+                photo_result.status,
+                photo_result.expected_bibs,
+                photo_result.detected_bibs,
+                detect_time_ms,
+            )
 
     # Compute aggregate metrics
     metrics = compute_metrics(photo_results)
@@ -512,7 +527,7 @@ def run_benchmark(
     benchmark_run.save(run_json_path)
 
     if verbose:
-        print(f"\nResults saved to: {run_dir}")
+        logger.info("Results saved to: %s", run_dir)
 
     return benchmark_run
 

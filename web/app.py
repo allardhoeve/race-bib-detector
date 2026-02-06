@@ -3,13 +3,17 @@ Flask application for the bib scanner web interface.
 """
 
 import json
+import logging
 from pathlib import Path
 
 from flask import Flask, render_template_string, send_from_directory, abort
 
 from db import get_connection, migrate_add_photo_hash
+from logging_utils import configure_logging
 from utils import compute_bbox_hash
 from .templates import HTML_TEMPLATE, EMPTY_TEMPLATE
+
+logger = logging.getLogger(__name__)
 
 # Paths
 CACHE_DIR = Path(__file__).parent.parent / "cache"
@@ -202,6 +206,7 @@ def get_photo_with_bibs(photo_hash: str) -> tuple[dict | None, list[dict]]:
 
 def main():
     """Run the web server."""
+    configure_logging()
     # Ensure database has photo hashes (migrate if needed)
     conn = get_connection()
     migrate_add_photo_hash(conn)
@@ -209,9 +214,9 @@ def main():
 
     app = create_app()
 
-    print("Starting Bib Scanner Web Viewer...")
-    print("Open http://localhost:30001 in your browser")
-    print("Press Ctrl+C to stop")
+    logger.info("Starting Bib Scanner Web Viewer...")
+    logger.info("Open http://localhost:30001 in your browser")
+    logger.info("Press Ctrl+C to stop")
     app.run(host='localhost', port=30001, debug=False)
 
 

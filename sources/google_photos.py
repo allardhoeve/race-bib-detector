@@ -4,11 +4,16 @@ Google Photos album scraping.
 Functions for extracting images from shared Google Photos albums.
 """
 
+import logging
 import re
 from urllib.parse import urlparse
 
 from playwright.sync_api import sync_playwright
 
+from logging_utils import configure_logging, LOG_LEVEL_CHOICES
+from utils import clean_photo_url
+
+logger = logging.getLogger(__name__)
 
 def is_avatar_url(url: str) -> bool:
     """Check if a URL is likely a user avatar rather than an album photo.
@@ -36,26 +41,6 @@ def is_avatar_url(url: str) -> bool:
         return True
 
     return False
-
-
-def clean_photo_url(url: str) -> dict:
-    """Clean a Google Photos URL and return base, full-res, and thumbnail URLs.
-
-    Args:
-        url: Raw Google Photos URL.
-
-    Returns:
-        Dict with keys: base_url, photo_url, thumbnail_url
-    """
-    # Remove size parameters to get base URL
-    base_url = re.sub(r'=w\d+.*$', '', url)
-    base_url = re.sub(r'=s\d+.*$', '', base_url)
-
-    return {
-        "base_url": base_url,
-        "photo_url": base_url + "=w2048",  # Reasonable size for OCR
-        "thumbnail_url": base_url + "=w400",
-    }
 
 
 def _extract_image_urls(page) -> list[dict]:
@@ -147,9 +132,9 @@ def extract_images_from_album(album_url: str) -> list[dict]:
     # Validate URL
     parsed = urlparse(album_url)
     if "photos.google.com" not in parsed.netloc and "photos.app.goo.gl" not in parsed.netloc:
-        print(f"Warning: URL doesn't appear to be a Google Photos URL: {album_url}")
+        logger.warning("URL doesn't appear to be a Google Photos URL: %s", album_url)
 
-    print("Launching browser...")
+    logger.info("Launching browser...")
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(
@@ -158,16 +143,51 @@ def extract_images_from_album(album_url: str) -> list[dict]:
         )
         page = context.new_page()
 
-        print(f"Loading album: {album_url}")
+        logger.info("Loading album: %s", album_url)
         page.goto(album_url, wait_until="networkidle")
         page.wait_for_timeout(3000)  # Extra wait for dynamic content
 
-        print("Scrolling to load all images...")
+        logger.info("Scrolling to load all images...")
         _scroll_to_load_all(page)
 
-        print("Extracting image URLs...")
+        logger.info("Extracting image URLs...")
         images = _extract_image_urls(page)
 
         browser.close()
 
     return images
+
+
+def main() -> int:
+    """CLI helper to test album extraction."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Extract Google Photos album images")
+    parser.add_argument("album_url", help="Google Photos shared album URL")
+    parser.add_argument(
+        "--log-level",
+        choices=LOG_LEVEL_CHOICES,
+        help="Set log verbosity (debug, info, warning, error, critical)",
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="count",
+        default=0,
+        help="Increase log verbosity (use -vv for more detail)",
+    )
+    parser.add_argument(
+        "-q", "--quiet",
+        action="count",
+        default=0,
+        help="Reduce log verbosity (use -qq for errors only)",
+    )
+
+    args = parser.parse_args()
+    configure_logging(args.log_level, args.verbose, args.quiet)
+    images = extract_images_from_album(args.album_url)
+    logger.info("Extracted %s images", len(images))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

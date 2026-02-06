@@ -8,6 +8,7 @@ Supports three modes:
 """
 
 import argparse
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator
@@ -26,6 +27,7 @@ from sources import (
     cache_image,
     load_from_cache,
 )
+from logging_utils import configure_logging, LOG_LEVEL_CHOICES
 from utils import (
     get_gray_bbox_path,
     get_candidates_path,
@@ -35,6 +37,8 @@ from utils import (
     get_snippet_path,
     save_bib_snippet,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -190,15 +194,15 @@ def scan_images(
     }
 
     if total == 0:
-        print("No images to process.")
+        logger.info("No images to process.")
         return stats
 
-    print("Initializing EasyOCR...")
+    logger.info("Initializing EasyOCR...")
     reader = easyocr.Reader(["en"], gpu=False)
 
     conn = db.get_connection()
 
-    print("\nScanning images for bib numbers...")
+    logger.info("Scanning images for bib numbers...")
     for info in tqdm(images, total=total, desc="Processing"):
         if skip_existing and db.photo_exists(conn, info.photo_url):
             stats["photos_skipped"] += 1
@@ -217,7 +221,7 @@ def scan_images(
             stats["photos_scanned"] += 1
 
         except Exception as e:
-            print(f"\nError processing image: {e}")
+            logger.exception("Error processing image: %s", e)
             continue
 
     conn.close()
@@ -232,14 +236,14 @@ def scan_album(album_url: str, skip_existing: bool = True, limit: int | None = N
     """Scan a Google Photos album for bib numbers."""
     raw_images = extract_images_from_album(album_url)
 
-    print(f"Found {len(raw_images)} images")
+    logger.info("Found %s images", len(raw_images))
     if not raw_images:
-        print("No images found. The album may be empty or require authentication.")
+        logger.warning("No images found. The album may be empty or require authentication.")
         return {"photos_found": 0, "photos_scanned": 0, "photos_skipped": 0, "bibs_detected": 0}
 
     if limit is not None:
         raw_images = raw_images[:limit]
-        print(f"Processing limited to {limit} images")
+        logger.info("Processing limited to %s images", limit)
 
     def make_images():
         for img in raw_images:
@@ -260,17 +264,17 @@ def scan_local_directory(directory: str, skip_existing: bool = True, limit: int 
     try:
         image_files = scan_local_images(directory)
     except ValueError as e:
-        print(f"Error: {e}")
+        logger.error("%s", e)
         return {"photos_found": 0, "photos_scanned": 0, "photos_skipped": 0, "bibs_detected": 0}
 
-    print(f"Found {len(image_files)} images in {directory}")
+    logger.info("Found %s images in %s", len(image_files), directory)
     if not image_files:
-        print("No images found.")
+        logger.warning("No images found.")
         return {"photos_found": 0, "photos_scanned": 0, "photos_skipped": 0, "bibs_detected": 0}
 
     if limit is not None:
         image_files = image_files[:limit]
-        print(f"Processing limited to {limit} images")
+        logger.info("Processing limited to %s images", limit)
 
     album_url = f"local:{directory}"
 
@@ -299,16 +303,16 @@ def rescan_single_photo(identifier: str) -> dict:
         total = db.get_photo_count(conn)
         if not photo:
             conn.close()
-            print(f"Error: Photo index {index} not found. Database has {total} photos.")
+            logger.error("Photo index %s not found. Database has %s photos.", index, total)
             return {"photos_found": 0, "photos_scanned": 0, "photos_skipped": 0, "bibs_detected": 0}
-        print(f"Found photo {index}/{total}: {photo['photo_hash']}")
+        logger.info("Found photo %s/%s: %s", index, total, photo["photo_hash"])
     else:
         photo = db.get_photo_by_hash(conn, identifier)
         if not photo:
             conn.close()
-            print(f"Error: Photo hash '{identifier}' not found.")
+            logger.error("Photo hash '%s' not found.", identifier)
             return {"photos_found": 0, "photos_scanned": 0, "photos_skipped": 0, "bibs_detected": 0}
-        print(f"Found photo: {photo['photo_hash']}")
+        logger.info("Found photo: %s", photo["photo_hash"])
 
     conn.close()
 
@@ -362,22 +366,22 @@ def run_scan(source: str, rescan: bool = False, limit: int | None = None) -> int
     elif len(source) <= 8:
         stats = rescan_single_photo(source)
     else:
-        print(f"Error: '{source}' is not a valid URL, path, photo hash, or index.")
+        logger.error("'%s' is not a valid URL, path, photo hash, or index.", source)
         return 1
 
-    print("\n" + "=" * 50)
-    print("Scan Complete!")
-    print("=" * 50)
-    print(f"Photos found:   {stats['photos_found']}")
-    print(f"Photos scanned: {stats['photos_scanned']}")
-    print(f"Photos skipped: {stats['photos_skipped']}")
-    print(f"Bibs detected:  {stats['bibs_detected']}")
-    print("\nResults saved to bibs.db")
-    print("Query example: sqlite3 bibs.db \"SELECT * FROM bib_detections LIMIT 10\"")
+    logger.info("%s", "=" * 50)
+    logger.info("Scan Complete!")
+    logger.info("%s", "=" * 50)
+    logger.info("Photos found:   %s", stats["photos_found"])
+    logger.info("Photos scanned: %s", stats["photos_scanned"])
+    logger.info("Photos skipped: %s", stats["photos_skipped"])
+    logger.info("Bibs detected:  %s", stats["bibs_detected"])
+    logger.info("Results saved to bibs.db")
+    logger.info("Query example: sqlite3 bibs.db \"SELECT * FROM bib_detections LIMIT 10\"")
     return 0
 
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Scan images for bib numbers. Supports Google Photos albums, local directories, or single photo rescan."
     )
@@ -391,13 +395,36 @@ def main():
         help="Rescan photos that have already been processed"
     )
     parser.add_argument(
+        "--log-level",
+        choices=LOG_LEVEL_CHOICES,
+        help="Set log verbosity (debug, info, warning, error, critical)",
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="count",
+        default=0,
+        help="Increase log verbosity (use -vv for more detail)",
+    )
+    parser.add_argument(
+        "-q", "--quiet",
+        action="count",
+        default=0,
+        help="Reduce log verbosity (use -qq for errors only)",
+    )
+    parser.add_argument(
         "--limit", "-n",
         type=int,
         default=None,
         help="Maximum number of photos to process (default: all)"
     )
 
-    args = parser.parse_args()
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    configure_logging(args.log_level, args.verbose, args.quiet)
     return run_scan(args.source, rescan=args.rescan, limit=args.limit)
 
 

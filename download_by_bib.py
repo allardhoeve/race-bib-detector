@@ -2,7 +2,6 @@
 """Download photos containing specific bib numbers."""
 
 import argparse
-import sys
 from pathlib import Path
 
 from tqdm import tqdm
@@ -58,7 +57,7 @@ def download_by_bib(bib_numbers: list[str], output_dir: Path) -> dict:
     return stats
 
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Download photos containing specific bib numbers"
     )
@@ -72,8 +71,12 @@ def main():
         default=Path("./photos"),
         help="Output directory for downloaded photos (default: ./photos)"
     )
+    return parser
 
-    args = parser.parse_args()
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
 
     # Parse bib numbers (handle comma-separated input)
     bib_numbers = [b.strip() for b in args.bib_numbers.split(",")]
@@ -81,7 +84,7 @@ def main():
 
     if not bib_numbers:
         print("Error: No valid bib numbers provided")
-        sys.exit(1)
+        return 1
 
     stats = download_by_bib(bib_numbers, args.output)
 
@@ -92,6 +95,7 @@ def main():
     print(f"Photos downloaded: {stats['downloaded']}")
     print(f"Failed downloads:  {stats['failed']}")
     print(f"\nPhotos saved to: {args.output.absolute()}")
+    return 0
 
 
 if __name__ == "__main__":

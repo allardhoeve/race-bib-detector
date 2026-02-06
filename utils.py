@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -13,6 +14,8 @@ from PIL import Image
 import requests
 
 from config import PHOTO_URL_WIDTH, THUMBNAIL_URL_WIDTH, SNIPPET_PADDING_RATIO
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from detection import Detection, BibCandidate
@@ -64,7 +67,7 @@ def download_image_to_file(url: str, output_path: Path, timeout: int = 60) -> bo
                 f.write(chunk)
         return True
     except Exception as e:
-        print(f"\nError downloading {url}: {e}")
+        logger.exception("Error downloading %s: %s", url, e)
         return False
 
 
@@ -166,7 +169,7 @@ def save_bib_snippet(
         return True
 
     except Exception as e:
-        print(f"Error saving bib snippet: {e}")
+        logger.exception("Error saving bib snippet: %s", e)
         return False
 
 
@@ -244,7 +247,7 @@ def draw_bounding_boxes_on_gray(
         return True
 
     except Exception as e:
-        print(f"Error drawing bounding boxes on grayscale: {e}")
+        logger.exception("Error drawing bounding boxes on grayscale: %s", e)
         return False
 
 
@@ -327,5 +330,5 @@ def draw_candidates_on_image(
         return True
 
     except Exception as e:
-        print(f"Error drawing candidates: {e}")
+        logger.exception("Error drawing candidates: %s", e)
         return False

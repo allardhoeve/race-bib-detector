@@ -14,7 +14,12 @@ Usage:
 """
 
 import argparse
+import logging
 import sys
+
+from logging_utils import configure_logging, LOG_LEVEL_CHOICES
+
+logger = logging.getLogger(__name__)
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
@@ -29,7 +34,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
     from scan_album import run_scan
 
     if not args.source and not args.rescan:
-        print("Error: Please provide a source (URL or path) or --rescan ID")
+        logger.error("Please provide a source (URL or path) or --rescan ID")
         return 1
 
     if args.rescan:
@@ -87,10 +92,27 @@ def cmd_benchmark_stats(args: argparse.Namespace) -> int:
     return cmd_stats(args)
 
 
-def main():
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="bnr",
         description="Bib Number Recognizer - detect race bib numbers in photos",
+    )
+    parser.add_argument(
+        "--log-level",
+        choices=LOG_LEVEL_CHOICES,
+        help="Set log verbosity (debug, info, warning, error, critical)",
+    )
+    parser.add_argument(
+        "-v", "--verbose",
+        action="count",
+        default=0,
+        help="Increase log verbosity (use -vv for more detail)",
+    )
+    parser.add_argument(
+        "-q", "--quiet",
+        action="count",
+        default=0,
+        help="Reduce log verbosity (use -qq for errors only)",
     )
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
@@ -225,7 +247,13 @@ def main():
     # -------------------------------------------------------------------------
     # Parse and dispatch
     # -------------------------------------------------------------------------
-    args = parser.parse_args()
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    configure_logging(args.log_level, args.verbose, args.quiet)
 
     if args.command is None:
         parser.print_help()
