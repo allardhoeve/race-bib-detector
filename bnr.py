@@ -45,6 +45,7 @@ def cmd_benchmark_run(args: argparse.Namespace) -> int:
     bench_args = argparse.Namespace(
         split="full" if args.full else "iteration",
         quiet=args.quiet,
+        note=args.note,
         update_baseline=False,
     )
     return cmd_benchmark(bench_args)
@@ -150,6 +151,11 @@ def main():
         "-q", "--quiet",
         action="store_true",
         help="Suppress per-photo output",
+    )
+    bench_run.add_argument(
+        "--note", "--comment",
+        dest="note",
+        help="Optional note to attach to the benchmark run",
     )
 
     # benchmark ui

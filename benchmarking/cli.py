@@ -257,7 +257,7 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     verbose = not args.quiet
 
     try:
-        run = run_benchmark(split=split, verbose=verbose)
+        run = run_benchmark(split=split, verbose=verbose, note=args.note)
     except ValueError as e:
         print(f"Error: {e}")
         return 1
@@ -271,6 +271,8 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     print(f"\nSplit: {split}")
     print(f"Photos: {m.total_photos}")
     print(f"Runtime: {run.metadata.total_runtime_seconds:.1f}s")
+    if run.metadata.note:
+        print(f"Note: {run.metadata.note}")
 
     print(f"\nMetrics:")
     print(f"  Precision: {m.precision:.1%}")
@@ -376,17 +378,18 @@ def cmd_benchmark_list(args: argparse.Namespace) -> int:
         return 0
 
     # Print header
-    print(f"{'ID':<10} {'Date':<12} {'Split':<10} {'P':>6} {'R':>6} {'F1':>6} {'Commit':<10} {'Pipeline':<20}")
-    print("-" * 90)
+    print(f"{'ID':<10} {'Date':<12} {'Split':<10} {'P':>6} {'R':>6} {'F1':>6} {'Commit':<10} {'Pipeline':<20} {'Note'}")
+    print("-" * 115)
 
     for run in runs:
         baseline_marker = " (baseline)" if run.get("is_baseline") else ""
         date = run["timestamp"][:10]
         pipeline = run.get("pipeline", "unknown")
+        note = run.get("note") or ""
         print(
             f"{run['run_id']:<10} {date:<12} {run['split']:<10} "
             f"{run['precision']:>5.1%} {run['recall']:>5.1%} {run['f1']:>5.1%} "
-            f"{run['git_commit']:<10} {pipeline}{baseline_marker}"
+            f"{run['git_commit']:<10} {pipeline}{baseline_marker} {note}"
         )
 
     print(f"\nTotal: {len(runs)} runs")
@@ -545,6 +548,11 @@ def main():
     benchmark_parser.add_argument(
         "-q", "--quiet", action="store_true",
         help="Suppress per-photo output"
+    )
+    benchmark_parser.add_argument(
+        "--note", "--comment",
+        dest="note",
+        help="Optional note to attach to the benchmark run",
     )
 
     # set-baseline command

@@ -526,6 +526,7 @@ BENCHMARK_LIST_TEMPLATE = """
                     <th>F1</th>
                     <th>Commit</th>
                     <th>Pipeline</th>
+                    <th>Note</th>
                 </tr>
             </thead>
             <tbody>
@@ -545,6 +546,7 @@ BENCHMARK_LIST_TEMPLATE = """
                     <td class="metric">{{ "%.1f%%"|format(run.f1 * 100) }}</td>
                     <td style="font-family: monospace;">{{ run.git_commit }}</td>
                     <td><span class="pipeline-badge">{{ run.pipeline or 'unknown' }}</span></td>
+                    <td>{{ run.note or '' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -599,6 +601,7 @@ BENCHMARK_INSPECT_TEMPLATE = """
         .metric-label { color: #888; }
         .metric-value { font-weight: bold; }
         .pipeline-info { background: #1a4a7a; }
+        .note-info { background: #16213e; border: 1px solid #0f3460; }
         .content {
             flex: 1;
             display: flex;
@@ -669,7 +672,7 @@ BENCHMARK_INSPECT_TEMPLATE = """
                 <select class="run-select" id="runSelect" onchange="changeRun()">
                     {% for r in all_runs %}
                     <option value="{{ r.run_id }}" {{ 'selected' if r.run_id == run.metadata.run_id else '' }}>
-                        {{ r.run_id }} ({{ r.timestamp[:10] }}) - {{ r.split }} [{{ r.pipeline or 'unknown' }}]
+                        {{ r.run_id }} ({{ r.timestamp[:10] }}) - {{ r.split }} [{{ r.pipeline or 'unknown' }}]{% if r.note %} - {{ r.note }}{% endif %}
                     </option>
                     {% endfor %}
                 </select>
@@ -691,6 +694,12 @@ BENCHMARK_INSPECT_TEMPLATE = """
                     <span class="metric-label">Pipeline:</span>
                     <span class="metric-value">{{ pipeline_summary }}</span>
                 </span>
+                {% if run.metadata.note %}
+                <span class="metric note-info">
+                    <span class="metric-label">Note:</span>
+                    <span class="metric-value">{{ run.metadata.note }}</span>
+                </span>
+                {% endif %}
             </div>
         </div>
         <div class="nav-info">

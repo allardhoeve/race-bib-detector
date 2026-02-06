@@ -181,6 +181,7 @@ class RunMetadata:
     gpu_info: str | None
     total_runtime_seconds: float
     pipeline_config: PipelineConfig | None = None
+    note: str | None = None
 
     def to_dict(self) -> dict:
         result = {
@@ -197,6 +198,8 @@ class RunMetadata:
         }
         if self.pipeline_config:
             result["pipeline_config"] = self.pipeline_config.to_dict()
+        if self.note:
+            result["note"] = self.note
         return result
 
     @classmethod
@@ -216,6 +219,7 @@ class RunMetadata:
             gpu_info=data.get("gpu_info"),
             total_runtime_seconds=data.get("total_runtime_seconds", 0),
             pipeline_config=pipeline_config,
+            note=data.get("note"),
         )
 
 
@@ -381,6 +385,7 @@ def compute_metrics(photo_results: list[PhotoResult]) -> BenchmarkMetrics:
 def run_benchmark(
     split: str = "full",
     verbose: bool = True,
+    note: str | None = None,
 ) -> BenchmarkRun:
     """Run benchmark on the specified split.
 
@@ -493,6 +498,7 @@ def run_benchmark(
         gpu_info=get_gpu_info(),
         total_runtime_seconds=total_runtime,
         pipeline_config=pipeline_config,
+        note=note,
     )
 
     benchmark_run = BenchmarkRun(
@@ -615,6 +621,7 @@ def list_runs() -> list[dict]:
                 run_info["pipeline"] = run.metadata.pipeline_config.summary()
             else:
                 run_info["pipeline"] = "unknown"
+            run_info["note"] = run.metadata.note
             runs.append(run_info)
         except Exception:
             # Skip malformed runs
