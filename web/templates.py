@@ -682,7 +682,7 @@ EMPTY_TEMPLATE = """
         <div class="icon">📷</div>
         <h1>No Photos Scanned Yet</h1>
         <p>Run the scanner first to add photos to the database.</p>
-        <code>python scan_album.py &lt;album_url_or_directory&gt;</code>
+        <code>python bnr.py scan &lt;album_url_or_directory&gt;</code>
     </div>
 </body>
 </html>

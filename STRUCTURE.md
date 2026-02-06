@@ -6,7 +6,9 @@ This document describes the architecture and organization of the Google Photos B
 
 ```
 google-photos-startnumber-recognizer/
-├── scan_album.py           # Main CLI entry point for scanning
+├── bnr.py                  # Main CLI entry point (router)
+├── cli/                    # CLI subcommand parsing
+├── scan/                   # Scan services and pipeline
 ├── web_viewer.py           # Thin wrapper to run web interface
 ├── photo.py                # Core Photo dataclass (lineage anchor)
 ├── db.py                   # Database operations
@@ -84,7 +86,7 @@ Each module has a single responsibility:
 | `detection/` | Bib number detection and filtering |
 | `sources/` | Image acquisition from various sources |
 | `web/` | User interface |
-| `scan_album.py` | Orchestration and CLI |
+| `bnr.py` | Orchestration and CLI |
 
 ## Module Details
 

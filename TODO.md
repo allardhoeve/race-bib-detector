@@ -65,8 +65,8 @@ Split into:
 - `image_utils.py` - Image download/manipulation
 - `bbox_utils.py` - Bounding box operations
 
-### Remove duplication in scan_album.py image iteration
-**Location:** `scan_album.py:206-217`, `239-251`
+### Remove duplication in scan service image iteration
+**Location:** `scan/service.py`
 
 Code duplication in `scan_album()` and `scan_local_directory()` - both define nearly identical `make_images()` and `fetch_factory()` generators. Extract a generic factory function or decorator.
 

@@ -22,10 +22,10 @@ To rescan a single photo after making code changes, use:
 
 ```bash
 # By photo hash (8 hex characters):
-venv/bin/python scan_album.py 6dde41fd
+venv/bin/python bnr.py scan --rescan 6dde41fd
 
 # By 1-based index (photo number in database order):
-venv/bin/python scan_album.py 47
+venv/bin/python bnr.py scan --rescan 47
 ```
 
 This is useful for testing detection changes on specific photos without rescanning the entire album.

@@ -25,7 +25,7 @@ def main(argv: list[str] | None = None) -> int:
     configure_logging(args.log_level, args.verbose, args.quiet)
 
     if not db.DB_PATH.exists():
-        logger.error("Database not found. Run scan_album.py first.")
+        logger.error("Database not found. Run `bnr scan` first.")
         return 1
 
     conn = db.get_connection()

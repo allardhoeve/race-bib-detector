@@ -18,6 +18,7 @@ import logging
 import sys
 
 from logging_utils import configure_logging, add_logging_args
+from cli.scan import add_scan_subparser
 
 logger = logging.getLogger(__name__)
 
@@ -27,20 +28,6 @@ def cmd_serve(args: argparse.Namespace) -> int:
     from web import main
     main()
     return 0
-
-
-def cmd_scan(args: argparse.Namespace) -> int:
-    """Scan an album or directory for bib numbers."""
-    from scan_album import run_scan
-
-    if not args.source and not args.rescan:
-        logger.error("Please provide a source (URL or path) or --rescan ID")
-        return 1
-
-    if args.rescan:
-        return run_scan(args.rescan, rescan=True)
-    else:
-        return run_scan(args.source, rescan=args.force)
 
 
 def cmd_benchmark_run(args: argparse.Namespace) -> int:
@@ -59,7 +46,6 @@ def cmd_benchmark_run(args: argparse.Namespace) -> int:
 def cmd_benchmark_ui(args: argparse.Namespace) -> int:
     """Launch benchmark web UI."""
     from benchmarking.web_app import main
-    # Prevent web_app from re-parsing the outer CLI args (e.g. "benchmark ui").
     return main([])
 
 
@@ -101,40 +87,14 @@ def build_parser() -> argparse.ArgumentParser:
     add_logging_args(parser)
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
-    # -------------------------------------------------------------------------
-    # serve - Launch photo viewer
-    # -------------------------------------------------------------------------
     serve_parser = subparsers.add_parser(
         "serve",
         help="Launch photo viewer website (port 30001)",
     )
+    serve_parser.set_defaults(_cmd=cmd_serve)
 
-    # -------------------------------------------------------------------------
-    # scan - Scan album or directory
-    # -------------------------------------------------------------------------
-    scan_parser = subparsers.add_parser(
-        "scan",
-        help="Scan album URL or local directory for bib numbers",
-    )
-    scan_parser.add_argument(
-        "source",
-        nargs="?",
-        help="Google Photos album URL or local directory path",
-    )
-    scan_parser.add_argument(
-        "--rescan",
-        metavar="ID",
-        help="Rescan a specific photo by hash or index",
-    )
-    scan_parser.add_argument(
-        "-f", "--force",
-        action="store_true",
-        help="Force rescan even if already processed",
-    )
+    add_scan_subparser(subparsers)
 
-    # -------------------------------------------------------------------------
-    # benchmark - Benchmark subcommands
-    # -------------------------------------------------------------------------
     benchmark_parser = subparsers.add_parser(
         "benchmark",
         help="Benchmark detection accuracy",
@@ -144,7 +104,6 @@ def build_parser() -> argparse.ArgumentParser:
         help="Benchmark command",
     )
 
-    # benchmark run
     bench_run = benchmark_subparsers.add_parser(
         "run",
         help="Run benchmark",
@@ -164,20 +123,20 @@ def build_parser() -> argparse.ArgumentParser:
         dest="note",
         help="Optional note to attach to the benchmark run",
     )
+    bench_run.set_defaults(_cmd=cmd_benchmark_run)
 
-    # benchmark ui
-    benchmark_subparsers.add_parser(
+    bench_ui = benchmark_subparsers.add_parser(
         "ui",
         help="Launch web UI for labeling and inspection (port 30002)",
     )
+    bench_ui.set_defaults(_cmd=cmd_benchmark_ui)
 
-    # benchmark list
-    benchmark_subparsers.add_parser(
+    bench_list = benchmark_subparsers.add_parser(
         "list",
         help="List saved benchmark runs",
     )
+    bench_list.set_defaults(_cmd=cmd_benchmark_list)
 
-    # benchmark clean
     bench_clean = benchmark_subparsers.add_parser(
         "clean",
         help="Remove old benchmark runs",
@@ -205,8 +164,8 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip confirmation prompt",
     )
+    bench_clean.set_defaults(_cmd=cmd_benchmark_clean)
 
-    # benchmark baseline
     bench_baseline = benchmark_subparsers.add_parser(
         "baseline",
         help="Update baseline if metrics improved",
@@ -216,22 +175,20 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Update without prompting",
     )
+    bench_baseline.set_defaults(_cmd=cmd_benchmark_baseline)
 
-    # benchmark scan
-    benchmark_subparsers.add_parser(
+    bench_scan = benchmark_subparsers.add_parser(
         "scan",
         help="Scan photos directory and update index",
     )
+    bench_scan.set_defaults(_cmd=cmd_benchmark_scan)
 
-    # benchmark stats
-    benchmark_subparsers.add_parser(
+    bench_stats = benchmark_subparsers.add_parser(
         "stats",
         help="Show labeling statistics",
     )
+    bench_stats.set_defaults(_cmd=cmd_benchmark_stats)
 
-    # -------------------------------------------------------------------------
-    # Parse and dispatch
-    # -------------------------------------------------------------------------
     parser.set_defaults(_benchmark_parser=benchmark_parser)
     return parser
 
@@ -245,27 +202,15 @@ def main(argv: list[str] | None = None) -> int:
         parser.print_help()
         return 1
 
-    if args.command == "serve":
-        return cmd_serve(args)
-    elif args.command == "scan":
-        return cmd_scan(args)
-    elif args.command == "benchmark":
-        if args.benchmark_command is None:
-            args._benchmark_parser.print_help()
-            return 1
+    if args.command == "benchmark" and args.benchmark_command is None:
+        args._benchmark_parser.print_help()
+        return 1
 
-        dispatch = {
-            "run": cmd_benchmark_run,
-            "ui": cmd_benchmark_ui,
-            "list": cmd_benchmark_list,
-            "clean": cmd_benchmark_clean,
-            "baseline": cmd_benchmark_baseline,
-            "scan": cmd_benchmark_scan,
-            "stats": cmd_benchmark_stats,
-        }
-        return dispatch[args.benchmark_command](args)
-
-    return 1
+    cmd = getattr(args, "_cmd", None)
+    if cmd is None:
+        parser.print_help()
+        return 1
+    return cmd(args)
 
 
 if __name__ == "__main__":

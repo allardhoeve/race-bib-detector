@@ -1,8 +1,8 @@
-"""Tests for scan_album helpers."""
+"""Tests for scan service helpers."""
 
 import pytest
 
-from scan_album import resolve_face_mode
+from scan.service import resolve_face_mode
 
 
 def test_resolve_face_mode_defaults() -> None:

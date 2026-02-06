@@ -5,7 +5,6 @@ import pytest
 
 ENTRYPOINTS = [
     "bnr",
-    "scan_album",
     "download_by_bib",
     "list_detections",
     "web_viewer",

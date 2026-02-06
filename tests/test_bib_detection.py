@@ -678,7 +678,7 @@ class TestSnippetGeneration:
         # Create temp directory for snippets
         temp_dir = Path(tempfile.mkdtemp())
         try:
-            # Save snippets using the same logic as scan_album.py
+            # Save snippets using the same logic as bnr.py
             # Note: bboxes from detect_bib_numbers are in original coords,
             # so we use detections_at_ocr_scale() to get them at grayscale resolution
             for det, scaled_det in zip(result.detections, scaled_detections):
