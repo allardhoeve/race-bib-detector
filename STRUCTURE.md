@@ -186,7 +186,7 @@ The `ImagePaths` dataclass consolidates all derived file paths:
 
 ## Photo Identification
 
-Photos are identified by an 8-character **photo hash** derived from the photo URL using SHA-256. This hash is stable across re-scans and database changes. The canonical hash function is `compute_photo_hash()` in `photo.py`. See [CLAUDE.md](AGENTS) for details.
+Photos are identified by the 8-character **photo hash**. See `STANDARDS.md` for the canonical definition and usage rules.
 
 ## Database Schema
 

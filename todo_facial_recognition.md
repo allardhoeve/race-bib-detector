@@ -14,7 +14,7 @@ Date: 2026-02-06
 - No fully automated multi-person bib attribution (start conservative).
 
 ## Constraints / Assumptions
-- Photos are identified by 8-char photo hashes.
+- Photo identification follows `STANDARDS.md`.
 - All data remains local.
 - Batch/background processing is acceptable.
 - Data volume: ~1000 photos per album.
