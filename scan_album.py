@@ -15,11 +15,16 @@ from typing import Iterator
 
 import easyocr
 import numpy as np
+import cv2
 from tqdm import tqdm
 
 import db
 from detection import detect_bib_numbers, Detection, DetectionResult
 from preprocessing import PreprocessConfig
+from faces import get_face_backend
+from faces.artifacts import save_face_snippet, save_face_boxed_preview, save_face_evidence_json
+from faces.types import FaceDetection
+from photo import compute_photo_hash, ImagePaths
 from sources import (
     extract_images_from_album,
     scan_local_images,
@@ -139,8 +144,46 @@ def save_detections_to_db(
     return photo_id
 
 
+def ensure_photo_record(
+    conn,
+    photo_url: str,
+    thumbnail_url: str,
+    album_url: str,
+    cache_path: Path,
+) -> int:
+    """Ensure a photo record exists and return its ID."""
+    return db.insert_photo(
+        conn, album_url, photo_url, thumbnail_url,
+        cache_path=str(cache_path)
+    )
+
+
+def save_face_detections_to_db(
+    conn,
+    face_detections: list[FaceDetection],
+    photo_id: int,
+    skip_existing: bool,
+) -> None:
+    """Save face detections to database."""
+    if not skip_existing:
+        db.delete_face_detections(conn, photo_id)
+
+    for face in face_detections:
+        db.insert_face_detection(
+            conn,
+            photo_id=photo_id,
+            face_index=face.face_index,
+            bbox=face.bbox,
+            embedding=face.embedding,
+            model_info=face.model,
+            snippet_path=face.snippet_path,
+            preview_path=face.preview_path,
+        )
+
+
 def process_image(
-    reader: easyocr.Reader,
+    reader: easyocr.Reader | None,
+    face_backend,
     conn,
     photo_url: str,
     thumbnail_url: str,
@@ -148,23 +191,82 @@ def process_image(
     image_data: bytes,
     cache_path: Path,
     skip_existing: bool,
-) -> int:
-    """Process a single image: detect bibs, save artifacts, update database.
+    run_bib_detection: bool,
+    run_face_detection: bool,
+) -> tuple[int, int]:
+    """Process a single image: detect bibs/faces, save artifacts, update database.
 
     Returns:
-        Number of bibs detected
+        Tuple of (bibs_detected, faces_detected)
     """
-    preprocess_config = PreprocessConfig()
-    result = detect_bib_numbers(reader, image_data, preprocess_config)
-
-    if result.detections:
-        save_detection_artifacts(result, cache_path)
-
-    save_detections_to_db(
-        conn, result.detections, photo_url, thumbnail_url, album_url, cache_path, skip_existing
+    result = DetectionResult(
+        detections=[],
+        all_candidates=[],
+        ocr_grayscale=np.empty((0, 0), dtype=np.uint8),
+        original_dimensions=(0, 0),
+        ocr_dimensions=(0, 0),
+        scale_factor=1.0,
     )
 
-    return len(result.detections)
+    if run_bib_detection:
+        if reader is None:
+            raise ValueError("reader is required when run_bib_detection is True")
+        preprocess_config = PreprocessConfig()
+        result = detect_bib_numbers(reader, image_data, preprocess_config)
+
+        if result.detections:
+            save_detection_artifacts(result, cache_path)
+
+    photo_id = ensure_photo_record(conn, photo_url, thumbnail_url, album_url, cache_path)
+
+    if run_bib_detection:
+        save_detections_to_db(
+            conn, result.detections, photo_url, thumbnail_url, album_url, cache_path, skip_existing
+        )
+
+    face_detections: list[FaceDetection] = []
+    if run_face_detection:
+        image_array = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
+        if image_array is None:
+            logger.warning("Failed to decode image for face detection: %s", photo_url)
+        else:
+            image_rgb = cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB)
+            boxes = face_backend.detect_faces(image_rgb)
+            embeddings = face_backend.embed_faces(image_rgb, boxes)
+            model_info = face_backend.model_info()
+
+            paths = ImagePaths.for_cache_path(cache_path)
+            paths.ensure_dirs_exist()
+
+            for index, (bbox, embedding) in enumerate(zip(boxes, embeddings)):
+                snippet_path = paths.face_snippet_path(index)
+                preview_path = paths.face_boxed_path(index)
+
+                snippet_saved = save_face_snippet(image_rgb, bbox, snippet_path)
+                preview_saved = save_face_boxed_preview(image_rgb, bbox, preview_path)
+
+                face_detections.append(
+                    FaceDetection(
+                        face_index=index,
+                        bbox=bbox,
+                        embedding=embedding,
+                        model=model_info,
+                        snippet_path=str(snippet_path) if snippet_saved else None,
+                        preview_path=str(preview_path) if preview_saved else None,
+                    )
+                )
+
+            photo_hash = compute_photo_hash(photo_url)
+            evidence_path = paths.face_evidence_path(photo_hash)
+            bib_evidence = [
+                {"bib_number": det.bib_number, "confidence": det.confidence, "bbox": det.bbox}
+                for det in result.detections
+            ]
+            save_face_evidence_json(evidence_path, photo_hash, face_detections, bib_evidence)
+
+        save_face_detections_to_db(conn, face_detections, photo_id, skip_existing)
+
+    return len(result.detections), len(face_detections)
 
 
 def scan_images(
@@ -172,6 +274,8 @@ def scan_images(
     total: int,
     skip_existing: bool,
     fetch_func_factory=None,
+    run_bib_detection: bool = True,
+    run_face_detection: bool = True,
 ) -> dict:
     """Scan images for bib numbers.
 
@@ -191,14 +295,22 @@ def scan_images(
         "photos_scanned": 0,
         "photos_skipped": 0,
         "bibs_detected": 0,
+        "faces_detected": 0,
     }
 
     if total == 0:
         logger.info("No images to process.")
         return stats
 
-    logger.info("Initializing EasyOCR...")
-    reader = easyocr.Reader(["en"], gpu=False)
+    reader = None
+    if run_bib_detection:
+        logger.info("Initializing EasyOCR...")
+        reader = easyocr.Reader(["en"], gpu=False)
+
+    face_backend = None
+    if run_face_detection:
+        logger.info("Initializing face backend...")
+        face_backend = get_face_backend()
 
     conn = db.get_connection()
 
@@ -212,12 +324,15 @@ def scan_images(
             fetch_func = fetch_func_factory(info.photo_url) if fetch_func_factory else None
             image_data, cache_path = load_and_cache_image(info.photo_url, fetch_func)
 
-            bibs_count = process_image(
-                reader, conn,
+            bibs_count, faces_count = process_image(
+                reader, face_backend, conn,
                 info.photo_url, info.thumbnail_url, info.album_url,
-                image_data, cache_path, skip_existing
+                image_data, cache_path, skip_existing,
+                run_bib_detection=run_bib_detection,
+                run_face_detection=run_face_detection,
             )
             stats["bibs_detected"] += bibs_count
+            stats["faces_detected"] += faces_count
             stats["photos_scanned"] += 1
 
         except Exception as e:
@@ -228,18 +343,42 @@ def scan_images(
     return stats
 
 
+def resolve_face_mode(
+    faces_only: bool,
+    no_faces: bool,
+) -> tuple[bool, bool]:
+    """Resolve bib/face mode flags into run_bib_detection/run_face_detection."""
+    if faces_only and no_faces:
+        raise ValueError("faces_only and no_faces cannot both be True")
+    run_bib_detection = not faces_only
+    run_face_detection = not no_faces
+    return run_bib_detection, run_face_detection
+
+
 # =============================================================================
 # Source-specific functions (just create ImageInfo iterators)
 # =============================================================================
 
-def scan_album(album_url: str, skip_existing: bool = True, limit: int | None = None) -> dict:
-    """Scan a Google Photos album for bib numbers."""
+def scan_album(
+    album_url: str,
+    skip_existing: bool = True,
+    limit: int | None = None,
+    run_bib_detection: bool = True,
+    run_face_detection: bool = True,
+) -> dict:
+    """Scan a Google Photos album for bib numbers and faces."""
     raw_images = extract_images_from_album(album_url)
 
     logger.info("Found %s images", len(raw_images))
     if not raw_images:
         logger.warning("No images found. The album may be empty or require authentication.")
-        return {"photos_found": 0, "photos_scanned": 0, "photos_skipped": 0, "bibs_detected": 0}
+        return {
+            "photos_found": 0,
+            "photos_scanned": 0,
+            "photos_skipped": 0,
+            "bibs_detected": 0,
+            "faces_detected": 0,
+        }
 
     if limit is not None:
         raw_images = raw_images[:limit]
@@ -256,21 +395,46 @@ def scan_album(album_url: str, skip_existing: bool = True, limit: int | None = N
     def fetch_factory(photo_url):
         return lambda: download_image(photo_url)
 
-    return scan_images(make_images(), len(raw_images), skip_existing, fetch_factory)
+    return scan_images(
+        make_images(),
+        len(raw_images),
+        skip_existing,
+        fetch_factory,
+        run_bib_detection=run_bib_detection,
+        run_face_detection=run_face_detection,
+    )
 
 
-def scan_local_directory(directory: str, skip_existing: bool = True, limit: int | None = None) -> dict:
-    """Scan a local directory of images for bib numbers."""
+def scan_local_directory(
+    directory: str,
+    skip_existing: bool = True,
+    limit: int | None = None,
+    run_bib_detection: bool = True,
+    run_face_detection: bool = True,
+) -> dict:
+    """Scan a local directory of images for bib numbers and faces."""
     try:
         image_files = scan_local_images(directory)
     except ValueError as e:
         logger.error("%s", e)
-        return {"photos_found": 0, "photos_scanned": 0, "photos_skipped": 0, "bibs_detected": 0}
+        return {
+            "photos_found": 0,
+            "photos_scanned": 0,
+            "photos_skipped": 0,
+            "bibs_detected": 0,
+            "faces_detected": 0,
+        }
 
     logger.info("Found %s images in %s", len(image_files), directory)
     if not image_files:
         logger.warning("No images found.")
-        return {"photos_found": 0, "photos_scanned": 0, "photos_skipped": 0, "bibs_detected": 0}
+        return {
+            "photos_found": 0,
+            "photos_scanned": 0,
+            "photos_skipped": 0,
+            "bibs_detected": 0,
+            "faces_detected": 0,
+        }
 
     if limit is not None:
         image_files = image_files[:limit]
@@ -290,10 +454,21 @@ def scan_local_directory(directory: str, skip_existing: bool = True, limit: int 
     def fetch_factory(photo_url):
         return lambda: Path(photo_url).read_bytes()
 
-    return scan_images(make_images(), len(image_files), skip_existing, fetch_factory)
+    return scan_images(
+        make_images(),
+        len(image_files),
+        skip_existing,
+        fetch_factory,
+        run_bib_detection=run_bib_detection,
+        run_face_detection=run_face_detection,
+    )
 
 
-def rescan_single_photo(identifier: str) -> dict:
+def rescan_single_photo(
+    identifier: str,
+    run_bib_detection: bool = True,
+    run_face_detection: bool = True,
+) -> dict:
     """Rescan a single photo by hash or index (must be cached)."""
     conn = db.get_connection()
 
@@ -304,14 +479,26 @@ def rescan_single_photo(identifier: str) -> dict:
         if not photo:
             conn.close()
             logger.error("Photo index %s not found. Database has %s photos.", index, total)
-            return {"photos_found": 0, "photos_scanned": 0, "photos_skipped": 0, "bibs_detected": 0}
+            return {
+                "photos_found": 0,
+                "photos_scanned": 0,
+                "photos_skipped": 0,
+                "bibs_detected": 0,
+                "faces_detected": 0,
+            }
         logger.info("Found photo %s/%s: %s", index, total, photo["photo_hash"])
     else:
         photo = db.get_photo_by_hash(conn, identifier)
         if not photo:
             conn.close()
             logger.error("Photo hash '%s' not found.", identifier)
-            return {"photos_found": 0, "photos_scanned": 0, "photos_skipped": 0, "bibs_detected": 0}
+            return {
+                "photos_found": 0,
+                "photos_scanned": 0,
+                "photos_skipped": 0,
+                "bibs_detected": 0,
+                "faces_detected": 0,
+            }
         logger.info("Found photo: %s", photo["photo_hash"])
 
     conn.close()
@@ -324,7 +511,14 @@ def rescan_single_photo(identifier: str) -> dict:
         )
 
     # No fetch_factory = must already be cached
-    return scan_images(make_images(), 1, skip_existing=False, fetch_func_factory=None)
+    return scan_images(
+        make_images(),
+        1,
+        skip_existing=False,
+        fetch_func_factory=None,
+        run_bib_detection=run_bib_detection,
+        run_face_detection=run_face_detection,
+    )
 
 
 # =============================================================================
@@ -344,7 +538,13 @@ def is_photo_identifier(source: str) -> bool:
     return False
 
 
-def run_scan(source: str, rescan: bool = False, limit: int | None = None) -> int:
+def run_scan(
+    source: str,
+    rescan: bool = False,
+    limit: int | None = None,
+    faces_only: bool = False,
+    no_faces: bool = False,
+) -> int:
     """Run scan on a source (URL, path, or photo identifier).
 
     Args:
@@ -356,15 +556,39 @@ def run_scan(source: str, rescan: bool = False, limit: int | None = None) -> int
         Exit code (0 for success)
     """
     is_url = source.startswith("http://") or source.startswith("https://") or "photos.google.com" in source or "photos.app.goo.gl" in source
+    run_bib_detection, run_face_detection = resolve_face_mode(faces_only, no_faces)
+    if not run_bib_detection and not run_face_detection:
+        logger.error("At least one of bib detection or face detection must be enabled.")
+        return 1
 
     if is_url:
-        stats = scan_album(source, skip_existing=not rescan, limit=limit)
+        stats = scan_album(
+            source,
+            skip_existing=not rescan,
+            limit=limit,
+            run_bib_detection=run_bib_detection,
+            run_face_detection=run_face_detection,
+        )
     elif is_photo_identifier(source):
-        stats = rescan_single_photo(source)
+        stats = rescan_single_photo(
+            source,
+            run_bib_detection=run_bib_detection,
+            run_face_detection=run_face_detection,
+        )
     elif Path(source).exists():
-        stats = scan_local_directory(source, skip_existing=not rescan, limit=limit)
+        stats = scan_local_directory(
+            source,
+            skip_existing=not rescan,
+            limit=limit,
+            run_bib_detection=run_bib_detection,
+            run_face_detection=run_face_detection,
+        )
     elif len(source) <= 8:
-        stats = rescan_single_photo(source)
+        stats = rescan_single_photo(
+            source,
+            run_bib_detection=run_bib_detection,
+            run_face_detection=run_face_detection,
+        )
     else:
         logger.error("'%s' is not a valid URL, path, photo hash, or index.", source)
         return 1
@@ -376,6 +600,7 @@ def run_scan(source: str, rescan: bool = False, limit: int | None = None) -> int
     logger.info("Photos scanned: %s", stats["photos_scanned"])
     logger.info("Photos skipped: %s", stats["photos_skipped"])
     logger.info("Bibs detected:  %s", stats["bibs_detected"])
+    logger.info("Faces detected: %s", stats["faces_detected"])
     logger.info("Results saved to bibs.db")
     logger.info("Query example: sqlite3 bibs.db \"SELECT * FROM bib_detections LIMIT 10\"")
     return 0
@@ -401,6 +626,17 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Maximum number of photos to process (default: all)"
     )
+    mode_group = parser.add_mutually_exclusive_group()
+    mode_group.add_argument(
+        "--faces-only",
+        action="store_true",
+        help="Run face detection only (skip bib detection)"
+    )
+    mode_group.add_argument(
+        "--no-faces",
+        action="store_true",
+        help="Skip face detection (bib detection only)"
+    )
 
     return parser
 
@@ -409,7 +645,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     configure_logging(args.log_level, args.verbose, args.quiet)
-    return run_scan(args.source, rescan=args.rescan, limit=args.limit)
+    return run_scan(
+        args.source,
+        rescan=args.rescan,
+        limit=args.limit,
+        faces_only=args.faces_only,
+        no_faces=args.no_faces,
+    )
 
 
 if __name__ == "__main__":

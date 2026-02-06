@@ -102,35 +102,35 @@ Date: 2026-02-06
 
 ## Grouped TODOs
 ### Group 1: Core Face Backend + Storage Plumbing
-- Define FaceBackend interface and config wiring (swappable).
-- Implement one local backend (detect, embed, model_info).
-- Add schema/JSON structures for face detections, embeddings, model metadata.
-- Store embeddings in SQLite blobs (production) and JSON (benchmarking).
+- [x] Define FaceBackend interface and config wiring (swappable).
+- [x] Implement one local backend (detect, embed, model_info).
+- [x] Add schema/JSON structures for face detections, embeddings, model metadata.
+- [x] Store embeddings in SQLite blobs (production) and JSON (benchmarking).
 
 ### Group 2: Face Artifacts + Evidence Assets
-- Persist face bounding boxes per photo.
-- Save face snippets as files (keyed by photo hash + face id).
-- Precompute boxed preview images for admin inspection.
-- Store evidence records linking face box + bib box + confidence.
+- [x] Persist face bounding boxes per photo.
+- [x] Save face snippets as files (keyed by photo hash + face id).
+- [x] Precompute boxed preview images for admin inspection.
+- [x] Store evidence records linking face box + bib box + confidence.
 
 ### Group 3: Clustering + Similarity Labels
-- Implement agglomerative clustering with fixed distance threshold.
-- Store cluster id, centroid, and similarity stats.
-- Compute similarity labels (High/Medium/Low) from numeric thresholds.
+- [ ] Implement agglomerative clustering with fixed distance threshold.
+- [ ] Store cluster id, centroid, and similarity stats.
+- [ ] Compute similarity labels (High/Medium/Low) from numeric thresholds.
 
 ### Group 4: Autolink + Provenance
-- Autolink rule: single face + high bib confidence.
-- Autolink rule: inherit bib from strongly linked cluster (multi-face OK).
-- Autolink refinement: prefer largest bib candidate in expected torso region and
+- [ ] Autolink rule: single face + high bib confidence.
+- [ ] Autolink rule: inherit bib from strongly linked cluster (multi-face OK).
+- [ ] Autolink refinement: prefer largest bib candidate in expected torso region and
   ignore tiny/partial detections when linking faces to bibs.
-- Persist provenance (`bib-detection` vs `face-inherited`) + evidence trail.
+- [ ] Persist provenance (`bib-detection` vs `face-inherited`) + evidence trail.
 
 ### Group 5: Admin UI (Read-Only)
-- Add admin-only cluster browsing view.
-- Show bib tags with provenance badge.
-- Click-through to evidence photo and face snippets (with boxes).
+- [ ] Add admin-only cluster browsing view.
+- [ ] Show bib tags with provenance badge.
+- [ ] Click-through to evidence photo and face snippets (with boxes).
 
 ### Group 6: Benchmarking + Tuning
-- JSON export of embeddings/artifacts for experiments.
-- Threshold tuning workflow (similarity labels + autolink thresholds).
-- Optional evaluation report for cluster quality.
+- [ ] JSON export of embeddings/artifacts for experiments.
+- [ ] Threshold tuning workflow (similarity labels + autolink thresholds).
+- [ ] Optional evaluation report for cluster quality.

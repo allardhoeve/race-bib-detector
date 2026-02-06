@@ -120,6 +120,9 @@ FACE_DETECTION_MIN_SIZE = (30, 30)
 # Simple embedding size (square grayscale image size)
 FACE_EMBEDDING_SIZE = 32
 
+# Face snippet padding ratio (fraction of bbox size)
+FACE_SNIPPET_PADDING_RATIO = 0.10
+
 # =============================================================================
 # BIB NUMBER VALIDATION
 # =============================================================================

@@ -237,6 +237,7 @@ class TestImagePaths:
         """for_cache_path should compute paths using default directories."""
         from photo import (
             DEFAULT_FACE_BOXED_DIR,
+            DEFAULT_FACE_EVIDENCE_DIR,
             DEFAULT_FACE_SNIPPETS_DIR,
             DEFAULT_GRAY_BBOX_DIR,
             DEFAULT_SNIPPETS_DIR,
@@ -250,6 +251,7 @@ class TestImagePaths:
         assert paths.snippets_dir == DEFAULT_SNIPPETS_DIR
         assert paths.face_snippets_dir == DEFAULT_FACE_SNIPPETS_DIR
         assert paths.face_boxed_dir == DEFAULT_FACE_BOXED_DIR
+        assert paths.face_evidence_dir == DEFAULT_FACE_EVIDENCE_DIR
 
     def test_for_cache_path_custom_dirs(self):
         """for_cache_path should use custom directories when provided."""
@@ -258,6 +260,7 @@ class TestImagePaths:
         custom_snippets = Path("/custom/snippets")
         custom_face_snippets = Path("/custom/faces/snippets")
         custom_face_boxed = Path("/custom/faces/boxed")
+        custom_face_evidence = Path("/custom/faces/evidence")
 
         paths = ImagePaths.for_cache_path(
             cache_path,
@@ -265,12 +268,14 @@ class TestImagePaths:
             snippets_dir=custom_snippets,
             face_snippets_dir=custom_face_snippets,
             face_boxed_dir=custom_face_boxed,
+            face_evidence_dir=custom_face_evidence,
         )
 
         assert paths.gray_bbox_path == custom_gray / "abc12345.jpg"
         assert paths.snippets_dir == custom_snippets
         assert paths.face_snippets_dir == custom_face_snippets
         assert paths.face_boxed_dir == custom_face_boxed
+        assert paths.face_evidence_dir == custom_face_evidence
 
     def test_snippet_path(self):
         """snippet_path should return correct path for a bib."""
@@ -319,3 +324,15 @@ class TestImagePaths:
         preview = paths.face_boxed_path(7)
 
         assert preview == Path("/faces/boxed/abc12345_face7_boxed.jpg")
+
+    def test_face_evidence_path(self):
+        """face_evidence_path should return correct path for evidence JSON."""
+        cache_path = Path("/cache/abc12345.jpg")
+        paths = ImagePaths.for_cache_path(
+            cache_path,
+            face_evidence_dir=Path("/faces/evidence"),
+        )
+
+        evidence = paths.face_evidence_path("deadbeef")
+
+        assert evidence == Path("/faces/evidence/deadbeef_faces.json")

@@ -18,6 +18,7 @@ DEFAULT_GRAY_BBOX_DIR = DEFAULT_CACHE_DIR / "gray_bounding"
 DEFAULT_SNIPPETS_DIR = DEFAULT_CACHE_DIR / "snippets"
 DEFAULT_FACE_SNIPPETS_DIR = DEFAULT_CACHE_DIR / "faces" / "snippets"
 DEFAULT_FACE_BOXED_DIR = DEFAULT_CACHE_DIR / "faces" / "boxed"
+DEFAULT_FACE_EVIDENCE_DIR = DEFAULT_CACHE_DIR / "faces" / "evidence"
 
 
 def compute_photo_hash(photo_url: str) -> str:
@@ -167,6 +168,7 @@ class Photo:
         snippets_dir: Path | None = None,
         face_snippets_dir: Path | None = None,
         face_boxed_dir: Path | None = None,
+        face_evidence_dir: Path | None = None,
     ) -> ImagePaths:
         """Get all derived paths for this photo.
 
@@ -175,6 +177,7 @@ class Photo:
             snippets_dir: Override default snippets directory
             face_snippets_dir: Override default face snippets directory
             face_boxed_dir: Override default face boxed preview directory
+            face_evidence_dir: Override default face evidence directory
 
         Returns:
             ImagePaths with all computed paths
@@ -191,6 +194,7 @@ class Photo:
             snippets_dir=snippets_dir,
             face_snippets_dir=face_snippets_dir,
             face_boxed_dir=face_boxed_dir,
+            face_evidence_dir=face_evidence_dir,
         )
 
 
@@ -203,6 +207,7 @@ class ImagePaths:
     - Snippets directory for bib crops
     - Face snippets directory
     - Face boxed preview directory
+    - Face evidence JSON directory
     - Individual snippet files
 
     This eliminates scattered path computation throughout the codebase.
@@ -213,6 +218,7 @@ class ImagePaths:
         snippets_dir: Directory containing cropped bib snippets
         face_snippets_dir: Directory containing cropped face snippets
         face_boxed_dir: Directory containing boxed face previews
+        face_evidence_dir: Directory containing face evidence JSON
     """
 
     cache_path: Path
@@ -220,6 +226,7 @@ class ImagePaths:
     snippets_dir: Path
     face_snippets_dir: Path
     face_boxed_dir: Path
+    face_evidence_dir: Path
 
     @classmethod
     def for_cache_path(
@@ -229,6 +236,7 @@ class ImagePaths:
         snippets_dir: Path | None = None,
         face_snippets_dir: Path | None = None,
         face_boxed_dir: Path | None = None,
+        face_evidence_dir: Path | None = None,
     ) -> ImagePaths:
         """Create ImagePaths from a cache path.
 
@@ -250,6 +258,8 @@ class ImagePaths:
             face_snippets_dir = DEFAULT_FACE_SNIPPETS_DIR
         if face_boxed_dir is None:
             face_boxed_dir = DEFAULT_FACE_BOXED_DIR
+        if face_evidence_dir is None:
+            face_evidence_dir = DEFAULT_FACE_EVIDENCE_DIR
 
         return cls(
             cache_path=cache_path,
@@ -257,6 +267,7 @@ class ImagePaths:
             snippets_dir=snippets_dir,
             face_snippets_dir=face_snippets_dir,
             face_boxed_dir=face_boxed_dir,
+            face_evidence_dir=face_evidence_dir,
         )
 
     def snippet_path(self, bib_number: str, bbox_hash: str) -> Path:
@@ -282,9 +293,14 @@ class ImagePaths:
         stem = self.cache_path.stem
         return self.face_boxed_dir / f"{stem}_face{face_index}_boxed.jpg"
 
+    def face_evidence_path(self, photo_hash: str) -> Path:
+        """Get the path for face evidence JSON for a given photo hash."""
+        return self.face_evidence_dir / f"{photo_hash}_faces.json"
+
     def ensure_dirs_exist(self) -> None:
         """Create all necessary directories if they don't exist."""
         self.gray_bbox_path.parent.mkdir(parents=True, exist_ok=True)
         self.snippets_dir.mkdir(parents=True, exist_ok=True)
         self.face_snippets_dir.mkdir(parents=True, exist_ok=True)
         self.face_boxed_dir.mkdir(parents=True, exist_ok=True)
+        self.face_evidence_dir.mkdir(parents=True, exist_ok=True)
