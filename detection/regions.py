@@ -25,10 +25,11 @@ from config import (
 )
 
 from .types import BibCandidate
+from geometry import Bbox, bbox_to_rect
 
 
 def validate_detection_region(
-    bbox: list[list[int]],
+    bbox: Bbox,
     gray_image: np.ndarray,
 ) -> BibCandidate:
     """Validate a detection bounding box using the same criteria as white region candidates.
@@ -46,13 +47,12 @@ def validate_detection_region(
     img_height, img_width = gray_image.shape[:2]
     total_image_area = img_width * img_height
 
-    # Convert quadrilateral bbox to axis-aligned rect (x, y, w, h)
-    x_coords = [p[0] for p in bbox]
-    y_coords = [p[1] for p in bbox]
-    x_min = max(0, min(x_coords))
-    y_min = max(0, min(y_coords))
-    x_max = min(img_width, max(x_coords))
-    y_max = min(img_height, max(y_coords))
+    # Convert quadrilateral bbox to axis-aligned rect
+    x_min, y_min, x_max, y_max = bbox_to_rect(bbox)
+    x_min = max(0, x_min)
+    y_min = max(0, y_min)
+    x_max = min(img_width, x_max)
+    y_max = min(img_height, y_max)
 
     w = x_max - x_min
     h = y_max - y_min

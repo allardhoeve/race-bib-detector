@@ -1,12 +1,9 @@
-"""
-Bounding box geometry utilities.
+"""Bounding box geometry utilities."""
 
-All functions are pure and operate on bbox format: [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
-representing a quadrilateral (typically from OCR output).
-"""
+from geometry import Bbox, bbox_to_rect, scale_bbox
 
 
-def bbox_area(bbox: list) -> float:
+def bbox_area(bbox: Bbox) -> float:
     """Calculate the area of a bounding box (quadrilateral).
 
     Uses the shoelace formula for polygon area.
@@ -26,21 +23,7 @@ def bbox_area(bbox: list) -> float:
     return abs(area) / 2.0
 
 
-def bbox_to_rect(bbox: list) -> tuple:
-    """Convert a quadrilateral bbox to a bounding rectangle.
-
-    Args:
-        bbox: List of [x, y] points defining the quadrilateral.
-
-    Returns:
-        Tuple of (x_min, y_min, x_max, y_max).
-    """
-    x_coords = [p[0] for p in bbox]
-    y_coords = [p[1] for p in bbox]
-    return (min(x_coords), min(y_coords), max(x_coords), max(y_coords))
-
-
-def rect_intersection_area(rect1: tuple, rect2: tuple) -> float:
+def rect_intersection_area(rect1: tuple[int, int, int, int], rect2: tuple[int, int, int, int]) -> float:
     """Calculate intersection area of two rectangles.
 
     Args:
@@ -60,7 +43,7 @@ def rect_intersection_area(rect1: tuple, rect2: tuple) -> float:
     return (x2 - x1) * (y2 - y1)
 
 
-def rect_area(rect: tuple) -> float:
+def rect_area(rect: tuple[int, int, int, int]) -> float:
     """Calculate area of a rectangle.
 
     Args:
@@ -72,7 +55,7 @@ def rect_area(rect: tuple) -> float:
     return (rect[2] - rect[0]) * (rect[3] - rect[1])
 
 
-def bbox_iou(bbox1: list, bbox2: list) -> float:
+def bbox_iou(bbox1: Bbox, bbox2: Bbox) -> float:
     """Calculate Intersection over Union (IoU) for two bounding boxes.
 
     Args:
@@ -96,7 +79,7 @@ def bbox_iou(bbox1: list, bbox2: list) -> float:
     return intersection / union if union > 0 else 0.0
 
 
-def bbox_overlap_ratio(bbox1: list, bbox2: list) -> float:
+def bbox_overlap_ratio(bbox1: Bbox, bbox2: Bbox) -> float:
     """Calculate how much of the smaller box is covered by intersection.
 
     This catches cases where a small box is entirely inside a larger box,
@@ -121,20 +104,7 @@ def bbox_overlap_ratio(bbox1: list, bbox2: list) -> float:
     return intersection / smaller_area if smaller_area > 0 else 0.0
 
 
-def scale_bbox(bbox: list, factor: float) -> list:
-    """Scale a bounding box by a factor.
-
-    Args:
-        bbox: List of [x, y] points defining the quadrilateral.
-        factor: Scale factor to apply to all coordinates.
-
-    Returns:
-        New bounding box with scaled coordinates (as integers).
-    """
-    return [[int(p[0] * factor), int(p[1] * factor)] for p in bbox]
-
-
-def scale_bboxes(bboxes: list[list], factor: float) -> list[list]:
+def scale_bboxes(bboxes: list[Bbox], factor: float) -> list[Bbox]:
     """Scale a list of bounding boxes by a factor.
 
     Args:

@@ -121,6 +121,8 @@ Date: 2026-02-06
 ### Group 4: Autolink + Provenance
 - Autolink rule: single face + high bib confidence.
 - Autolink rule: inherit bib from strongly linked cluster (multi-face OK).
+- Autolink refinement: prefer largest bib candidate in expected torso region and
+  ignore tiny/partial detections when linking faces to bibs.
 - Persist provenance (`bib-detection` vs `face-inherited`) + evidence trail.
 
 ### Group 5: Admin UI (Read-Only)

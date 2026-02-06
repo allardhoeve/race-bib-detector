@@ -14,6 +14,7 @@ from PIL import Image
 import requests
 
 from config import PHOTO_URL_WIDTH, THUMBNAIL_URL_WIDTH, SNIPPET_PADDING_RATIO
+from geometry import Bbox, bbox_to_rect
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,7 @@ def get_candidates_path(cache_path: Path) -> Path:
     return CANDIDATES_DIR / cache_path.name
 
 
-def compute_bbox_hash(bbox: list) -> str:
+def compute_bbox_hash(bbox: Bbox) -> str:
     """Compute a short hash from a bounding box for unique identification.
 
     Args:
@@ -95,7 +96,7 @@ def compute_bbox_hash(bbox: list) -> str:
     return hashlib.sha256(bbox_str.encode()).hexdigest()[:8]
 
 
-def get_snippet_path(cache_path: Path, bib_number: str, bbox: list) -> Path:
+def get_snippet_path(cache_path: Path, bib_number: str, bbox: Bbox) -> Path:
     """Get the snippet image path for a detected bib.
 
     Args:
@@ -113,7 +114,7 @@ def get_snippet_path(cache_path: Path, bib_number: str, bbox: list) -> Path:
 
 def save_bib_snippet(
     image: np.ndarray,
-    bbox: list,
+    bbox: Bbox,
     output_path: Path,
     padding_ratio: float | None = None,
 ) -> bool:
@@ -135,10 +136,7 @@ def save_bib_snippet(
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         # Get bounding rectangle from quadrilateral
-        x_coords = [p[0] for p in bbox]
-        y_coords = [p[1] for p in bbox]
-        x_min, x_max = min(x_coords), max(x_coords)
-        y_min, y_max = min(y_coords), max(y_coords)
+        x_min, y_min, x_max, y_max = bbox_to_rect(bbox)
 
         # Add padding
         width = x_max - x_min
@@ -212,8 +210,7 @@ def draw_bounding_boxes_on_gray(
             cv2.polylines(image, [pts], isClosed=True, color=(0, 255, 0), thickness=3)
 
             # Get top-left point for label
-            x_min = min(p[0] for p in bbox)
-            y_min = min(p[1] for p in bbox)
+            x_min, y_min, _, _ = bbox_to_rect(bbox)
 
             # Draw label background
             label = f"{bib_number} ({confidence:.0%})"

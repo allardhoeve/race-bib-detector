@@ -3,9 +3,13 @@
 import json
 import sqlite3
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 from photo import compute_photo_hash, Photo
+from faces.types import FaceBbox, FaceModelInfo, embedding_to_bytes
+
+if TYPE_CHECKING:
+    import numpy as np
 
 DB_PATH = Path(__file__).parent / "bibs.db"
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
@@ -19,6 +23,8 @@ def get_connection() -> sqlite3.Connection:
 
     if not db_exists:
         init_database(conn)
+    else:
+        ensure_face_tables(conn)
 
     return conn
 
@@ -27,6 +33,74 @@ def init_database(conn: sqlite3.Connection) -> None:
     """Initialize the database with the schema."""
     with open(SCHEMA_PATH) as f:
         conn.executescript(f.read())
+    conn.commit()
+
+
+def ensure_face_tables(conn: sqlite3.Connection) -> None:
+    """Ensure face-related tables exist for legacy databases."""
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS face_detections (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            photo_id INTEGER NOT NULL,
+            face_index INTEGER NOT NULL,
+            bbox_json TEXT NOT NULL,
+            snippet_path TEXT,
+            preview_path TEXT,
+            embedding BLOB,
+            embedding_dim INTEGER,
+            model_name TEXT,
+            model_version TEXT,
+            detected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (photo_id) REFERENCES photos(id),
+            UNIQUE(photo_id, face_index)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_face_detections_photo_id ON face_detections(photo_id);
+
+        CREATE TABLE IF NOT EXISTS face_clusters (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            album_url TEXT NOT NULL,
+            model_name TEXT,
+            model_version TEXT,
+            centroid BLOB,
+            centroid_dim INTEGER,
+            size INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_face_clusters_album_url ON face_clusters(album_url);
+
+        CREATE TABLE IF NOT EXISTS face_cluster_members (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cluster_id INTEGER NOT NULL,
+            face_id INTEGER NOT NULL,
+            distance REAL,
+            FOREIGN KEY (cluster_id) REFERENCES face_clusters(id),
+            FOREIGN KEY (face_id) REFERENCES face_detections(id),
+            UNIQUE(cluster_id, face_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_face_cluster_members_cluster_id
+            ON face_cluster_members(cluster_id);
+        CREATE INDEX IF NOT EXISTS idx_face_cluster_members_face_id
+            ON face_cluster_members(face_id);
+
+        CREATE TABLE IF NOT EXISTS bib_assignments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            photo_id INTEGER NOT NULL,
+            bib_number TEXT NOT NULL,
+            source TEXT NOT NULL,
+            confidence REAL,
+            evidence_json TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (photo_id) REFERENCES photos(id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_bib_assignments_photo_id ON bib_assignments(photo_id);
+        CREATE INDEX IF NOT EXISTS idx_bib_assignments_bib_number ON bib_assignments(bib_number);
+        """
+    )
     conn.commit()
 
 
@@ -88,6 +162,50 @@ def insert_bib_detection(
     )
     conn.commit()
     return cursor.lastrowid
+
+
+def insert_face_detection(
+    conn: sqlite3.Connection,
+    photo_id: int,
+    face_index: int,
+    bbox: FaceBbox,
+    embedding: "np.ndarray | None",
+    model_info: FaceModelInfo,
+    snippet_path: Optional[str] = None,
+    preview_path: Optional[str] = None,
+) -> int:
+    """Insert a face detection record and return its ID."""
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO face_detections (
+            photo_id, face_index, bbox_json, snippet_path, preview_path,
+            embedding, embedding_dim, model_name, model_version
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            photo_id,
+            face_index,
+            json.dumps(bbox),
+            snippet_path,
+            preview_path,
+            embedding_to_bytes(embedding) if embedding is not None else None,
+            model_info.embedding_dim,
+            model_info.name,
+            model_info.version,
+        ),
+    )
+    conn.commit()
+    return cursor.lastrowid
+
+
+def delete_face_detections(conn: sqlite3.Connection, photo_id: int) -> int:
+    """Delete all face detections for a photo. Returns count of deleted rows."""
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM face_detections WHERE photo_id = ?", (photo_id,))
+    conn.commit()
+    return cursor.rowcount
 
 
 def delete_bib_detections(conn: sqlite3.Connection, photo_id: int) -> int:

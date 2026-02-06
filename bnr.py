@@ -59,7 +59,8 @@ def cmd_benchmark_run(args: argparse.Namespace) -> int:
 def cmd_benchmark_ui(args: argparse.Namespace) -> int:
     """Launch benchmark web UI."""
     from benchmarking.web_app import main
-    return main()
+    # Prevent web_app from re-parsing the outer CLI args (e.g. "benchmark ui").
+    return main([])
 
 
 def cmd_benchmark_list(args: argparse.Namespace) -> int:

@@ -11,13 +11,12 @@ from typing import TYPE_CHECKING, Literal
 
 import numpy as np
 
+from geometry import Bbox
+
 if TYPE_CHECKING:
     # Avoid circular import - BibCandidate is defined below
     pass
 
-
-# Type alias for a bounding box: list of 4 [x, y] coordinate pairs (quadrilateral)
-Bbox = list[list[int]]
 
 # Detection source types
 DetectionSource = Literal["white_region", "full_image"]

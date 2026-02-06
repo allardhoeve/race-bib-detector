@@ -106,6 +106,21 @@ SUBSTRING_CONFIDENCE_RATIO = 1.5
 SNIPPET_PADDING_RATIO = 0.15
 
 # =============================================================================
+# FACE RECOGNITION
+# =============================================================================
+
+# Face backend selection (swappable via config)
+FACE_BACKEND = "opencv_haar"
+
+# OpenCV Haar cascade detection parameters
+FACE_DETECTION_SCALE_FACTOR = 1.1
+FACE_DETECTION_MIN_NEIGHBORS = 5
+FACE_DETECTION_MIN_SIZE = (30, 30)
+
+# Simple embedding size (square grayscale image size)
+FACE_EMBEDDING_SIZE = 32
+
+# =============================================================================
 # BIB NUMBER VALIDATION
 # =============================================================================
 
