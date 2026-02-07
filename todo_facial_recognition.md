@@ -114,9 +114,9 @@ Date: 2026-02-06
 - [x] Store evidence records linking face box + bib box + confidence.
 
 ### Group 3: Clustering + Similarity Labels
-- [ ] Implement agglomerative clustering with fixed distance threshold.
-- [ ] Store cluster id, centroid, and similarity stats.
-- [ ] Compute similarity labels (High/Medium/Low) from numeric thresholds.
+- [x] Implement agglomerative clustering with fixed distance threshold.
+- [x] Store cluster id, centroid, and similarity stats.
+- [x] Compute similarity labels (High/Medium/Low) from numeric thresholds.
 
 ### Group 4: Autolink + Provenance
 - [ ] Autolink rule: single face + high bib confidence.

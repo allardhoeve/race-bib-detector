@@ -531,6 +531,7 @@ BENCHMARK_LIST_TEMPLATE = """
                     <th>F1</th>
                     <th>Commit</th>
                     <th>Pipeline</th>
+                    <th>Passes</th>
                     <th>Note</th>
                 </tr>
             </thead>
@@ -551,6 +552,7 @@ BENCHMARK_LIST_TEMPLATE = """
                     <td class="metric">{{ "%.1f%%"|format(run.f1 * 100) }}</td>
                     <td style="font-family: monospace;">{{ run.git_commit }}</td>
                     <td><span class="pipeline-badge">{{ run.pipeline or 'unknown' }}</span></td>
+                    <td><span class="pipeline-badge">{{ run.passes or 'unknown' }}</span></td>
                     <td>{{ run.note or '' }}</td>
                 </tr>
                 {% endfor %}
@@ -685,7 +687,7 @@ BENCHMARK_INSPECT_TEMPLATE = """
                 <select class="run-select" id="runSelect" onchange="changeRun()">
                     {% for r in all_runs %}
                     <option value="{{ r.run_id }}" {{ 'selected' if r.run_id == run.metadata.run_id else '' }}>
-                        {{ r.run_id }} ({{ r.timestamp[:10] }}) - {{ r.split }} [{{ r.pipeline or 'unknown' }}]{% if r.note %} - {{ r.note }}{% endif %}
+                        {{ r.run_id }} ({{ r.timestamp[:10] }}) - {{ r.split }} [{{ r.pipeline or 'unknown' }} | {{ r.passes or 'unknown' }}]{% if r.note %} - {{ r.note }}{% endif %}
                     </option>
                     {% endfor %}
                 </select>
@@ -706,6 +708,10 @@ BENCHMARK_INSPECT_TEMPLATE = """
                 <span class="metric pipeline-info">
                     <span class="metric-label">Pipeline:</span>
                     <span class="metric-value">{{ pipeline_summary }}</span>
+                </span>
+                <span class="metric pipeline-info">
+                    <span class="metric-label">Passes:</span>
+                    <span class="metric-value">{{ passes_summary }}</span>
                 </span>
                 {% if run.metadata.note %}
                 <span class="metric note-info">
@@ -1167,8 +1173,11 @@ def create_app() -> Flask:
 
         # Get pipeline summary
         pipeline_summary = "unknown"
+        passes_summary = "unknown"
         if run.metadata.pipeline_config:
             pipeline_summary = run.metadata.pipeline_config.summary()
+        if run.metadata.face_pipeline_config:
+            passes_summary = run.metadata.face_pipeline_config.summary_passes()
 
         return render_template_string(
             BENCHMARK_INSPECT_TEMPLATE,
@@ -1179,6 +1188,7 @@ def create_app() -> Flask:
             photo_results_json=photo_results_json,
             all_runs=all_runs,
             pipeline_summary=pipeline_summary,
+            passes_summary=passes_summary,
         )
 
     # -------------------------------------------------------------------------

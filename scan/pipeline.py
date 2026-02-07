@@ -12,10 +12,11 @@ import numpy as np
 from tqdm import tqdm
 from typing import TYPE_CHECKING
 
+import config
 import db
 from detection import detect_bib_numbers, Detection, DetectionResult
 from preprocessing import PreprocessConfig
-from faces import get_face_backend
+from faces import get_face_backend, get_face_backend_by_name
 from faces.artifacts import (
     save_face_candidates_preview,
     save_face_snippet,
@@ -23,6 +24,7 @@ from faces.artifacts import (
     save_face_evidence_json,
 )
 from faces.types import FaceDetection
+from geometry import bbox_to_rect, rect_iou
 from photo import compute_photo_hash, ImagePaths
 from sources import get_cache_path, cache_image, load_from_cache
 from utils import (
@@ -149,6 +151,7 @@ def save_face_detections_to_db(
 def process_image(
     reader: "easyocr.Reader | None",
     face_backend,
+    fallback_face_backend,
     conn,
     photo_url: str,
     thumbnail_url: str | None,
@@ -194,45 +197,106 @@ def process_image(
             image_rgb = cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB)
             candidates = face_backend.detect_face_candidates(image_rgb)
             boxes = [candidate.bbox for candidate in candidates if candidate.passed]
-            embeddings = face_backend.embed_faces(image_rgb, boxes)
-            model_info = face_backend.model_info()
+            photo_hash = compute_photo_hash(photo_url)
+            if not boxes:
+                fallback_candidates = [
+                    candidate
+                    for candidate in candidates
+                    if candidate.confidence is not None
+                    and candidate.confidence >= config.FACE_DNN_FALLBACK_CONFIDENCE_MIN
+                ]
+                if fallback_candidates:
+                    fallback_candidates.sort(
+                        key=lambda candidate: candidate.confidence or 0.0,
+                        reverse=True,
+                    )
+                    fallback_candidates = fallback_candidates[: config.FACE_DNN_FALLBACK_MAX]
+                    boxes = [candidate.bbox for candidate in fallback_candidates]
+                    logger.info(
+                        "Face fallback accepted %d candidates for %s (min_conf=%.2f).",
+                        len(boxes),
+                        photo_hash,
+                        config.FACE_DNN_FALLBACK_CONFIDENCE_MIN,
+                    )
+            all_candidates = list(candidates)
+            detections_by_backend: list[tuple[object, list]] = []
+            if boxes:
+                detections_by_backend.append((face_backend, boxes))
+
+            if (
+                fallback_face_backend is not None
+                and len(boxes) < config.FACE_FALLBACK_MIN_FACE_COUNT
+            ):
+                fallback_candidates = fallback_face_backend.detect_face_candidates(image_rgb)
+                fallback_boxes = [candidate.bbox for candidate in fallback_candidates if candidate.passed]
+                if fallback_boxes:
+                    filtered_boxes: list = []
+                    for fallback_box in fallback_boxes:
+                        fallback_rect = bbox_to_rect(fallback_box)
+                        duplicate = False
+                        for existing_box in boxes:
+                            existing_rect = bbox_to_rect(existing_box)
+                            iou = rect_iou(fallback_rect, existing_rect)
+                            if iou >= config.FACE_FALLBACK_IOU_THRESHOLD:
+                                duplicate = True
+                                break
+                        if not duplicate:
+                            filtered_boxes.append(fallback_box)
+                    if filtered_boxes:
+                        filtered_boxes = filtered_boxes[: config.FACE_FALLBACK_MAX]
+                        detections_by_backend.append((fallback_face_backend, filtered_boxes))
+                        all_candidates.extend(fallback_candidates)
+                        logger.info(
+                            "Face backend fallback accepted %d candidates for %s via %s.",
+                            len(filtered_boxes),
+                            photo_hash,
+                            type(fallback_face_backend).__name__,
+                        )
+
+            embeddings_by_backend: list[tuple[list, list, object]] = []
+            for backend, backend_boxes in detections_by_backend:
+                embeddings = backend.embed_faces(image_rgb, backend_boxes)
+                model_info = backend.model_info()
+                embeddings_by_backend.append((backend_boxes, embeddings, model_info))
 
             paths = ImagePaths.for_cache_path(cache_path)
             paths.ensure_dirs_exist()
 
-            for index, (bbox, embedding) in enumerate(zip(boxes, embeddings)):
-                snippet_path = paths.face_snippet_path(index)
-                preview_path = paths.face_boxed_path(index)
+            face_index = 0
+            for backend_boxes, embeddings, model_info in embeddings_by_backend:
+                for bbox, embedding in zip(backend_boxes, embeddings):
+                    snippet_path = paths.face_snippet_path(face_index)
+                    preview_path = paths.face_boxed_path(face_index)
 
-                snippet_saved = save_face_snippet(image_rgb, bbox, snippet_path)
-                preview_saved = save_face_boxed_preview(image_rgb, bbox, preview_path)
+                    snippet_saved = save_face_snippet(image_rgb, bbox, snippet_path)
+                    preview_saved = save_face_boxed_preview(image_rgb, bbox, preview_path)
 
-                face_detections.append(
-                    FaceDetection(
-                        face_index=index,
-                        bbox=bbox,
-                        embedding=embedding,
-                        model=model_info,
-                        snippet_path=str(snippet_path) if snippet_saved else None,
-                        preview_path=str(preview_path) if preview_saved else None,
+                    face_detections.append(
+                        FaceDetection(
+                            face_index=face_index,
+                            bbox=bbox,
+                            embedding=embedding,
+                            model=model_info,
+                            snippet_path=str(snippet_path) if snippet_saved else None,
+                            preview_path=str(preview_path) if preview_saved else None,
+                        )
                     )
-                )
+                    face_index += 1
 
-            photo_hash = compute_photo_hash(photo_url)
             evidence_path = paths.face_evidence_path(photo_hash)
             candidates_path = paths.face_candidates_path()
             bib_evidence = [
                 {"bib_number": det.bib_number, "confidence": det.confidence, "bbox": det.bbox}
                 for det in result.detections
             ]
-            if candidates:
-                save_face_candidates_preview(image_rgb, candidates, candidates_path)
+            if all_candidates:
+                save_face_candidates_preview(image_rgb, all_candidates, candidates_path)
             save_face_evidence_json(
                 evidence_path,
                 photo_hash,
                 face_detections,
                 bib_evidence,
-                face_candidates=candidates,
+                face_candidates=all_candidates,
             )
 
         save_face_detections_to_db(conn, face_detections, photo_id, skip_existing)
@@ -269,9 +333,12 @@ def scan_images(
         reader = _easyocr.Reader(["en"], gpu=False)
 
     face_backend = None
+    fallback_face_backend = None
     if run_face_detection:
         logger.info("Initializing face backend...")
         face_backend = get_face_backend()
+        if config.FACE_FALLBACK_BACKEND:
+            fallback_face_backend = get_face_backend_by_name(config.FACE_FALLBACK_BACKEND)
 
     conn = db.get_connection()
 
@@ -294,7 +361,7 @@ def scan_images(
             image_data, cache_path = load_and_cache_image(info.photo_url, fetch_func)
 
             bibs_count, faces_count = process_image(
-                reader, face_backend, conn,
+                reader, face_backend, fallback_face_backend, conn,
                 info.photo_url, info.thumbnail_url, info.album_id,
                 image_data, cache_path, skip_existing,
                 run_bib_detection=effective_run_bib,

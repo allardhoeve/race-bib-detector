@@ -7,6 +7,7 @@ Usage:
     bnr scan <path>              # Scan local directory or file for bib numbers
     bnr album list               # List albums and photo counts
     bnr album forget <album_id>  # Forget an album (DB only)
+    bnr faces cluster --album X  # Cluster face embeddings for an album
     bnr benchmark run            # Run benchmark on iteration split
     bnr benchmark run --full     # Run benchmark on all photos
     bnr benchmark ui             # Launch benchmark web UI (labels + inspection)
@@ -23,6 +24,7 @@ from logging_utils import configure_logging, add_logging_args
 from cli.scan import add_scan_subparser
 from cli.album import add_album_subparser
 from cli.cache import add_cache_subparser
+from cli.faces import add_faces_subparser
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +197,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     add_album_subparser(subparsers)
     add_cache_subparser(subparsers)
+    add_faces_subparser(subparsers)
 
     parser.set_defaults(_benchmark_parser=benchmark_parser)
     return parser
@@ -217,6 +220,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     if args.command == "cache" and args.cache_command is None:
         args._cache_parser.print_help()
+        return 1
+    if args.command == "faces" and args.faces_command is None:
+        args._faces_parser.print_help()
         return 1
 
     cmd = getattr(args, "_cmd", None)

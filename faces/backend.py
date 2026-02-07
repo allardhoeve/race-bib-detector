@@ -289,7 +289,11 @@ _BACKENDS: dict[str, type] = {
 
 def get_face_backend() -> FaceBackend:
     """Instantiate the configured face backend."""
-    backend_name = config.FACE_BACKEND
+    return get_face_backend_by_name(config.FACE_BACKEND)
+
+
+def get_face_backend_by_name(backend_name: str) -> FaceBackend:
+    """Instantiate a face backend by name."""
     backend_cls = _BACKENDS.get(backend_name)
     if backend_cls is None:
         raise ValueError(f"Unknown face backend: {backend_name}")

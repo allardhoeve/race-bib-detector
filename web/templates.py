@@ -871,6 +871,12 @@ FACE_CLUSTERS_TEMPLATE = """
                     <div class="cluster-meta">Album: {{ cluster.album_label or cluster.album_id }}</div>
                     <div class="cluster-meta">Model: {{ cluster.model_name }} {{ cluster.model_version }}</div>
                     <div class="cluster-meta">Size: {{ cluster.size or 0 }}</div>
+                    <div class="cluster-meta">
+                        Similarity:
+                        avg {{ "%.3f"|format(cluster.avg_similarity or 0) }},
+                        min {{ "%.3f"|format(cluster.min_similarity or 0) }},
+                        max {{ "%.3f"|format(cluster.max_similarity or 0) }}
+                    </div>
                 </div>
                 {% endfor %}
             </div>

@@ -78,6 +78,9 @@ def ensure_face_tables(conn: sqlite3.Connection) -> None:
             centroid BLOB,
             centroid_dim INTEGER,
             size INTEGER,
+            avg_similarity REAL,
+            min_similarity REAL,
+            max_similarity REAL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -117,6 +120,12 @@ def ensure_face_tables(conn: sqlite3.Connection) -> None:
 
     if not _column_exists(conn, "face_clusters", "album_id"):
         conn.execute("ALTER TABLE face_clusters ADD COLUMN album_id TEXT")
+    if not _column_exists(conn, "face_clusters", "avg_similarity"):
+        conn.execute("ALTER TABLE face_clusters ADD COLUMN avg_similarity REAL")
+    if not _column_exists(conn, "face_clusters", "min_similarity"):
+        conn.execute("ALTER TABLE face_clusters ADD COLUMN min_similarity REAL")
+    if not _column_exists(conn, "face_clusters", "max_similarity"):
+        conn.execute("ALTER TABLE face_clusters ADD COLUMN max_similarity REAL")
 
     conn.executescript(
         """
@@ -444,6 +453,119 @@ def delete_face_detections(conn: sqlite3.Connection, photo_id: int) -> int:
     cursor.execute("DELETE FROM face_detections WHERE photo_id = ?", (photo_id,))
     conn.commit()
     return cursor.rowcount
+
+
+def list_face_embeddings_for_album(conn: sqlite3.Connection, album_id: str) -> list[dict]:
+    """List face embeddings for an album, including model metadata."""
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT fd.id,
+               fd.embedding,
+               fd.embedding_dim,
+               fd.model_name,
+               fd.model_version
+        FROM face_detections fd
+        JOIN photos p ON p.id = fd.photo_id
+        WHERE p.album_id = ?
+          AND fd.embedding IS NOT NULL
+        ORDER BY fd.id
+        """,
+        (album_id,),
+    )
+    return [dict(row) for row in cursor.fetchall()]
+
+
+def delete_face_clusters_for_album_model(
+    conn: sqlite3.Connection,
+    album_id: str,
+    model_name: str,
+    model_version: str,
+) -> dict:
+    """Delete face clusters and members for a specific album + model."""
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        DELETE FROM face_cluster_members
+        WHERE cluster_id IN (
+            SELECT id FROM face_clusters
+            WHERE album_id = ? AND model_name = ? AND model_version = ?
+        )
+        """,
+        (album_id, model_name, model_version),
+    )
+    members_deleted = cursor.rowcount
+
+    cursor.execute(
+        """
+        DELETE FROM face_clusters
+        WHERE album_id = ? AND model_name = ? AND model_version = ?
+        """,
+        (album_id, model_name, model_version),
+    )
+    clusters_deleted = cursor.rowcount
+    conn.commit()
+    return {
+        "face_cluster_members": members_deleted,
+        "face_clusters": clusters_deleted,
+    }
+
+
+def insert_face_cluster(
+    conn: sqlite3.Connection,
+    album_id: str,
+    model_name: str,
+    model_version: str,
+    centroid: "np.ndarray",
+    avg_similarity: float,
+    min_similarity: float,
+    max_similarity: float,
+    size: int,
+) -> int:
+    """Insert a face cluster record and return its ID."""
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO face_clusters (
+            album_id, model_name, model_version,
+            centroid, centroid_dim, size,
+            avg_similarity, min_similarity, max_similarity
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            album_id,
+            model_name,
+            model_version,
+            embedding_to_bytes(centroid),
+            centroid.size,
+            size,
+            avg_similarity,
+            min_similarity,
+            max_similarity,
+        ),
+    )
+    conn.commit()
+    return cursor.lastrowid
+
+
+def insert_face_cluster_member(
+    conn: sqlite3.Connection,
+    cluster_id: int,
+    face_id: int,
+    distance: float,
+) -> int:
+    """Insert a face cluster member record and return its ID."""
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO face_cluster_members (cluster_id, face_id, distance)
+        VALUES (?, ?, ?)
+        """,
+        (cluster_id, face_id, distance),
+    )
+    conn.commit()
+    return cursor.lastrowid
 
 
 def delete_bib_detections(conn: sqlite3.Connection, photo_id: int) -> int:

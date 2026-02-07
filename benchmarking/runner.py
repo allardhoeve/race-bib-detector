@@ -19,7 +19,17 @@ import cv2
 import numpy as np
 import torch
 
-from config import BENCHMARK_REGRESSION_TOLERANCE
+from config import (
+    BENCHMARK_REGRESSION_TOLERANCE,
+    FACE_BACKEND,
+    FACE_DNN_CONFIDENCE_MIN,
+    FACE_DNN_FALLBACK_CONFIDENCE_MIN,
+    FACE_DNN_FALLBACK_MAX,
+    FACE_FALLBACK_BACKEND,
+    FACE_FALLBACK_IOU_THRESHOLD,
+    FACE_FALLBACK_MAX,
+    FACE_FALLBACK_MIN_FACE_COUNT,
+)
 from detection import detect_bib_numbers
 from preprocessing import PreprocessConfig
 from warnings_utils import suppress_torch_mps_pin_memory_warning
@@ -175,6 +185,64 @@ class PipelineConfig:
 
 
 @dataclass
+class FacePipelineConfig:
+    """Configuration of the face detection pipeline used in a run."""
+    face_backend: str
+    dnn_confidence_min: float
+    dnn_fallback_confidence_min: float
+    dnn_fallback_max: int
+    fallback_backend: str | None
+    fallback_min_face_count: int
+    fallback_max: int
+    fallback_iou_threshold: float
+
+    def to_dict(self) -> dict:
+        return {
+            "face_backend": self.face_backend,
+            "dnn_confidence_min": self.dnn_confidence_min,
+            "dnn_fallback_confidence_min": self.dnn_fallback_confidence_min,
+            "dnn_fallback_max": self.dnn_fallback_max,
+            "fallback_backend": self.fallback_backend,
+            "fallback_min_face_count": self.fallback_min_face_count,
+            "fallback_max": self.fallback_max,
+            "fallback_iou_threshold": self.fallback_iou_threshold,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "FacePipelineConfig":
+        return cls(
+            face_backend=data.get("face_backend", "unknown"),
+            dnn_confidence_min=data.get("dnn_confidence_min", 0.0),
+            dnn_fallback_confidence_min=data.get("dnn_fallback_confidence_min", 0.0),
+            dnn_fallback_max=data.get("dnn_fallback_max", 0),
+            fallback_backend=data.get("fallback_backend"),
+            fallback_min_face_count=data.get("fallback_min_face_count", 0),
+            fallback_max=data.get("fallback_max", 0),
+            fallback_iou_threshold=data.get("fallback_iou_threshold", 0.0),
+        )
+
+    def summary(self) -> str:
+        """Return a short human-readable summary of face backend config."""
+        if not self.face_backend:
+            return "faces: disabled"
+        fallback = ""
+        if self.fallback_backend:
+            fallback = f"+{self.fallback_backend}"
+        return f"faces: {self.face_backend}{fallback}"
+
+    def summary_passes(self) -> str:
+        """Return a concise summary of passes for list views."""
+        if not self.face_backend:
+            return "faces: off"
+        passes = [self.face_backend]
+        if self.dnn_fallback_confidence_min > 0 and self.dnn_fallback_max > 0:
+            passes.append("lowconf")
+        if self.fallback_backend:
+            passes.append(self.fallback_backend)
+        return f"faces: {', '.join(passes)}"
+
+
+@dataclass
 class RunMetadata:
     """Metadata about a benchmark run."""
     run_id: str
@@ -188,6 +256,7 @@ class RunMetadata:
     gpu_info: str | None
     total_runtime_seconds: float
     pipeline_config: PipelineConfig | None = None
+    face_pipeline_config: FacePipelineConfig | None = None
     note: str | None = None
 
     def to_dict(self) -> dict:
@@ -205,6 +274,8 @@ class RunMetadata:
         }
         if self.pipeline_config:
             result["pipeline_config"] = self.pipeline_config.to_dict()
+        if self.face_pipeline_config:
+            result["face_pipeline_config"] = self.face_pipeline_config.to_dict()
         if self.note:
             result["note"] = self.note
         return result
@@ -214,6 +285,9 @@ class RunMetadata:
         pipeline_config = None
         if "pipeline_config" in data:
             pipeline_config = PipelineConfig.from_dict(data["pipeline_config"])
+        face_pipeline_config = None
+        if "face_pipeline_config" in data:
+            face_pipeline_config = FacePipelineConfig.from_dict(data["face_pipeline_config"])
         return cls(
             run_id=data.get("run_id", "unknown"),
             timestamp=data["timestamp"],
@@ -226,6 +300,7 @@ class RunMetadata:
             gpu_info=data.get("gpu_info"),
             total_runtime_seconds=data.get("total_runtime_seconds", 0),
             pipeline_config=pipeline_config,
+            face_pipeline_config=face_pipeline_config,
             note=data.get("note"),
         )
 
@@ -506,6 +581,19 @@ def run_benchmark(
         clahe_tile_size=preprocess_config.clahe_tile_size if preprocess_config.clahe_enabled else None,
         clahe_dynamic_range_threshold=preprocess_config.clahe_dynamic_range_threshold if preprocess_config.clahe_enabled else None,
     )
+    fallback_backend = FACE_FALLBACK_BACKEND.strip() if isinstance(FACE_FALLBACK_BACKEND, str) else FACE_FALLBACK_BACKEND
+    if fallback_backend == "":
+        fallback_backend = None
+    face_pipeline_config = FacePipelineConfig(
+        face_backend=FACE_BACKEND,
+        dnn_confidence_min=FACE_DNN_CONFIDENCE_MIN,
+        dnn_fallback_confidence_min=FACE_DNN_FALLBACK_CONFIDENCE_MIN,
+        dnn_fallback_max=FACE_DNN_FALLBACK_MAX,
+        fallback_backend=fallback_backend,
+        fallback_min_face_count=FACE_FALLBACK_MIN_FACE_COUNT,
+        fallback_max=FACE_FALLBACK_MAX,
+        fallback_iou_threshold=FACE_FALLBACK_IOU_THRESHOLD,
+    )
 
     metadata = RunMetadata(
         run_id=run_id,
@@ -519,6 +607,7 @@ def run_benchmark(
         gpu_info=get_gpu_info(),
         total_runtime_seconds=total_runtime,
         pipeline_config=pipeline_config,
+        face_pipeline_config=face_pipeline_config,
         note=note,
     )
 
@@ -642,6 +731,10 @@ def list_runs() -> list[dict]:
                 run_info["pipeline"] = run.metadata.pipeline_config.summary()
             else:
                 run_info["pipeline"] = "unknown"
+            if run.metadata.face_pipeline_config:
+                run_info["passes"] = run.metadata.face_pipeline_config.summary_passes()
+            else:
+                run_info["passes"] = "unknown"
             run_info["note"] = run.metadata.note
             runs.append(run_info)
         except Exception:

@@ -66,6 +66,9 @@ CREATE TABLE face_clusters (
     centroid BLOB,
     centroid_dim INTEGER,
     size INTEGER,
+    avg_similarity REAL,
+    min_similarity REAL,
+    max_similarity REAL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

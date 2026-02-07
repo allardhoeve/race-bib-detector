@@ -117,14 +117,27 @@ FACE_DNN_INPUT_SIZE = (300, 300)
 FACE_DNN_MEAN = (104.0, 177.0, 123.0)
 FACE_DNN_SCALE = 1.0
 FACE_DNN_SWAP_RB = False
-FACE_DNN_CONFIDENCE_MIN = 0.5
+FACE_DNN_CONFIDENCE_MIN = 0.3
 FACE_DNN_NMS_IOU = 0.4
+FACE_DNN_FALLBACK_CONFIDENCE_MIN = 0.15
+FACE_DNN_FALLBACK_MAX = 2
+FACE_FALLBACK_BACKEND = "opencv_haar"
+FACE_FALLBACK_MIN_FACE_COUNT = 2
+FACE_FALLBACK_MAX = 3
+FACE_FALLBACK_IOU_THRESHOLD = 0.3
 
 # Simple embedding size (square grayscale image size)
 FACE_EMBEDDING_SIZE = 32
 
 # Face snippet padding ratio (fraction of bbox size)
 FACE_SNIPPET_PADDING_RATIO = 0.10
+
+# Face clustering thresholds (cosine distance/similarity)
+# Distance threshold determines cluster linkage (lower is stricter).
+FACE_CLUSTER_DISTANCE_THRESHOLD = 0.30
+# Similarity labels for UI/debugging.
+FACE_CLUSTER_SIMILARITY_HIGH = 0.85
+FACE_CLUSTER_SIMILARITY_MEDIUM = 0.70
 
 # =============================================================================
 # BIB NUMBER VALIDATION

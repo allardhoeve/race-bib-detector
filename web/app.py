@@ -257,6 +257,9 @@ def get_face_clusters_and_faces() -> tuple[list[dict], list[dict]]:
                fc.model_name,
                fc.model_version,
                fc.size,
+               fc.avg_similarity,
+               fc.min_similarity,
+               fc.max_similarity,
                fc.created_at
         FROM face_clusters fc
         LEFT JOIN albums a ON a.album_id = fc.album_id
