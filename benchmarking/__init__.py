@@ -7,6 +7,7 @@ from .ground_truth import (
     load_ground_truth,
     save_ground_truth,
     ALLOWED_TAGS,
+    ALLOWED_FACE_TAGS,
     ALLOWED_SPLITS,
 )
 from .photo_index import (
@@ -37,6 +38,7 @@ __all__ = [
     "load_ground_truth",
     "save_ground_truth",
     "ALLOWED_TAGS",
+    "ALLOWED_FACE_TAGS",
     "ALLOWED_SPLITS",
     # Photo index
     "load_photo_index",

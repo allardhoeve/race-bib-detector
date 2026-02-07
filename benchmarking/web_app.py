@@ -4,6 +4,7 @@ Unified Flask application for benchmark labeling and inspection.
 
 Routes:
 - /labels/ - Labeling UI for annotating photos
+- /faces/labels/ - Face labeling UI for annotating face counts/tags
 - /benchmark/ - List of benchmark runs
 - /benchmark/<run_id>/ - Inspection UI for a specific run
 """
@@ -35,6 +36,7 @@ from benchmarking.ground_truth import (
     save_ground_truth,
     PhotoLabel,
     ALLOWED_TAGS,
+    ALLOWED_FACE_TAGS,
     ALLOWED_SPLITS,
 )
 from benchmarking.photo_index import load_photo_index, get_path_for_hash
@@ -169,6 +171,92 @@ body {
 
 
 # =============================================================================
+# LABELS HOME TEMPLATE
+# =============================================================================
+
+LABELS_HOME_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Benchmark Labeling</title>
+    <style>
+        """ + COMMON_STYLES + """
+        .content {
+            flex: 1;
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        h1 {
+            color: #0f9b0f;
+            font-size: 28px;
+        }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            padding: 20px;
+            border-radius: 8px;
+            background: #16213e;
+            border: 1px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .card h2 {
+            font-size: 18px;
+            color: #0f9b0f;
+        }
+        .card p {
+            color: #bbb;
+            font-size: 14px;
+        }
+        .card a {
+            display: inline-block;
+            margin-top: 10px;
+            color: #0f9b0f;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .card a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="nav-info">
+            <span style="color: #0f9b0f; font-weight: bold;">Benchmark Labeling</span>
+        </div>
+    </div>
+
+    <div class="content">
+        <h1>Choose a labeling mode</h1>
+        <div class="cards">
+            <div class="card">
+                <h2>Bib Labels</h2>
+                <p>Label bib numbers and bib-related tags for benchmark scoring.</p>
+                <a href="{{ url_for('labels_index') }}">Start Bib Labeling →</a>
+            </div>
+            <div class="card">
+                <h2>Face Labels</h2>
+                <p>Label face counts and face-specific tags for face detection checks.</p>
+                <a href="{{ url_for('face_labels_index') }}">Start Face Labeling →</a>
+            </div>
+            <div class="card">
+                <h2>Benchmarks</h2>
+                <p>Inspect benchmark runs and compare pipeline passes.</p>
+                <a href="{{ url_for('benchmark_list') }}">View Benchmarks →</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+
+# =============================================================================
 # LABELING UI TEMPLATE
 # =============================================================================
 
@@ -267,6 +355,7 @@ LABELING_TEMPLATE = """
     <div class="header">
         <div class="nav-info">
             <a href="{{ url_for('benchmark_list') }}" class="nav-link">← Benchmarks</a>
+            <a href="{{ url_for('face_labels_index') }}" class="nav-link">Face Labels →</a>
             <button class="nav-btn" onclick="navigate('prev')" {{ 'disabled' if not has_prev else '' }}>← Prev</button>
             <span class="position">{{ current }} / {{ total }}</span>
             <button class="nav-btn" onclick="navigate('next')" {{ 'disabled' if not has_next else '' }}>Next →</button>
@@ -430,6 +519,276 @@ LABELING_TEMPLATE = """
         });
 
         document.getElementById('bibs').focus();
+    </script>
+</body>
+</html>
+"""
+
+
+# =============================================================================
+# FACE LABELING UI TEMPLATE
+# =============================================================================
+
+FACE_LABELING_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Face Labeling - {{ current }} / {{ total }}</title>
+    <style>
+        """ + COMMON_STYLES + """
+        .form-panel {
+            width: 350px;
+            padding: 20px;
+            background: #16213e;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .form-section h3 {
+            margin-bottom: 10px;
+            color: #0f9b0f;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        .count-input {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            border: 2px solid #0f3460;
+            border-radius: 4px;
+            background: #1a1a2e;
+            color: #eee;
+        }
+        .count-input:focus {
+            outline: none;
+            border-color: #0f9b0f;
+        }
+        .tags-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .tag-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .tag-checkbox:hover { background: #252545; }
+        .tag-checkbox input { width: 18px; height: 18px; }
+        .tag-checkbox label { cursor: pointer; font-size: 13px; }
+        .split-buttons { display: flex; gap: 10px; }
+        .split-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #0f3460;
+            background: #1a1a2e;
+            color: #eee;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .split-btn:hover { border-color: #1a4a7a; }
+        .split-btn.active { border-color: #0f9b0f; background: #0f3460; }
+        .save-btn {
+            padding: 15px;
+            background: #0f9b0f;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .save-btn:hover { background: #0d8a0d; }
+        .status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .status.success { background: #0f3460; color: #0f9b0f; }
+        .status.error { background: #3d0a0a; color: #ff6b6b; }
+        .hash-display {
+            font-family: monospace;
+            font-size: 11px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="nav-info">
+            <a href="{{ url_for('benchmark_list') }}" class="nav-link">← Benchmarks</a>
+            <a href="{{ url_for('labels_index') }}" class="nav-link">Bib Labels →</a>
+            <button class="nav-btn" onclick="navigate('prev')" {{ 'disabled' if not has_prev else '' }}>← Prev</button>
+            <span class="position">{{ current }} / {{ total }}</span>
+            <button class="nav-btn" onclick="navigate('next')" {{ 'disabled' if not has_next else '' }}>Next →</button>
+        </div>
+        <div class="filter-section" style="background: transparent; border: none; padding: 0;">
+            <select class="filter-select" style="width: auto;" id="filter" onchange="applyFilter()">
+                <option value="all" {{ 'selected' if filter == 'all' else '' }}>All photos</option>
+                <option value="unlabeled" {{ 'selected' if filter == 'unlabeled' else '' }}>Unlabeled only</option>
+                <option value="labeled" {{ 'selected' if filter == 'labeled' else '' }}>Labeled only</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="image-panel">
+            <img src="{{ url_for('serve_photo', content_hash=content_hash) }}" alt="Photo">
+        </div>
+
+        <div class="form-panel">
+            <div class="form-section">
+                <h3>Face Count</h3>
+                <input type="number" min="0" class="count-input" id="faceCount" placeholder="e.g. 3"
+                       value="{{ face_count if face_count is not none else '' }}" autofocus>
+            </div>
+
+            <div class="form-section">
+                <h3>Face Tags</h3>
+                <div class="tags-grid">
+                    {% for tag in all_face_tags %}
+                    <div class="tag-checkbox">
+                        <input type="checkbox" id="face_tag_{{ tag }}" name="face_tags" value="{{ tag }}"
+                               {{ 'checked' if tag in face_tags else '' }}>
+                        <label for="face_tag_{{ tag }}">{{ tag.replace('_', ' ') }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Split</h3>
+                <div class="split-buttons">
+                    <button type="button" class="split-btn {{ 'active' if split == 'iteration' else '' }}"
+                            onclick="setSplit('iteration')">Iteration</button>
+                    <button type="button" class="split-btn {{ 'active' if split == 'full' else '' }}"
+                            onclick="setSplit('full')">Full</button>
+                </div>
+            </div>
+
+            <button class="save-btn" onclick="save()">Save & Next (Enter)</button>
+
+            <div id="status" class="status" style="display: none;"></div>
+
+            <div class="hash-display">
+                {{ content_hash[:16] }}...
+                {% if latest_run_id %}
+                <a href="{{ url_for('benchmark_inspect', run_id=latest_run_id, hash=content_hash[:16]) }}"
+                   style="color: #0f9b0f; margin-left: 10px;">View in Inspector →</a>
+                {% endif %}
+            </div>
+
+            <div class="keyboard-hint">
+                ⌘← ⌘→ navigate | Enter save | Esc clear |
+                ⌘N no faces | ⌘T tiny | ⌘O occluded | ⌘B blurry
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSplit = '{{ split }}';
+        const contentHash = '{{ content_hash }}';
+
+        function setSplit(split) {
+            currentSplit = split;
+            document.querySelectorAll('.split-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.textContent.toLowerCase() === split);
+            });
+        }
+
+        function getSelectedFaceTags() {
+            return Array.from(document.querySelectorAll('input[name="face_tags"]:checked'))
+                        .map(cb => cb.value);
+        }
+
+        function getFaceCount() {
+            const input = document.getElementById('faceCount').value;
+            if (!input.trim()) return null;
+            const parsed = parseInt(input, 10);
+            return isNaN(parsed) ? null : parsed;
+        }
+
+        function showStatus(message, isError) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + (isError ? 'error' : 'success');
+            status.style.display = 'block';
+            setTimeout(() => { status.style.display = 'none'; }, 2000);
+        }
+
+        async function save() {
+            const data = {
+                content_hash: contentHash,
+                face_count: getFaceCount(),
+                face_tags: getSelectedFaceTags(),
+                split: currentSplit
+            };
+
+            try {
+                const response = await fetch('{{ url_for("save_face_label") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (response.ok) {
+                    showStatus('Saved!', false);
+                    setTimeout(() => navigate('next'), 300);
+                } else {
+                    const err = await response.json();
+                    showStatus('Error: ' + err.error, true);
+                }
+            } catch (e) {
+                showStatus('Error: ' + e.message, true);
+            }
+        }
+
+        function navigate(direction) {
+            const prevUrl = {{ prev_url|tojson }};
+            const nextUrl = {{ next_url|tojson }};
+            const url = direction === 'prev' ? prevUrl : nextUrl;
+            if (url) window.location.href = url;
+        }
+
+        function applyFilter() {
+            const newFilter = document.getElementById('filter').value;
+            window.location.href = '{{ url_for("face_labels_index") }}?filter=' + newFilter;
+        }
+
+        function toggleFaceTag(tagName) {
+            const checkbox = document.getElementById('face_tag_' + tagName);
+            if (checkbox) checkbox.checked = !checkbox.checked;
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const mod = e.metaKey || e.ctrlKey;
+
+            if (mod && e.key === 'ArrowLeft') { e.preventDefault(); navigate('prev'); return; }
+            if (mod && e.key === 'ArrowRight') { e.preventDefault(); navigate('next'); return; }
+            if (mod && e.key === 'n') { e.preventDefault(); toggleFaceTag('face_no_faces'); return; }
+            if (mod && e.key === 't') { e.preventDefault(); toggleFaceTag('face_tiny_faces'); return; }
+            if (mod && e.key === 'o') { e.preventDefault(); toggleFaceTag('face_occluded_faces'); return; }
+            if (mod && e.key === 'b') { e.preventDefault(); toggleFaceTag('face_blurry_faces'); return; }
+
+            if (e.target.tagName === 'INPUT' && e.key !== 'Enter' && e.key !== 'Escape') return;
+
+            if (e.key === 'ArrowLeft') navigate('prev');
+            else if (e.key === 'ArrowRight') navigate('next');
+            else if (e.key === 'Enter') { e.preventDefault(); save(); }
+            else if (e.key === 'Escape') {
+                document.getElementById('faceCount').value = '';
+                document.getElementById('faceCount').focus();
+            }
+        });
+
+        document.getElementById('faceCount').focus();
     </script>
 </body>
 </html>
@@ -1022,8 +1381,13 @@ def create_app() -> Flask:
     # -------------------------------------------------------------------------
     @app.route('/')
     def index():
-        """Redirect to labels."""
-        return redirect(url_for('labels_index'))
+        """Landing page for label UIs."""
+        return render_template_string(LABELS_HOME_TEMPLATE)
+
+    @app.route('/faces/')
+    def faces_root():
+        """Redirect to face labels."""
+        return redirect(url_for('face_labels_index'))
 
     # -------------------------------------------------------------------------
     # Labeling Routes
@@ -1107,16 +1471,121 @@ def create_app() -> Flask:
             return jsonify({'error': 'Missing content_hash'}), 400
 
         try:
+            gt = load_ground_truth()
+            existing = gt.get_photo(content_hash)
             label = PhotoLabel(
                 content_hash=content_hash,
                 bibs=bibs,
                 tags=tags,
                 split=split,
+                face_count=existing.face_count if existing else None,
+                face_tags=existing.face_tags if existing else [],
+                bib_labeled=True,
+                photo_hash=existing.photo_hash if existing else None,
             )
         except ValueError as e:
             return jsonify({'error': str(e)}), 400
 
+        gt.add_photo(label)
+        save_ground_truth(gt)
+
+        return jsonify({'status': 'ok'})
+
+    @app.route('/faces/labels/')
+    def face_labels_index():
+        """Show first photo for face labeling based on filter."""
+        filter_type = request.args.get('filter', 'all')
+        hashes = get_filtered_face_hashes(filter_type)
+
+        if not hashes:
+            return render_template_string(EMPTY_TEMPLATE)
+
+        return redirect(url_for('face_label_photo', content_hash=hashes[0][:16], filter=filter_type))
+
+    @app.route('/faces/labels/<content_hash>')
+    def face_label_photo(content_hash):
+        """Label face count/tags for a specific photo."""
+        filter_type = request.args.get('filter', 'all')
+        hashes = get_filtered_face_hashes(filter_type)
+
+        if not hashes:
+            return render_template_string(EMPTY_TEMPLATE)
+
+        full_hash = find_hash_by_prefix(content_hash, hashes)
+        if not full_hash:
+            return "Photo not found", 404
+
         gt = load_ground_truth()
+        label = gt.get_photo(full_hash)
+
+        if label:
+            default_split = label.split
+        else:
+            default_split = 'iteration' if random.random() < ITERATION_SPLIT_PROBABILITY else 'full'
+
+        try:
+            idx = hashes.index(full_hash)
+        except ValueError:
+            return "Photo not in current filter", 404
+
+        total = len(hashes)
+        has_prev = idx > 0
+        has_next = idx < total - 1
+
+        prev_url = url_for('face_label_photo', content_hash=hashes[idx - 1][:16], filter=filter_type) if has_prev else None
+        next_url = url_for('face_label_photo', content_hash=hashes[idx + 1][:16], filter=filter_type) if has_next else None
+
+        runs = list_runs()
+        latest_run_id = runs[0]['run_id'] if runs else None
+
+        return render_template_string(
+            FACE_LABELING_TEMPLATE,
+            content_hash=full_hash,
+            face_count=label.face_count if label else None,
+            face_tags=label.face_tags if label else [],
+            split=default_split,
+            all_face_tags=sorted(ALLOWED_FACE_TAGS),
+            current=idx + 1,
+            total=total,
+            has_prev=has_prev,
+            has_next=has_next,
+            prev_url=prev_url,
+            next_url=next_url,
+            filter=filter_type,
+            latest_run_id=latest_run_id,
+        )
+
+    @app.route('/api/face_labels', methods=['POST'])
+    def save_face_label():
+        """Save face count/tags for a photo label."""
+        data = request.get_json()
+
+        content_hash = data.get('content_hash')
+        face_count = data.get('face_count')
+        face_tags = data.get('face_tags', [])
+        split = data.get('split', 'full')
+
+        if not content_hash:
+            return jsonify({'error': 'Missing content_hash'}), 400
+
+        try:
+            if face_count is not None:
+                face_count = int(face_count)
+            gt = load_ground_truth()
+            existing = gt.get_photo(content_hash)
+            label = PhotoLabel(
+                content_hash=content_hash,
+                bibs=existing.bibs if existing else [],
+                tags=existing.tags if existing else [],
+                split=split,
+                face_count=face_count,
+                face_tags=face_tags,
+                bib_labeled=existing.bib_labeled if existing else False,
+                photo_hash=existing.photo_hash if existing else None,
+            )
+        except (ValueError, TypeError) as e:
+            return jsonify({'error': str(e)}), 400
+
         gt.add_photo(label)
         save_ground_truth(gt)
 
@@ -1249,7 +1718,39 @@ def get_filtered_hashes(filter_type: str) -> list[str]:
         return sorted(all_hashes)
 
     gt = load_ground_truth()
-    labeled_hashes = set(gt.photos.keys())
+    labeled_hashes = {
+        content_hash
+        for content_hash, label in gt.photos.items()
+        if label.bib_labeled
+    }
+
+    if filter_type == 'unlabeled':
+        return sorted(all_hashes - labeled_hashes)
+    elif filter_type == 'labeled':
+        return sorted(all_hashes & labeled_hashes)
+    else:
+        return sorted(all_hashes)
+
+
+def is_face_labeled(label: PhotoLabel) -> bool:
+    """Check if a photo has face labeling data."""
+    return label.face_count is not None or bool(label.face_tags)
+
+
+def get_filtered_face_hashes(filter_type: str) -> list[str]:
+    """Get photo hashes based on face label filter."""
+    index = load_photo_index()
+    all_hashes = set(index.keys())
+
+    if filter_type == 'all':
+        return sorted(all_hashes)
+
+    gt = load_ground_truth()
+    labeled_hashes = {
+        content_hash
+        for content_hash, label in gt.photos.items()
+        if is_face_labeled(label)
+    }
 
     if filter_type == 'unlabeled':
         return sorted(all_hashes - labeled_hashes)
@@ -1316,6 +1817,7 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("Found %s photos in index", len(index))
     logger.info("Routes:")
     logger.info("  /labels/              - Label photos")
+    logger.info("  /faces/labels/        - Label face counts/tags")
     logger.info("  /benchmark/           - List benchmark runs")
     logger.info("  /benchmark/<run_id>/  - Inspect a run")
     logger.info("Open http://localhost:30002 in your browser")

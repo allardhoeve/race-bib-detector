@@ -49,7 +49,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
 
     # Check ground truth status
     gt = load_ground_truth()
-    labeled = len(gt.photos)
+    labeled = sum(1 for p in gt.photos.values() if p.bib_labeled)
     unlabeled = stats['unique_hashes'] - labeled
 
     print(f"\nLabeling status:")
@@ -72,6 +72,8 @@ def cmd_stats(args: argparse.Namespace) -> int:
     print("Ground Truth Statistics")
     print("=" * 40)
     print(f"Total photos: {stats['total_photos']}")
+    print(f"Photos with bib labels: {stats['photos_with_bib_labels']}")
+    print(f"Photos without bib labels: {stats['photos_without_bib_labels']}")
     print(f"Photos with bibs: {stats['photos_with_bibs']}")
     print(f"Photos without bibs: {stats['photos_without_bibs']}")
     print(f"Total bib annotations: {stats['total_bibs']}")
@@ -82,6 +84,19 @@ def cmd_stats(args: argparse.Namespace) -> int:
 
     print(f"\nBy tag:")
     for tag, count in sorted(stats['by_tag'].items()):
+        if count > 0:
+            print(f"  {tag}: {count}")
+
+    print(f"\nFace labeling:")
+    print(f"  With face count: {stats['photos_with_face_count']}")
+    print(f"  Without face count: {stats['photos_without_face_count']}")
+    if stats["face_count_distribution"]:
+        print("  Face count distribution:")
+        for count, total in sorted(stats["face_count_distribution"].items(), key=lambda item: int(item[0])):
+            print(f"    {count}: {total}")
+
+    print(f"\nBy face tag:")
+    for tag, count in sorted(stats['by_face_tag'].items()):
         if count > 0:
             print(f"  {tag}: {count}")
 
@@ -218,6 +233,7 @@ def cmd_label(args: argparse.Namespace) -> int:
             existing.tags = tags
         if args.split:
             existing.split = args.split
+        existing.bib_labeled = True
         label = existing
     else:
         # Create new
@@ -226,6 +242,7 @@ def cmd_label(args: argparse.Namespace) -> int:
             bibs=bibs,
             tags=tags,
             split=args.split or "full",
+            bib_labeled=True,
         )
         gt.add_photo(label)
 

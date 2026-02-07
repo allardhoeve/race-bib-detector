@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Literal
 
 # Schema version for forward compatibility
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # Allowed tag values
 ALLOWED_TAGS = frozenset({
@@ -20,6 +20,15 @@ ALLOWED_TAGS = frozenset({
     "light_bib",
     "light_faces",
     "other_banners",
+})
+
+# Allowed face tag values (prefixed to avoid collisions)
+ALLOWED_FACE_TAGS = frozenset({
+    "face_no_faces",
+    "face_tiny_faces",
+    "face_occluded_faces",
+    "face_blurry_faces",
+    "face_profile",
 })
 
 # Allowed split values
@@ -38,6 +47,8 @@ class PhotoLabel:
         bibs: List of bib numbers visible in the photo (no duplicates)
         tags: List of tags describing photo conditions
         split: Which split this photo belongs to
+        face_count: Ground truth count of visible faces (None if unlabeled)
+        face_tags: List of face-specific tags describing conditions
         photo_hash: Optional 8-char hash for integration with existing code
     """
 
@@ -45,6 +56,9 @@ class PhotoLabel:
     bibs: list[int] = field(default_factory=list)
     tags: list[str] = field(default_factory=list)
     split: Split = "full"
+    face_count: int | None = None
+    face_tags: list[str] = field(default_factory=list)
+    bib_labeled: bool = False
     photo_hash: str | None = None
 
     def __post_init__(self):
@@ -57,9 +71,18 @@ class PhotoLabel:
         if invalid_tags:
             raise ValueError(f"Invalid tags: {invalid_tags}")
 
+        invalid_face_tags = set(self.face_tags) - ALLOWED_FACE_TAGS
+        if invalid_face_tags:
+            raise ValueError(f"Invalid face tags: {invalid_face_tags}")
+
         # Validate split
         if self.split not in ALLOWED_SPLITS:
             raise ValueError(f"Invalid split: {self.split}")
+
+        if self.face_count is not None and self.face_count < 0:
+            raise ValueError("face_count must be >= 0")
+
+        self.bib_labeled = bool(self.bib_labeled)
 
     def to_dict(self) -> dict:
         """Convert to dictionary for JSON serialization."""
@@ -68,6 +91,9 @@ class PhotoLabel:
             "bibs": self.bibs,
             "tags": self.tags,
             "split": self.split,
+            "face_count": self.face_count,
+            "face_tags": self.face_tags,
+            "bib_labeled": self.bib_labeled,
         }
         if self.photo_hash:
             result["photo_hash"] = self.photo_hash
@@ -81,6 +107,9 @@ class PhotoLabel:
             bibs=data.get("bibs", []),
             tags=data.get("tags", []),
             split=data.get("split", "full"),
+            face_count=data.get("face_count"),
+            face_tags=data.get("face_tags", []),
+            bib_labeled=data.get("bib_labeled", True),
             photo_hash=data.get("photo_hash"),
         )
 
@@ -145,16 +174,34 @@ class GroundTruth:
         for tag in ALLOWED_TAGS:
             by_tag[tag] = len(self.get_by_tag(tag))
 
+        by_face_tag = {}
+        for tag in ALLOWED_FACE_TAGS:
+            by_face_tag[tag] = sum(1 for p in self.photos.values() if tag in p.face_tags)
+
         total_bibs = sum(len(p.bibs) for p in self.photos.values())
         photos_with_bibs = sum(1 for p in self.photos.values() if p.bibs)
+        photos_with_bib_labels = sum(1 for p in self.photos.values() if p.bib_labeled)
+        photos_with_face_count = sum(1 for p in self.photos.values() if p.face_count is not None)
+        face_count_distribution: dict[str, int] = {}
+        for p in self.photos.values():
+            if p.face_count is None:
+                continue
+            key = str(p.face_count)
+            face_count_distribution[key] = face_count_distribution.get(key, 0) + 1
 
         return {
             "total_photos": total,
             "by_split": by_split,
             "by_tag": by_tag,
+            "by_face_tag": by_face_tag,
             "total_bibs": total_bibs,
+            "photos_with_bib_labels": photos_with_bib_labels,
+            "photos_without_bib_labels": total - photos_with_bib_labels,
             "photos_with_bibs": photos_with_bibs,
             "photos_without_bibs": total - photos_with_bibs,
+            "photos_with_face_count": photos_with_face_count,
+            "photos_without_face_count": total - photos_with_face_count,
+            "face_count_distribution": face_count_distribution,
         }
 
     def to_dict(self) -> dict:
@@ -162,6 +209,7 @@ class GroundTruth:
         return {
             "version": self.version,
             "tags": sorted(ALLOWED_TAGS),
+            "face_tags": sorted(ALLOWED_FACE_TAGS),
             "photos": {
                 content_hash: label.to_dict()
                 for content_hash, label in self.photos.items()
