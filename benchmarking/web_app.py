@@ -409,15 +409,15 @@ LABELING_TEMPLATE = """
             <div id="status" class="status" style="display: none;"></div>
 
             <div class="hash-display">
-                {{ content_hash[:16] }}...
+                {{ content_hash[:8] }}...
                 {% if latest_run_id %}
-                <a href="{{ url_for('benchmark_inspect', run_id=latest_run_id, hash=content_hash[:16]) }}"
+                <a href="{{ url_for('benchmark_inspect', run_id=latest_run_id, hash=content_hash[:8]) }}"
                    style="color: #0f9b0f; margin-left: 10px;">View in Inspector →</a>
                 {% endif %}
             </div>
 
             <div class="keyboard-hint">
-                ⌘← ⌘→ navigate | Enter save | Esc clear | ⌘O obscured | ⌘N no bib | ⌘B blurry
+                ← → navigate | Enter save | Esc clear | O obscured | N no bib | B blurry
             </div>
         </div>
     </div>
@@ -499,15 +499,11 @@ LABELING_TEMPLATE = """
         }
 
         document.addEventListener('keydown', (e) => {
-            const mod = e.metaKey || e.ctrlKey;
-
-            if (mod && e.key === 'ArrowLeft') { e.preventDefault(); navigate('prev'); return; }
-            if (mod && e.key === 'ArrowRight') { e.preventDefault(); navigate('next'); return; }
-            if (mod && e.key === 'o') { e.preventDefault(); toggleTag('obscured_bib'); return; }
-            if (mod && e.key === 'n') { e.preventDefault(); toggleTag('no_bib'); return; }
-            if (mod && e.key === 'b') { e.preventDefault(); toggleTag('blurry_bib'); return; }
-
             if (e.target.tagName === 'INPUT' && e.key !== 'Enter' && e.key !== 'Escape') return;
+
+            if (e.key === 'o') { e.preventDefault(); toggleTag('obscured_bib'); return; }
+            if (e.key === 'n') { e.preventDefault(); toggleTag('no_bib'); return; }
+            if (e.key === 'b') { e.preventDefault(); toggleTag('blurry_bib'); return; }
 
             if (e.key === 'ArrowLeft') navigate('prev');
             else if (e.key === 'ArrowRight') navigate('next');
@@ -678,16 +674,16 @@ FACE_LABELING_TEMPLATE = """
             <div id="status" class="status" style="display: none;"></div>
 
             <div class="hash-display">
-                {{ content_hash[:16] }}...
+                {{ content_hash[:8] }}...
                 {% if latest_run_id %}
-                <a href="{{ url_for('benchmark_inspect', run_id=latest_run_id, hash=content_hash[:16]) }}"
+                <a href="{{ url_for('benchmark_inspect', run_id=latest_run_id, hash=content_hash[:8]) }}"
                    style="color: #0f9b0f; margin-left: 10px;">View in Inspector →</a>
                 {% endif %}
             </div>
 
             <div class="keyboard-hint">
-                ⌘← ⌘→ navigate | Enter save | Esc clear |
-                ⌘N no faces | ⌘T tiny | ⌘O occluded | ⌘B blurry
+                ← → navigate | Enter save | Esc clear |
+                N no faces | T tiny | O occluded | B blurry
             </div>
         </div>
     </div>
@@ -768,16 +764,12 @@ FACE_LABELING_TEMPLATE = """
         }
 
         document.addEventListener('keydown', (e) => {
-            const mod = e.metaKey || e.ctrlKey;
-
-            if (mod && e.key === 'ArrowLeft') { e.preventDefault(); navigate('prev'); return; }
-            if (mod && e.key === 'ArrowRight') { e.preventDefault(); navigate('next'); return; }
-            if (mod && e.key === 'n') { e.preventDefault(); toggleFaceTag('face_no_faces'); return; }
-            if (mod && e.key === 't') { e.preventDefault(); toggleFaceTag('face_tiny_faces'); return; }
-            if (mod && e.key === 'o') { e.preventDefault(); toggleFaceTag('face_occluded_faces'); return; }
-            if (mod && e.key === 'b') { e.preventDefault(); toggleFaceTag('face_blurry_faces'); return; }
-
             if (e.target.tagName === 'INPUT' && e.key !== 'Enter' && e.key !== 'Escape') return;
+
+            if (e.key === 'n') { e.preventDefault(); toggleFaceTag('face_no_faces'); return; }
+            if (e.key === 't') { e.preventDefault(); toggleFaceTag('face_tiny_faces'); return; }
+            if (e.key === 'o') { e.preventDefault(); toggleFaceTag('face_occluded_faces'); return; }
+            if (e.key === 'b') { e.preventDefault(); toggleFaceTag('face_blurry_faces'); return; }
 
             if (e.key === 'ArrowLeft') navigate('prev');
             else if (e.key === 'ArrowRight') navigate('next');
@@ -1102,8 +1094,8 @@ BENCHMARK_INSPECT_TEMPLATE = """
                 <li class="photo-item {{ 'active' if loop.index0 == current_idx else '' }}"
                     onclick="selectPhoto({{ loop.index0 }})"
                     data-idx="{{ loop.index0 }}"
-                    data-hash="{{ result.content_hash[:16] }}">
-                    <span class="photo-hash">{{ result.content_hash[:16] }}...</span>
+                    data-hash="{{ result.content_hash[:8] }}">
+                    <span class="photo-hash">{{ result.content_hash[:8] }}...</span>
                     <span class="photo-status status-{{ result.status }}">{{ result.status }}</span>
                 </li>
                 {% endfor %}
@@ -1268,14 +1260,14 @@ BENCHMARK_INSPECT_TEMPLATE = """
             const tagsHtml = result.tags.map(tag => `<span class="tag">${tag}</span>`).join('') || '<span style="color:#666">none</span>';
             document.getElementById('detailTags').innerHTML = tagsHtml;
 
-            const hashPrefix = result.content_hash.substring(0, 16);
+            const hashPrefix = result.content_hash.substring(0, 8);
             document.getElementById('editLink').href = `{{ url_for('labels_index') }}${hashPrefix}?filter=all`;
         }
 
         function updateImage() {
             const result = photoResults[currentIdx];
             const hash = result.content_hash;
-            const hashPrefix = hash.substring(0, 16);
+            const hashPrefix = hash.substring(0, 8);
 
             let imagePath;
             if (currentImageType === 'original') {
@@ -1401,7 +1393,7 @@ def create_app() -> Flask:
         if not hashes:
             return render_template_string(EMPTY_TEMPLATE)
 
-        return redirect(url_for('label_photo', content_hash=hashes[0][:16], filter=filter_type))
+        return redirect(url_for('label_photo', content_hash=hashes[0][:8], filter=filter_type))
 
     @app.route('/labels/<content_hash>')
     def label_photo(content_hash):
@@ -1433,8 +1425,8 @@ def create_app() -> Flask:
         has_prev = idx > 0
         has_next = idx < total - 1
 
-        prev_url = url_for('label_photo', content_hash=hashes[idx - 1][:16], filter=filter_type) if has_prev else None
-        next_url = url_for('label_photo', content_hash=hashes[idx + 1][:16], filter=filter_type) if has_next else None
+        prev_url = url_for('label_photo', content_hash=hashes[idx - 1][:8], filter=filter_type) if has_prev else None
+        next_url = url_for('label_photo', content_hash=hashes[idx + 1][:8], filter=filter_type) if has_next else None
 
         # Get latest run ID for inspector link
         runs = list_runs()
@@ -1500,7 +1492,7 @@ def create_app() -> Flask:
         if not hashes:
             return render_template_string(EMPTY_TEMPLATE)
 
-        return redirect(url_for('face_label_photo', content_hash=hashes[0][:16], filter=filter_type))
+        return redirect(url_for('face_label_photo', content_hash=hashes[0][:8], filter=filter_type))
 
     @app.route('/faces/labels/<content_hash>')
     def face_label_photo(content_hash):
@@ -1532,8 +1524,8 @@ def create_app() -> Flask:
         has_prev = idx > 0
         has_next = idx < total - 1
 
-        prev_url = url_for('face_label_photo', content_hash=hashes[idx - 1][:16], filter=filter_type) if has_prev else None
-        next_url = url_for('face_label_photo', content_hash=hashes[idx + 1][:16], filter=filter_type) if has_next else None
+        prev_url = url_for('face_label_photo', content_hash=hashes[idx - 1][:8], filter=filter_type) if has_prev else None
+        next_url = url_for('face_label_photo', content_hash=hashes[idx + 1][:8], filter=filter_type) if has_next else None
 
         runs = list_runs()
         latest_run_id = runs[0]['run_id'] if runs else None

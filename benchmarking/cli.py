@@ -126,9 +126,9 @@ def cmd_unlabeled(args: argparse.Namespace) -> int:
 
         path = get_path_for_hash(content_hash, photos_dir, index)
         if path:
-            print(f"  {content_hash[:16]}... -> {path.relative_to(photos_dir)}")
+            print(f"  {content_hash[:8]}... -> {path.relative_to(photos_dir)}")
         else:
-            print(f"  {content_hash[:16]}... -> (path not found)")
+            print(f"  {content_hash[:8]}... -> (path not found)")
 
     return 0
 
@@ -150,7 +150,7 @@ def cmd_show(args: argparse.Namespace) -> int:
             print(f"Photo {query}... found but not labeled yet.")
             for h in index_matches[:5]:
                 path = get_path_for_hash(h, photos_dir, index)
-                print(f"  {h[:16]}... -> {path}")
+                print(f"  {h[:8]}... -> {path}")
             return 0
         else:
             print(f"No photo found matching: {query}")
@@ -159,7 +159,7 @@ def cmd_show(args: argparse.Namespace) -> int:
     if len(matches) > 1:
         print(f"Multiple matches for {query}:")
         for h in matches[:10]:
-            print(f"  {h[:16]}...")
+            print(f"  {h[:8]}...")
         return 1
 
     content_hash = matches[0]
@@ -194,7 +194,7 @@ def cmd_label(args: argparse.Namespace) -> int:
     if len(matches) > 1:
         print(f"Multiple matches for {query}, be more specific:")
         for h in matches[:10]:
-            print(f"  {h[:16]}...")
+            print(f"  {h[:8]}...")
         return 1
 
     content_hash = matches[0]
@@ -247,7 +247,7 @@ def cmd_label(args: argparse.Namespace) -> int:
         gt.add_photo(label)
 
     save_ground_truth(gt)
-    print(f"Saved label for {content_hash[:16]}...")
+    print(f"Saved label for {content_hash[:8]}...")
     print(f"  Bibs: {label.bibs}")
     print(f"  Tags: {label.tags}")
     print(f"  Split: {label.split}")

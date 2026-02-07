@@ -523,7 +523,7 @@ def run_benchmark(
                     "  [%s/%s] SKIP (file not found): %s...",
                     i + 1,
                     len(photos),
-                    label.content_hash[:16],
+                    label.content_hash[:8],
                 )
             continue
 
