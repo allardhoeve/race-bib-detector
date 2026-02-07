@@ -349,6 +349,11 @@ LABELING_TEMPLATE = """
             font-size: 11px;
             color: #666;
         }
+        .help-text {
+            font-size: 12px;
+            color: #bbb;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
@@ -644,6 +649,11 @@ FACE_LABELING_TEMPLATE = """
                 <h3>Face Count</h3>
                 <input type="number" min="0" class="count-input" id="faceCount" placeholder="e.g. 3"
                        value="{{ face_count if face_count is not none else '' }}" autofocus>
+                <div class="help-text">
+                    Count faces you can clearly recognize as faces (including profiles).
+                    Skip backs of heads or shapes that are not clearly faces. Use tags
+                    for tiny/blurry/occluded cases instead of forcing the count.
+                </div>
             </div>
 
             <div class="form-section">
