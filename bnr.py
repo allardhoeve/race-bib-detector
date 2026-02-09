@@ -8,6 +8,7 @@ Usage:
     bnr album list               # List albums and photo counts
     bnr album forget <album_id>  # Forget an album (DB only)
     bnr faces cluster --album X  # Cluster face embeddings for an album
+    bnr benchmark prepare <path> # Import photos into benchmark set
     bnr benchmark run            # Run benchmark on iteration split
     bnr benchmark run --full     # Run benchmark on all photos
     bnr benchmark ui             # Launch benchmark web UI (labels + inspection)
@@ -73,6 +74,12 @@ def cmd_benchmark_baseline(args: argparse.Namespace) -> int:
     return cmd_update_baseline(args)
 
 
+def cmd_benchmark_prepare(args: argparse.Namespace) -> int:
+    """Prepare benchmark photos from a source directory."""
+    from benchmarking.cli import cmd_prepare
+    return cmd_prepare(args)
+
+
 def cmd_benchmark_scan(args: argparse.Namespace) -> int:
     """Scan photos directory for benchmark."""
     from benchmarking.cli import cmd_scan
@@ -109,6 +116,26 @@ def build_parser() -> argparse.ArgumentParser:
         dest="benchmark_command",
         help="Benchmark command",
     )
+
+    bench_prepare = benchmark_subparsers.add_parser(
+        "prepare",
+        help="Import photos from a directory into the benchmark set",
+    )
+    bench_prepare.add_argument(
+        "source",
+        help="Source directory containing photos to import",
+    )
+    bench_prepare.add_argument(
+        "--refresh",
+        action="store_true",
+        help="Re-run ghost labeling on existing photos",
+    )
+    bench_prepare.add_argument(
+        "--reset-labels",
+        action="store_true",
+        help="Clear all labels (keep photos)",
+    )
+    bench_prepare.set_defaults(_cmd=cmd_benchmark_prepare)
 
     bench_run = benchmark_subparsers.add_parser(
         "run",

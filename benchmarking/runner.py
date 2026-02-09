@@ -36,8 +36,11 @@ from warnings_utils import suppress_torch_mps_pin_memory_warning
 
 logger = logging.getLogger(__name__)
 
-from .ground_truth import load_bib_ground_truth, BibPhotoLabel, BibGroundTruth
+from .ground_truth import load_bib_ground_truth, BibBox, BibPhotoLabel, BibGroundTruth
 from .photo_index import load_photo_index, get_path_for_hash
+from .scoring import score_bibs, BibScorecard
+
+from geometry import bbox_to_rect
 
 # Photos directory
 PHOTOS_DIR = Path(__file__).parent.parent / "photos"
@@ -311,20 +314,35 @@ class BenchmarkRun:
     metadata: RunMetadata
     metrics: BenchmarkMetrics
     photo_results: list[PhotoResult]
+    bib_scorecard: BibScorecard | None = None
 
     def to_dict(self) -> dict:
-        return {
+        d = {
             "metadata": self.metadata.to_dict(),
             "metrics": self.metrics.to_dict(),
             "photo_results": [r.to_dict() for r in self.photo_results],
         }
+        if self.bib_scorecard is not None:
+            d["bib_scorecard"] = self.bib_scorecard.to_dict()
+        return d
 
     @classmethod
     def from_dict(cls, data: dict) -> BenchmarkRun:
+        bib_scorecard = None
+        if "bib_scorecard" in data:
+            sc = data["bib_scorecard"]
+            bib_scorecard = BibScorecard(
+                detection_tp=sc["detection_tp"],
+                detection_fp=sc["detection_fp"],
+                detection_fn=sc["detection_fn"],
+                ocr_correct=sc["ocr_correct"],
+                ocr_total=sc["ocr_total"],
+            )
         return cls(
             metadata=RunMetadata.from_dict(data["metadata"]),
             metrics=BenchmarkMetrics.from_dict(data["metrics"]),
             photo_results=[PhotoResult.from_dict(r) for r in data["photo_results"]],
+            bib_scorecard=bib_scorecard,
         )
 
     def save(self, path: Path) -> None:
@@ -515,6 +533,13 @@ def run_benchmark(
     # Run detection on each photo
     photo_results: list[PhotoResult] = []
 
+    # Accumulators for per-photo IoU scoring
+    iou_det_tp = 0
+    iou_det_fp = 0
+    iou_det_fn = 0
+    iou_ocr_correct = 0
+    iou_ocr_total = 0
+
     for i, label in enumerate(photos):
         path = get_path_for_hash(label.content_hash, PHOTOS_DIR, index)
         if not path or not path.exists():
@@ -552,6 +577,24 @@ def run_benchmark(
         photo_result.preprocess_metadata = result.preprocess_metadata
         photo_results.append(photo_result)
 
+        # Per-photo IoU scoring: convert detection bboxes to normalised BibBoxes
+        img_w, img_h = result.original_dimensions
+        if img_w > 0 and img_h > 0:
+            pred_boxes: list[BibBox] = []
+            for det in result.detections:
+                x1, y1, x2, y2 = bbox_to_rect(det.bbox)
+                pred_boxes.append(BibBox(
+                    x=x1 / img_w, y=y1 / img_h,
+                    w=(x2 - x1) / img_w, h=(y2 - y1) / img_h,
+                    number=det.bib_number,
+                ))
+            photo_sc = score_bibs(pred_boxes, label.boxes)
+            iou_det_tp += photo_sc.detection_tp
+            iou_det_fp += photo_sc.detection_fp
+            iou_det_fn += photo_sc.detection_fn
+            iou_ocr_correct += photo_sc.ocr_correct
+            iou_ocr_total += photo_sc.ocr_total
+
         if verbose:
             status_icon = {"PASS": "✓", "PARTIAL": "◐", "MISS": "✗"}[photo_result.status]
             logger.info(
@@ -567,6 +610,15 @@ def run_benchmark(
 
     # Compute aggregate metrics
     metrics = compute_metrics(photo_results)
+
+    # Aggregate IoU scorecard
+    bib_scorecard = BibScorecard(
+        detection_tp=iou_det_tp,
+        detection_fp=iou_det_fp,
+        detection_fn=iou_det_fn,
+        ocr_correct=iou_ocr_correct,
+        ocr_total=iou_ocr_total,
+    )
 
     # Collect metadata
     git_commit, git_dirty = get_git_info()
@@ -615,6 +667,7 @@ def run_benchmark(
         metadata=metadata,
         metrics=metrics,
         photo_results=photo_results,
+        bib_scorecard=bib_scorecard,
     )
 
     # Always save results

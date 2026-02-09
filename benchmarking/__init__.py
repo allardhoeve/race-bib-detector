@@ -27,6 +27,16 @@ from .photo_index import (
     update_photo_index,
     get_path_for_hash,
 )
+from .scoring import (
+    compute_iou,
+    match_boxes,
+    MatchResult,
+    BibScorecard,
+    FaceScorecard,
+    score_bibs,
+    score_faces,
+    format_scorecard,
+)
 # Runner imports are lazy because runner.py depends on heavy ML packages
 # (easyocr, cv2, torch) that may not be installed in all environments.
 try:
@@ -72,6 +82,15 @@ __all__ = [
     "save_photo_index",
     "update_photo_index",
     "get_path_for_hash",
+    # Scoring
+    "compute_iou",
+    "match_boxes",
+    "MatchResult",
+    "BibScorecard",
+    "FaceScorecard",
+    "score_bibs",
+    "score_faces",
+    "format_scorecard",
     # Runner
     "run_benchmark",
     "compare_to_baseline",

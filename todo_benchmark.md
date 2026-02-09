@@ -27,28 +27,28 @@ Step 1 (staging/frozen sets) is deferred — not needed for labeling or scoring.
 Minimal scoring against the new schema so labeling effort pays off immediately.
 Even 10 hand-labeled photos give useful signal.
 
-- [ ] Add `compute_iou(box_a, box_b)` utility 
-- [ ] Add `match_boxes(predicted, ground_truth, iou_threshold=0.5)` — greedy IoU matching, returns TP/FP/FN
-- [ ] Bib scorecard: detection precision/recall (IoU) + OCR accuracy on matched boxes
-- [ ] Face scorecard: detection precision/recall (IoU), scoped to `keep` boxes
-- [ ] Wire into `bnr benchmark run` so it works with the new ground truth files
-- [ ] Print scorecard summary to terminal (no archive/metadata yet — that's step 6)
+- [x] Add `compute_iou(box_a, box_b)` utility
+- [x] Add `match_boxes(predicted, ground_truth, iou_threshold=0.5)` — greedy IoU matching, returns TP/FP/FN
+- [x] Bib scorecard: detection precision/recall (IoU) + OCR accuracy on matched boxes
+- [x] Face scorecard: detection precision/recall (IoU), scoped to `keep` boxes
+- [x] Wire into `bnr benchmark run` so it works with the new ground truth files
+- [x] Print scorecard summary to terminal (no archive/metadata yet — that's step 6)
 
 ## Step 2: Prepare command
 
-- [ ] Implement `bnr benchmark prepare [--album <id>]`
-  - [ ] Copy photos from album into benchmark folder (dedup by hash)
-  - [ ] Build/update photo index for benchmark photos
-  - [ ] Run ghost labeling (step 3) on all new photos
-- [ ] Implement `--refresh` flag (re-run ghost labeling on existing photos)
-- [ ] Implement `--reset-labels` flag (clear labels, keep photos)
+- [x] Implement `bnr benchmark prepare <path>` (accepts source directory)
+  - [x] Copy photos from source into benchmark folder (dedup by hash)
+  - [x] Build/update photo index for benchmark photos
+  - [x] Run ghost labeling (step 3) on all new photos
+- [x] Implement `--refresh` flag (re-run ghost labeling on existing photos)
+- [x] Implement `--reset-labels` flag (clear labels, keep photos)
 
 ## Step 3: Ghost labeling
 
-- [ ] Run face detection on each benchmark photo, save suggestion boxes
-- [ ] Run bib detection on each benchmark photo, save suggestion boxes
-- [ ] Store provenance metadata per suggestion (backend, version, config)
-- [ ] Persist suggestions alongside ground truth (separate from human labels)
+- [x] Run face detection on each benchmark photo, save suggestion boxes
+- [x] Run bib detection on each benchmark photo, save suggestion boxes
+- [x] Store provenance metadata per suggestion (backend, version, config)
+- [x] Persist suggestions alongside ground truth (separate from human labels)
 
 ## Step 4: Labeling UI
 

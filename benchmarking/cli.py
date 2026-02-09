@@ -264,6 +264,49 @@ def cmd_label(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_prepare(args: argparse.Namespace) -> int:
+    """Prepare benchmark photos from a source directory."""
+    from benchmarking.prepare import prepare_benchmark
+
+    source_dir = Path(args.source)
+    if not source_dir.exists():
+        print(f"Error: Source directory not found: {source_dir}")
+        return 1
+    if not source_dir.is_dir():
+        print(f"Error: Not a directory: {source_dir}")
+        return 1
+
+    photos_dir = get_photos_dir()
+
+    print(f"Preparing benchmark from: {source_dir}")
+    print(f"Photos directory: {photos_dir}")
+
+    if args.reset_labels:
+        print("  --reset-labels: will clear all labels")
+    if args.refresh:
+        print("  --refresh: will re-run ghost labeling")
+
+    result = prepare_benchmark(
+        source_dir=source_dir,
+        photos_dir=photos_dir,
+        reset_labels=args.reset_labels,
+        refresh=args.refresh,
+    )
+
+    print(f"\nPrepare complete:")
+    print(f"  Copied: {result.copied}")
+    print(f"  Skipped (already present): {result.skipped}")
+    print(f"  Total photos in benchmark: {result.total_photos}")
+
+    if result.new_hashes:
+        print(f"  New photos added: {len(result.new_hashes)}")
+
+    if args.reset_labels:
+        print(f"  Labels reset for all {result.total_photos} photos")
+
+    return 0
+
+
 def cmd_ui(args: argparse.Namespace) -> int:
     """Launch the unified web UI (labels + benchmark inspection)."""
     from benchmarking.web_app import main as web_main
@@ -313,6 +356,16 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     print(f"  PASS:    {m.pass_count:3} ({m.pass_count/m.total_photos:.0%})")
     print(f"  PARTIAL: {m.partial_count:3} ({m.partial_count/m.total_photos:.0%})")
     print(f"  MISS:    {m.miss_count:3} ({m.miss_count/m.total_photos:.0%})")
+
+    # IoU scorecard
+    if run.bib_scorecard:
+        from benchmarking.scoring import format_scorecard
+        sc = run.bib_scorecard
+        has_iou_data = (sc.detection_tp + sc.detection_fp + sc.detection_fn) > 0
+        if has_iou_data:
+            print(f"\n{format_scorecard(bib=sc)}")
+        else:
+            print(f"\nIoU Scorecard: no GT boxes with coordinates yet")
 
     # Tag breakdown if verbose
     if verbose and any(r.tags for r in run.photo_results):
@@ -565,6 +618,22 @@ def build_parser() -> argparse.ArgumentParser:
     add_logging_args(parser)
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
+    # prepare command
+    prepare_parser = subparsers.add_parser(
+        "prepare", help="Import photos into benchmark set"
+    )
+    prepare_parser.add_argument(
+        "source", help="Source directory containing photos to import"
+    )
+    prepare_parser.add_argument(
+        "--refresh", action="store_true",
+        help="Re-run ghost labeling on existing photos"
+    )
+    prepare_parser.add_argument(
+        "--reset-labels", action="store_true",
+        help="Clear all labels (keep photos)"
+    )
+
     # scan command
     scan_parser = subparsers.add_parser("scan", help="Scan photos directory")
 
@@ -680,6 +749,7 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     commands = {
+        "prepare": cmd_prepare,
         "scan": cmd_scan,
         "ui": cmd_ui,
         "benchmark": cmd_benchmark,
