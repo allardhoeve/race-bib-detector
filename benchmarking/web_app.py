@@ -32,9 +32,13 @@ from flask import (
 )
 
 from benchmarking.ground_truth import (
-    load_ground_truth,
-    save_ground_truth,
-    PhotoLabel,
+    BibBox,
+    BibPhotoLabel,
+    FacePhotoLabel,
+    load_bib_ground_truth,
+    save_bib_ground_truth,
+    load_face_ground_truth,
+    save_face_ground_truth,
     ALLOWED_TAGS,
     ALLOWED_FACE_TAGS,
     ALLOWED_SPLITS,
@@ -1418,8 +1422,8 @@ def create_app() -> Flask:
         if not full_hash:
             return "Photo not found", 404
 
-        gt = load_ground_truth()
-        label = gt.get_photo(full_hash)
+        bib_gt = load_bib_ground_truth()
+        label = bib_gt.get_photo(full_hash)
 
         if label:
             default_split = label.split
@@ -1473,23 +1477,20 @@ def create_app() -> Flask:
             return jsonify({'error': 'Missing content_hash'}), 400
 
         try:
-            gt = load_ground_truth()
-            existing = gt.get_photo(content_hash)
-            label = PhotoLabel(
+            bib_gt = load_bib_ground_truth()
+            boxes = [BibBox(x=0, y=0, w=0, h=0, number=str(b), tag="bib") for b in bibs]
+            label = BibPhotoLabel(
                 content_hash=content_hash,
-                bibs=bibs,
+                boxes=boxes,
                 tags=tags,
                 split=split,
-                face_count=existing.face_count if existing else None,
-                face_tags=existing.face_tags if existing else [],
-                bib_labeled=True,
-                photo_hash=existing.photo_hash if existing else None,
+                labeled=True,
             )
         except ValueError as e:
             return jsonify({'error': str(e)}), 400
 
-        gt.add_photo(label)
-        save_ground_truth(gt)
+        bib_gt.add_photo(label)
+        save_bib_ground_truth(bib_gt)
 
         return jsonify({'status': 'ok'})
 
@@ -1517,11 +1518,13 @@ def create_app() -> Flask:
         if not full_hash:
             return "Photo not found", 404
 
-        gt = load_ground_truth()
-        label = gt.get_photo(full_hash)
+        face_gt = load_face_ground_truth()
+        bib_gt = load_bib_ground_truth()
+        face_label = face_gt.get_photo(full_hash)
+        bib_label = bib_gt.get_photo(full_hash)
 
-        if label:
-            default_split = label.split
+        if bib_label:
+            default_split = bib_label.split
         else:
             default_split = 'iteration' if random.random() < ITERATION_SPLIT_PROBABILITY else 'full'
 
@@ -1543,8 +1546,8 @@ def create_app() -> Flask:
         return render_template_string(
             FACE_LABELING_TEMPLATE,
             content_hash=full_hash,
-            face_count=label.face_count if label else None,
-            face_tags=label.face_tags if label else [],
+            face_count=face_label.face_count if face_label else None,
+            face_tags=face_label.tags if face_label else [],
             split=default_split,
             all_face_tags=sorted(ALLOWED_FACE_TAGS),
             current=idx + 1,
@@ -1571,25 +1574,17 @@ def create_app() -> Flask:
             return jsonify({'error': 'Missing content_hash'}), 400
 
         try:
-            if face_count is not None:
-                face_count = int(face_count)
-            gt = load_ground_truth()
-            existing = gt.get_photo(content_hash)
-            label = PhotoLabel(
+            face_gt = load_face_ground_truth()
+            label = FacePhotoLabel(
                 content_hash=content_hash,
-                bibs=existing.bibs if existing else [],
-                tags=existing.tags if existing else [],
-                split=split,
-                face_count=face_count,
-                face_tags=face_tags,
-                bib_labeled=existing.bib_labeled if existing else False,
-                photo_hash=existing.photo_hash if existing else None,
+                boxes=[],  # Face boxes come from the canvas UI (step 4)
+                tags=face_tags,
             )
         except (ValueError, TypeError) as e:
             return jsonify({'error': str(e)}), 400
 
-        gt.add_photo(label)
-        save_ground_truth(gt)
+        face_gt.add_photo(label)
+        save_face_ground_truth(face_gt)
 
         return jsonify({'status': 'ok'})
 
@@ -1719,11 +1714,11 @@ def get_filtered_hashes(filter_type: str) -> list[str]:
     if filter_type == 'all':
         return sorted(all_hashes)
 
-    gt = load_ground_truth()
+    gt = load_bib_ground_truth()
     labeled_hashes = {
         content_hash
         for content_hash, label in gt.photos.items()
-        if label.bib_labeled
+        if label.labeled
     }
 
     if filter_type == 'unlabeled':
@@ -1734,9 +1729,9 @@ def get_filtered_hashes(filter_type: str) -> list[str]:
         return sorted(all_hashes)
 
 
-def is_face_labeled(label: PhotoLabel) -> bool:
+def is_face_labeled(label: FacePhotoLabel) -> bool:
     """Check if a photo has face labeling data."""
-    return label.face_count is not None or bool(label.face_tags)
+    return bool(label.boxes) or bool(label.tags)
 
 
 def get_filtered_face_hashes(filter_type: str) -> list[str]:
@@ -1747,7 +1742,7 @@ def get_filtered_face_hashes(filter_type: str) -> list[str]:
     if filter_type == 'all':
         return sorted(all_hashes)
 
-    gt = load_ground_truth()
+    gt = load_face_ground_truth()
     labeled_hashes = {
         content_hash
         for content_hash, label in gt.photos.items()

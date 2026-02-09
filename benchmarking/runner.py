@@ -36,7 +36,7 @@ from warnings_utils import suppress_torch_mps_pin_memory_warning
 
 logger = logging.getLogger(__name__)
 
-from .ground_truth import load_ground_truth, PhotoLabel, GroundTruth
+from .ground_truth import load_bib_ground_truth, BibPhotoLabel, BibGroundTruth
 from .photo_index import load_photo_index, get_path_for_hash
 
 # Photos directory
@@ -396,7 +396,7 @@ def get_gpu_info() -> str | None:
 
 
 def compute_photo_result(
-    label: PhotoLabel,
+    label: BibPhotoLabel,
     detected_bibs: list[int],
     detection_time_ms: float,
 ) -> PhotoResult:
@@ -488,7 +488,7 @@ def run_benchmark(
     images_dir.mkdir(parents=True, exist_ok=True)
 
     # Load ground truth and photo index
-    gt = load_ground_truth()
+    gt = load_bib_ground_truth()
     index = load_photo_index()
 
     if not gt.photos:

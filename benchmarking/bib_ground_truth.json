@@ -1,0 +1,3280 @@
+{
+  "version": 3,
+  "photos": {
+    "006c6313cdb2dc07146cdce19d93bae14181f8b589e0cb2ac0b1891e69993659": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "231",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "0194a4f9ce72d935d82dec75fa80e9a6bf1312e5e809540f949d5921f5d3257f": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "01d75b89ceff73b7a7da0f5394b75ef0c3bad2e91b2a17ed5e3b0df6409475d7": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "01ebd54863e01f72612122362c220bbb7068e0488596b29c5a8eae1134c54799": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "206",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "022e0fdecd304b10fd9d6b8d4b2658713885f44b146a03a24d0647357f7450f4": {
+      "boxes": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "02368141d27b0bdd5a13bc4c6aa431e289160afad3d4d5fe4d7e6f9b6795a11c": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "630",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "031783826df4363192cf61e5bae25876cf8f3ebd27f0dadfe634925e7495198f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "632",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "0381ad0357bb1ffeae28ec8fea2b1232fec2a0742c368d1a3b52e61e3c2fc5db": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "401",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "blurry_bib",
+        "partial_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "060edd38dc5fe47adb01c9c0baa16d2414e263a526f3ef09c002becd156452eb": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "224",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "066fa20ac08d7dd7a00d809c94f0dfef8df273a47a88b977239833e895d3c59c": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "326",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "378",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "069d02c41c608d4eb7caab2c69cb0ecd9cc0a4f02c656b25e06686b546787357": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "415",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "418",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "06b7c0380c94a02ae6e30a8cf6c99cc1156b6a1ff47c9d0e27486d11d255d589": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "06c1ed37b05b6ab90c18aed5d5f6091840697b3c1939c520fe2371d068f171f6": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "0708acb2275adc9fd45fda4f907c703b4228710b00006dc07f0314a3e1fe6408": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "508",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "529",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "07590da049f971141c1c31af4f0ea275f5a467b623554b634aeda456c1c29e3c": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "504",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "0836c776fb8919112728bdb13c85c6a4b77e0d9e1d7397017e34c08bcd4a7bff": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "08f4daf0279795996bdf93d2749618b3e94bff80c6d191ec8e24a3f098ac9683": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "220",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "0934450f79ab39bb34e0f40efef521591a12909f768167897837e62e30ad79a1": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "0a29edfe6efe4f8857c71329368f43894042eefd5462f9e3fcee909891f2c634": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "381",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "0a444cef0826b134a3c9a85a60c476202868d96f0bc5ba7272c27219970b93a7": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "353",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "0a941a1709784db60aa1678dd5e27f37c31d0f3210c941a19f7065a5db7bd06b": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "416",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "blurry_bib",
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "0ae8e1bb7119e6c1142d762305846ae2c5421fbd40b5736dd380da0d790c165d": {
+      "boxes": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "0b24603befc68927eed71c42b4a293c1815ccdff15f9d034d2467a5a95504662": {
+      "boxes": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "0bba03df26c5161b3729a1017c65226756384410912cbfe0d11061e2dc36a71f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "414",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "0bd75cb4c947ffd075f743c656446fdb2d8a5f6b233f393a52fc1bc939f9337d": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "632",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "0ca3ed293765df8e4a3b83f81ea8b4b0c2ca02d8fc182bac41bef5a79af42473": {
+      "boxes": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "0ca6239052eafc2f1777ee4747af294d2d303d929209ef2c95be83636765c464": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "224",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "0cd75b1db33893f2b399baad666d322abb85ef5f1fea7f7526189f87a6acb451": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "204",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "0e4eb4fac8b521b240121b909221c66d04b9fd8b45840ac74ff7394cab7cb20b": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "517",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "0e6c0c286c3750e70769ef292b6cf199ce90d6e03283cdbe1ed41f0637ac3511": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "333",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "0f1029234763576e9b18087ce66c35edc42c3ba3007ebb3aa4338329efa59f47": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "506",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "0ff6a9f10dc00f19815b7208f180dd087bc0eb030ef2057ccc5261f52eb134b2": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "306",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "1105d65cc94e7c2ad882c28b6d38380a30e158fd49b209651ecc37ecec89a6df": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "527",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "12298d5b2b1a9c34be520eeb35b61eb9995d10cf462b1a7f3ac805a8fa65b595": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "622",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "13a016cc404c3df0665464d2c5a23a22db5a3f70d7fee7033c659972560c795a": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "600",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "13a8fd10ff647e9d8bc7fadd64fe2f5fd5ee415aaf5b94da00c636e8cef73049": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "1532427dd7eda7e7c2cba6158ff08b952671b3290e658b2928bc973d363251d3": {
+      "boxes": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "1720ad2f799e42fbf4aaaeb95cef4de4851060123bc4e4408874cccf93b7d790": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "226",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "1731eb59484a8bd8d59e3cdb686e2c16663d26de01a1d770c59c02051a9c90cd": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "611",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "179fcb91ba71ce3076ee411a64a1cc437912d79793efb537168d69fbe7e04544": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "331",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "376",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "18058f101e9adcdc549687d7564470be6547c67c9b84f79ad09fe6d8ea9cae14": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "508",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "529",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "185f940a5c9db6334e4aa9123ade2ca84357fdd78bd8f38b60606da74aedd889": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "233",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "1ad55ae918da4459bae2dc2e62db2de847ea4a860f4b4278f65e8cab69039471": {
+      "boxes": [],
+      "tags": [
+        "blurry_bib",
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "1b67ce6c9294e4b5cc88d42a1266317073642300cbd6ac68db499a081c5b408e": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "200",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "201",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "1b9dd0d28614d3d4009480f5cacf3e58d9aa4ef934dbaa283e2ed4d734750d5c": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "217",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "1bb564f2b0b9be9317a1c139ea7425ee3729446db7854de7a7fc6b635276f7b2": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "423",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "424",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "1c1a58a6f9de7adf16e665012817b04cae1ec2bac03dd7db1d8865189a21d9b8": {
+      "boxes": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "1c60427d6db9d0d662d681a2d1163b635ddccddd6ee33f533ed2c240e4266e86": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "1ca633215671328926ccd6c89ad3490fa820f2eb0e0a92738229898e65e70cc5": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "622",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "1d42320ec3753ceb3f4ad4af65228e4140492a534b80f50eb503b1014f766e1c": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "402",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "404",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "1dcdeb6428c5ba5f666f5dd29c9a70c087a737ebbbee5f8815d25324f742863a": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "305",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "1e5276697aaf397808824ae8b8faf4ac2553ab3b43bfe453d26ce30f501db057": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "331",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "1eac7c8519e5798efcedbfdcbb2f2c75f0b91dbcc1cff54f42591e03d91f9a1e": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "1eb0ea3e97cc01e88e2d60abfa1c1ecbeefe407664f94d0313081eac2e0d8206": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "377",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "1eccf4ba86eecfe26473076e66d6ae83be4a94fef2080e3bbafc18cc4e2ae55f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "231",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "20951aa5ed6c496e47a0c61328611e67ecf64f1988558ee9b021ba2c4e2a1747": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "520",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "20de564df790043f55f3c3ce33b42be0ce767ec14fb4b5256915bb02344cd92b": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "217",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "20dfa99049c5db3df50495d2f91de9fb3933a69bb40d5c5936e95c6e6cd55742": {
+      "boxes": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "219e3a41c3253d5f957202bb4db4362194bf663de84805a999f5ba91cacd164b": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "227",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "21b1517d5f72bec723230eb32a9ee8fb9b42a3c62270eb01c719c826e1b32768": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "22d8490a454b33b9dbea5a8d9e05590791161bf60bc8fe6e306475d34f96a9f3": {
+      "boxes": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "23a84589994bf3cd2d7dc05bdf651cf8269322f6ee63701e2c9bd36af69f8153": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "510",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "23d6b75255337fe40664feaf3bcc69b23e5408fd898130dbe38f022c35b99f6e": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "400",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "2401059d5cb9c0544d2e433f7689c44e117823e1f7458b2f1118520ef4d8a33f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "425",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "252e39e6fe55fbf73e77a1b76713f569427a45651ff85ca32f1aeb90736d6f5a": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "501",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "516",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "blurry_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "25434b977cee88b88afc40c5c4ea73159b20791e0d05767ed151b303e0b53d0f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "228",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "255207f494c4055e567b87e58e51a8a661c5ce857d3ae350024b02db50654dd5": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "25919a4f86ec6dd6de55b7b14d24bca23774503ef77124f33d351f6b290ec9d1": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "508",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "543",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "25bce55674827d8b7797f8eb83e74478291fdaaa7ad4afa0847f04482aa13826": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "622",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "25ca09b98afd5896386cfa74eb967f5c891750d419fbc834755b1bd202235aed": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "403",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "266817dce4bcc029f89b665b54cc949499c242e456f01ace11b47ec1361a3d1f": {
+      "boxes": [],
+      "tags": [
+        "partial_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "2694938b164cc693e0c5da8f81f4439c4071fcfe9b047095b4185e63a7bb9c5d": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "622",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "26964d87dbd8dd9cc01907a9b20465b61094c94543279f18a18cae1a82aabc52": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "528",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "blurry_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "26fc727ab69fae5e7065c8fcf58342e87913953a250257db61f6c5a5dd536f0b": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "611",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "2700af5981d69fe1260e58c395d1e3d9cc95cf21225dba6818173ab707fb7117": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "206",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "27d11a50f22628a0c39ee620baee3d6438640d3464266e68f645166a414b331e": {
+      "boxes": [],
+      "tags": [
+        "partial_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "27fcffec898f23728cf2adc2e013f6e090a47edf27f53c9cc8752b0dbf317fc0": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "415",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "418",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "2894d927d0c5f4a05c82c02552b4721cd76d11b415b68766f3fc76e5641335f9": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "636",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "28c1eabacab37a08f7ed902f78a2bf1950c043ff0501f5aa33969b25131d4b15": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "200",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "2903e32802178df9605cd81cdf9b0bc6cacc3b1428c368a701200e169eace3cf": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "327",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "2966fe5ccfdf7faddb2ca21e2f1df7e7582854ae0ab892f749b6dcd80e8ba2d2": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "631",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "2a693f1733d298114f8e29a7162f7fa277dd85f6765872e869a87e8ef32b76fe": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "512",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "2a7a2faf861b13b858279c748a00e73e50e71d4723e3eefb2daa82209b709f15": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "2b54a20c246e66ee63e8ab3dc4d6ab4abf2fc32e14dd0e70e3beb8f1f7e1cd16": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "204",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "205",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "blurry_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "2b630a799d968ddd5bd16c36e74135e8f1dafb5ca52381310b246bae8b92b43f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "426",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "431",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "blurry_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "2c1a4c98ff7ea9176e2141b29d618257b620fb503067bf711c2e7ce87f18343d": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "436",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "2d5ff98f49188eda085642ed4d2d1db768d83dd2630930660aa0bf387425ea08": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "535",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "2d9ee0ee986c0048e9e68d1b5a798a6312c1a6fc657442f5fb0997f8c88a54c5": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "429",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "2e19b11eaa1d7ef6c3eb38dae2a0809b25e0e8ce5201a95e7d04281cfa2d2319": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "2e9e10f1fe4719d112047cc144c4d8295b923d6a951450f7b0eadece8c11f24c": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "200",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "2fef82ba2f0573c46944bf950c75129ebe49eed85d82de870cb5cd0438863398": {
+      "boxes": [],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "3055963cd03e9309753d7e23052b0b05f27f6290ea0caee54e440f54b4e0a1f2": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "350",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "3133313cdb042f6795c09f322d2b095536a51599ee4988d91bc398f5a1fe8a44": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "226",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "3179f91ca1520b4fe33b794ae272ab239392552dc04138fa34ebd4cb10da2b24": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "207",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "3284d0a290d71a3191585fab0b39dd8e46806946dc814e8bb50d3bab59c84e2f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "419",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "329fc2333b08fb4451c0038b0b080d2a7cd93ca325ee7af2ec84586a0971237b": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "611",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "331f20b9b1d3a997a2c47ef3f8178887f5907d08bbfc7fe64c13ee0914f39d29": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "382",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "3335b7ad8a5a3c19a7d232a90404bdf3094e0f13f182cf1c1d577b861556f0f9": {
+      "boxes": [],
+      "tags": [
+        "partial_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "33526099e614b1b79432ef640e48ba7b3735972d73606fb3386b03003d8b71a8": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "3366fef6e7b8126b3c9e908ef7754b4e16a1e0c54ba5fc93352b52a34d263c3d": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "354",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "33d00c29ca921c492e05badb564ab3687d521118813d52e58acd816406481c07": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "227",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "341e02c9fd86b26a9a8dc37748066ccada5fb3a8f058ee9803b68be736eb2e6d": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "432",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "34264ee06bd9fc89407edae66b0c0f0e07b1762cdd08fdbc5920d7849ad55e9a": {
+      "boxes": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "344da24c23bd4c96f3e545f049db9f7971dc1483707e1e4918a72a8ac3454abd": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "413",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "34bfe15a81dc6305d805e84c900fbf9a2b6d92e3fc5eed41dc67ed1b0f3179f2": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "631",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "35b8d412dcdaeb911e702b7f9d8a35ac6a82ca0350c6e62c173dbed1ecd5d907": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "214",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "35da088b2f30975f11dc0301631e211739c7319d47c7b079f06dd2bd295e0d69": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "228",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "362d11bce7cb89d9c00d1709ee0934fe80cd499f7adbb31954080fb738b914e4": {
+      "boxes": [],
+      "tags": [
+        "blurry_bib",
+        "partial_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "3679178a31ceb1c5568c5c86047eaa9b97cd99a3faf223d14750fd5a64e7f630": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "381",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "37241289774ab3087e30c42c013c7aa047e359cd3de65fcf90eae395876e1458": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "214",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "37dcd78879d9db614d77fdfec8845e0b4593c664681fac05977663ac48671ea1": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "37e98f10237acbc67599658ce37086fc678b1edfc901f613e4c2f068c15eed85": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "382843040ce1ebe175a4798c8a485d269d575e476f1a29743a248f234ed7a5e0": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "218",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "38e921594c2b33b2f77a86d673692a026d9f5681b875fbf589aa09f595de5958": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "354",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "3bdd23187cb59d4984cde097bca708b1ac65e60ecad721ada3ede417f8275591": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "376",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "3c39f4aeb957ecf1236ad9e90257a45e15abe6a0ea2c773f9ec3e3d9b203200c": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "600",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "3cb3d38fa5108a34e4e729ef28327f839042037ff22ffe4f6e69fc512e49e63d": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "422",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "432",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "3e0ed3df02af1ac3fe87254b4fdb06ae3291adad670e0ed1f1d25a3733140ca1": {
+      "boxes": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "3fa68b103675543c66252a5f14134a9ae96bea8919102c3c12018eee5d66b082": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "377",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "4049424666156f56042851b19bf0482f654b1e194080755b5874c600d7164a06": {
+      "boxes": [],
+      "tags": [
+        "partial_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "415b961c8adb4226a577571eebf8e94faa14ef8266e8074f7615c752662570aa": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "223",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "426e60f9ad2f592114ee7f4aa312a29ebacaae7a5a030654be1300fb8e02f460": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "611",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "42c9aa8174838d5d850915f14f2815fc47afc7993957ec4212174c3fcebd64e5": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "426",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "437e7c1b41ce9739ffdaa39033ecd8fa409f75c4ad870474e1663b6dffb502f2": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "350",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "43afa30828129ff09093cb00afcc4bc2571f6b901de9d5491c47272e6e730889": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "301",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "442afc6b5560af9ea36773bd5824773124f7ba78bcb7af6d0274a54c9f718574": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "536",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "444fcbd64be1b85a9a7e48e33fe12cd7e0aeb722dd1614ac34d0df912e9f910e": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "382",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "44a2a2031a9fc46257f93c1e19a1cf8d10dcb53c06c8be4d37dc0f103d246feb": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "529",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "44a9d6ab4b2f648abda91e011add7e493af40d314dd858795c3de87a197724f0": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "302",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "460518d262aa4b5d4985e2853000bab031ef461da14a72f7a099e2f24385d27c": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "327",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "467542daf5db6de0014d767a696c04b443b59d4d3e16cfcfafee042828e27ae1": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "47173b16dd10a0fab3762b7d19ef71130b2e5deb43f2afe4749c667e8491a3d0": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "231",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "477ec07b87013b9a7dfeaf970d62a2d275ba278154651890e20e8010b9aa0c2d": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "47907a83d37e1ff439c2664e4e5c7c30020b96e3aebbd882c989c6f6eedef60f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "307",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "487f4486f372b912752ac6bfef1db28459b95099bc4bf0f6b00e77cbfb9adde6": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "622",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "4897ba6978771078afa6853bae99604d27872cfd913fd019f13a6a319e292d3f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "539",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "48b01f64fe61d475baaec59fa3f85a4870df1fae65bb65bb0970bd6872a80f1d": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "376",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "48d1d5cd66c0a4de412e633af6696e7cb9640c41d1e06771b3e11ee656912dab": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "539",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "48e795a1e6f8f79710ce8a2ec7a7e53b171bec25703e0dd40a22a5e08e53cc62": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "207",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "208",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "218",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "497bf57a119c0cbf6e4ae55c7c4166ddc8f7d3133573e5ea746500ba9f2dd952": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "200",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "4a8647bb805c6ca28d12721986ebbc54934fb12dcd8393e8d62b03b0e494ac10": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "4ad9effed5fa34b31c4ab1bc4a0fb4f5780ebd4fbf20f72936550d2745f355e9": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "4b21e7cd36a937adcefa8710f41f3b63af742c66ee13d9bbb7c7a81c1c503abf": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "526",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "527",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "540",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "4bfc8fa304b7f58a5d62b0864c3612709cf5db4f274227c88db1a45ca4aaa12c": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "4c87c475b7fd3ceeca0cd0cde847296a858b42a5f7f9a0d7efe90b71fb4cba11": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "501",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "4c9a62b9ac527a40874a9abfb1dd0d2c7f13595d36f30848ff50b26b4fbfbdf3": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "401",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "408",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "434",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "4ceaa881729bb23a72c91c831eaa4cbbcd3b871dd46d1912459e56f1f2fd7555": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "522",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "523",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "4dea4a99c4fc4450663696aff2ce3fef47188b505c785f074fbf3b66a79e0b8e": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "300",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "379",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "4e4a240a53eb7ac5c52a42d64001fc90fc83ebef5f5923ee8b2ef4c1c445e15f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "522",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "524",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "4f742cff237007a9520f95f1f09a18bc1d46e455f8690a098c19abee65f10b52": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "510",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "blurry_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "4f82803f7374e99ef716fd7f89b485461ca60875e1ed64c0f0c7fdde4b3e42b5": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "526",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "535",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "539",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "52ba8437d6e7686850386707152657f8858142c9a6c104cac4796bad67549773": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "431",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "52e5178e3ea2488d99c537cdf282c6a6c2def78af11e676f91ae1813b62a286f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "533",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "531199917f6ccc1e11e7bf62730392ae15d7e70e5e272317f75f2150fc7bbfe2": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "53838a9d01f663e12fc09de16181e916f65fac6e30fbb9da42f68bb0d906ec9e": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "212",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "53d9cfb16ef77376da43fd453b54eb5e353ef104fd52aa6272e269c0d8844c08": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "354",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "543de7f066e3dcd2b43b304299b5ea12cdf402226d64cc8149b6c794a596524f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "205",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "54e3210c4f36217271dac9a22ddd90455abef6d986ab18ceabc34c56f2c121a4": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "54ef87ca5cd8a84bafa406da5e262506743118b65ecf228155ede8ffab96318c": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "307",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "blurry_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "560849a021fa4fa878ed74ed5d5ab5d2ea8b3006354b03d55f33c512725ad55e": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "330",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "561abfa06448ed726e0a61da5bcebc3ad8bbb5926f22fc65df3c0e7c5e8cbb48": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "327",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "353",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "563975be24b5db2fd605eb6cca9e0cdedb89f6904b78465600beb66875be20f8": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "5644091c27ce8cab76dae8a6722a0f7e6868023997e266ba23b769673f4dc332": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "545",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "564d47af825b564d07ad6da70e2bf65390e01d439d6fae639052b769feb21d7a": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "522",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "533",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "57057276a154517bb08516e71ca632e6146b9e11fa8571540e3afba703f347ab": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "525",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "575bfba4e30450d92ff718bba91f54aaeea5f9c75e4679c95afe65897abd5d5a": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "500",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "blurry_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "579c691ee7133c853275b341d0aabdfb8897dcc9dfaf9c354ad4d838554542b3": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "530",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "585bdf1503b2aff33bcdd2dd9cb869ec68e6cb9579d4cfabb68a3d30db4f42c2": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "216",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "58a9367a99f4210227de515abadd008a922bc4803ffeb605186fe292a2bf7843": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "518",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "58cdb750284a90c0ca7083861e7cd23448cbc22474bcce3c775ed08e97cf9f93": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "610",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "592d630cfc7081df6122c49d3f3fd6a9bec6008cad1aaf25c52d8d8b4cc9cb45": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "325",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "5930516b99e125f7431742af937e2167d59e44101c84ea47d8af65a5b30bbd43": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "528",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "593d0bc47bab58f53693ff148dcc396c89ddbe6a6826bce14bdbc1b7103eac4f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "350",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "596680462b29f8f0246cc601d07d52ede247f737fd29b75a7d48be045db7a5ff": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "325",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "356",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "59e7c09a16397fdc0f6a8069beaeaf8d0c739fd289e47a1e6ca53b225864db6c": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "5a15cc43eaf2bc170b4b624a1cc47ccc4d9a18dfd708a6da6236a56fb121d363": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "230",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "5a967418aee7fa9917b6dc2483278478a51719f0c49b843e408905bd6f244de2": {
+      "boxes": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "5c03e7419f782af21df409576abd46db949e749d5670fffede12cd41b910275e": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "221",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "5c6d0a872f704f3b901313e7804d275765d392ff7788633f33ad9a79c1b2b311": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "5fa2ee947e19490177f52a64228a7253be95480808cb651930fb947a02c312c8": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "202",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "231",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "600c8e1124db9a62c37c65cf27a76e882d3aedaa6fdc9085ddea04b1175ed675": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "60cf39eda17150126981359cf3ddf6aa0fef8b758b78900df234fcc2f93c7829": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "600",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "61243bd34d616f597db8e90177055c4d70cec3769d37bfbe82a828a3755236d7": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "61682341df484d04ebcedac484e0018db7a3538a65029f3c1d505ed31f4bd428": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "201",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "627a6259a18c69ad0cf4533bcbf60e7736cb2ee29f1b6f6eca8e65e1b30fd575": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "217",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "627defa1ef231140b67b23ad272010ac9bbcd030129644dff7c37db5d103a8c6": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "62aa141d4ac306c3e3b3b30ccf2b07b35eaf727ef946ea7e878008c924c2a865": {
+      "boxes": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "6331fe6eac65289c0cdb00e3f7dd33c4747a4123559f2ef71cecc52dbfc1d81f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "630",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "640798a903d69639335148aec6adb38a69dbbd9612bc4dad57f9ddae22037014": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "411",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "65669b9fb32fbdedc82fa8e81cfa6cb530de8f5af6b5051f549bfebd74e0f1d6": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "6627ce11d36226d4c61562d14299c852d565c7a645cb45991b3d6e6cf7a802ec": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "304",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "672d71d54f0b66260231d244cae4ef61dfa89896689500696a7267272fce9278": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "434",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "678765b4a54bfc973d52d5b80804c87b9748197cf80bbfad650f871fecce1b0a": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "233",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "685e03006d6dfaec899c73822ce46b0fa17b3a31dff97d2cafd8ceeaf1d31960": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "231",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "685e0cfe6167d1fd28f018f0169b0717c6db84cadc680a7e8d2f19e50d211339": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "205",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "68a9ad6264e7b8ced6f5abfd2e2c48eea0743f93ffca75e6261b0c61e45d6014": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "691438acd71ef95f9fbdc941911211d23f4cc8265e3dc45445b283c545af3e01": {
+      "boxes": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "695cf743866354665fd793ee50b1212338ee15c42ffa91937741a0604ad6de01": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "523",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "526",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "6a2fea588ee495beba684cace6367c2bbd2b58ab6271ebf0a3b1dad5f3425bb1": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "622",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "6a45d3eea4fce4acba639141a39ca4ed821e2580b45694323c6bf0404bbf3822": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "631",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "6cdf616b50a7142d2d38b4d7019bce5cfd80cec8e86970253fe58942bf15db23": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "350",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "6d449f304aa02465085a87f0b18ceaa5ec00888ad61e42fa23954652f133e2a7": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "635",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "6d6e8f9f7c476f650b04d37c8e6e63a5e600c6e76978930d21ccd9f4a04b632b": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "631",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "6ead616c226837a1c25cb6f1426eb2e362402a608c275891c9be8127e1b5d62a": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "534",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "6f112e51586f9cf5b148f58c87a3367d1490f43fe636a1a48c8c2b7af6613b7e": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "512",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "6f752497f81e6f8494e6dbf5f82164e0e83e2166873d300caa551f92f8d20fc8": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "611",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "705744dedcf946ca1214bdff8ebe63db438268ff6b7efefd0b2fb36af68f18df": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "636",
+          "tag": "bib"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "70ad968d1afdb571fbee28186b6dc9fe966508864624a4e4e44c1177d067f854": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "511",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "70b0d89303df6eb7121a5ebdd23d7b9c671c4dd9fd4c95077fa214fae76926ab": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "220",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "7138a40f15bd6ef7d8020e02766103388ce81ebd200bcfda218ec79796c78837": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "333",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "7199a42399af864e181862c1ee8a23a7c484742a846333d486f503d1856a262b": {
+      "boxes": [],
+      "tags": [
+        "partial_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "725a502aefe7ef60bffebadbbe345ff134add549e69bcf6c4459a5b93a26a732": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "200",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "739fe8c77ea2f892ffce0b6b9939bf9e0cb55094002ac062591da73e52cad9a0": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "507",
+          "tag": "bib"
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "514",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "73ee0772495652053dd04f0a307695a1c25651b30f63971f502b68e3e0c9a96d": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "534",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "74592e7acf1f96942c612f6a88e9a22cf8e03d047f09791dfedf2fdaf7749ca3": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "74b01e459247f6648c2b80b45597f7150d87559dfd257fdb4d96d8cb5a8bd49f": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "430",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    },
+    "753de9feee82795b9ac9b48ff503c6c01a6d01df53de07eeb8243d36c6d94097": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "771430e9096cf4d45a4c66685d488375232c47de7810129779da72f56cb4e47d": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "77c17cecb99659346fe28ad4eddeb8658b4cdc44d40d5e8a20692b8e7f8a8f78": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "510",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "782bdc64ba27395f3a8e34f98e71b27d9d2eeffd2dc4bdd8cfefdbafb506a9f3": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "78787f7a593c020c607be33c32cf3ccfc0d87936c089ff36bd1e2af8ec27bb5e": {
+      "boxes": [],
+      "tags": [
+        "obscured_bib"
+      ],
+      "split": "iteration",
+      "labeled": true
+    },
+    "78808d836b210b9b89be3fe172eeff9eee8ffd06b48e45fd572bb816a296297f": {
+      "boxes": [],
+      "tags": [
+        "no_bib"
+      ],
+      "split": "full",
+      "labeled": true
+    },
+    "78cdeb630949cc7927095480c2f3d80ca1dda9ff9dbe47b375bc81b0dd5f0e12": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "436",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "79270a95f688980e728c7978fd672fad611059b48499c9bdb47b97459eef6d07": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "221",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "iteration",
+      "labeled": true
+    },
+    "792df79b17aac97e67c8bc6485992f4c13768613e53f555373a93569fe766a63": {
+      "boxes": [
+        {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "number": "634",
+          "tag": "bib"
+        }
+      ],
+      "tags": [],
+      "split": "full",
+      "labeled": true
+    }
+  }
+}

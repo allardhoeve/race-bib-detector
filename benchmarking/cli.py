@@ -11,11 +11,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from benchmarking.ground_truth import (
-    load_ground_truth,
-    save_ground_truth,
-    GroundTruth,
-    PhotoLabel,
-    ALLOWED_TAGS,
+    BibBox,
+    BibPhotoLabel,
+    load_bib_ground_truth,
+    save_bib_ground_truth,
+    load_face_ground_truth,
+    BIB_PHOTO_TAGS,
+    FACE_PHOTO_TAGS,
+    ALLOWED_SPLITS,
 )
 from logging_utils import configure_logging, add_logging_args
 from benchmarking.photo_index import (
@@ -48,8 +51,8 @@ def cmd_scan(args: argparse.Namespace) -> int:
     print(f"  New since last scan: {stats['new_photos']}")
 
     # Check ground truth status
-    gt = load_ground_truth()
-    labeled = sum(1 for p in gt.photos.values() if p.bib_labeled)
+    gt = load_bib_ground_truth()
+    labeled = sum(1 for p in gt.photos.values() if p.labeled)
     unlabeled = stats['unique_hashes'] - labeled
 
     print(f"\nLabeling status:")
@@ -61,42 +64,49 @@ def cmd_scan(args: argparse.Namespace) -> int:
 
 def cmd_stats(args: argparse.Namespace) -> int:
     """Show ground truth statistics."""
-    gt = load_ground_truth()
+    bib_gt = load_bib_ground_truth()
+    face_gt = load_face_ground_truth()
 
-    if not gt.photos:
+    if not bib_gt.photos and not face_gt.photos:
         print("No ground truth data yet. Run 'scan' first, then start labeling.")
         return 0
 
-    stats = gt.stats()
+    total = len(bib_gt.photos)
 
     print("Ground Truth Statistics")
     print("=" * 40)
-    print(f"Total photos: {stats['total_photos']}")
-    print(f"Photos with bib labels: {stats['photos_with_bib_labels']}")
-    print(f"Photos without bib labels: {stats['photos_without_bib_labels']}")
-    print(f"Photos with bibs: {stats['photos_with_bibs']}")
-    print(f"Photos without bibs: {stats['photos_without_bibs']}")
-    print(f"Total bib annotations: {stats['total_bibs']}")
+    print(f"Total photos: {total}")
+
+    labeled = sum(1 for p in bib_gt.photos.values() if p.labeled)
+    print(f"Photos with bib labels: {labeled}")
+    print(f"Photos without bib labels: {total - labeled}")
+
+    with_bibs = sum(1 for p in bib_gt.photos.values() if p.bib_numbers_int)
+    print(f"Photos with bibs: {with_bibs}")
+    print(f"Photos without bibs: {total - with_bibs}")
+
+    total_bibs = sum(len(p.bib_numbers_int) for p in bib_gt.photos.values())
+    print(f"Total bib annotations: {total_bibs}")
 
     print(f"\nBy split:")
-    for split, count in stats['by_split'].items():
+    for split in sorted(ALLOWED_SPLITS):
+        count = len(bib_gt.get_by_split(split))
         print(f"  {split}: {count}")
 
-    print(f"\nBy tag:")
-    for tag, count in sorted(stats['by_tag'].items()):
+    print(f"\nBy bib tag:")
+    for tag in sorted(BIB_PHOTO_TAGS):
+        count = sum(1 for p in bib_gt.photos.values() if tag in p.tags)
         if count > 0:
             print(f"  {tag}: {count}")
 
     print(f"\nFace labeling:")
-    print(f"  With face count: {stats['photos_with_face_count']}")
-    print(f"  Without face count: {stats['photos_without_face_count']}")
-    if stats["face_count_distribution"]:
-        print("  Face count distribution:")
-        for count, total in sorted(stats["face_count_distribution"].items(), key=lambda item: int(item[0])):
-            print(f"    {count}: {total}")
+    face_photos_with_boxes = sum(1 for p in face_gt.photos.values() if p.boxes)
+    print(f"  Photos with face boxes: {face_photos_with_boxes}")
+    print(f"  Photos without face boxes: {len(face_gt.photos) - face_photos_with_boxes}")
 
     print(f"\nBy face tag:")
-    for tag, count in sorted(stats['by_face_tag'].items()):
+    for tag in sorted(FACE_PHOTO_TAGS):
+        count = sum(1 for p in face_gt.photos.values() if tag in p.tags)
         if count > 0:
             print(f"  {tag}: {count}")
 
@@ -106,7 +116,7 @@ def cmd_stats(args: argparse.Namespace) -> int:
 def cmd_unlabeled(args: argparse.Namespace) -> int:
     """List unlabeled photos."""
     index = load_photo_index()
-    gt = load_ground_truth()
+    gt = load_bib_ground_truth()
 
     all_hashes = set(index.keys())
     unlabeled = gt.get_unlabeled_hashes(all_hashes)
@@ -135,7 +145,7 @@ def cmd_unlabeled(args: argparse.Namespace) -> int:
 
 def cmd_show(args: argparse.Namespace) -> int:
     """Show details for a specific photo."""
-    gt = load_ground_truth()
+    gt = load_bib_ground_truth()
     index = load_photo_index()
     photos_dir = get_photos_dir()
 
@@ -171,15 +181,13 @@ def cmd_show(args: argparse.Namespace) -> int:
     print(f"Bibs: {label.bibs if label.bibs else '(none)'}")
     print(f"Tags: {label.tags if label.tags else '(none)'}")
     print(f"Split: {label.split}")
-    if label.photo_hash:
-        print(f"Photo hash: {label.photo_hash}")
 
     return 0
 
 
 def cmd_label(args: argparse.Namespace) -> int:
     """Add or update a label for a photo."""
-    gt = load_ground_truth()
+    gt = load_bib_ground_truth()
     index = load_photo_index()
 
     # Find by hash prefix
@@ -199,54 +207,55 @@ def cmd_label(args: argparse.Namespace) -> int:
 
     content_hash = matches[0]
 
-    # Parse bibs
-    bibs = []
-    if args.bibs:
+    # Parse bibs → BibBox entries (zero-area coords for CLI-entered numbers)
+    bib_boxes: list[BibBox] | None = None
+    if args.bibs is not None:
+        bib_boxes = []
         for b in args.bibs.split(","):
             b = b.strip()
             if b:
                 try:
-                    bibs.append(int(b))
+                    int(b)  # Validate it's a number
                 except ValueError:
                     print(f"Invalid bib number: {b}")
                     return 1
+                bib_boxes.append(BibBox(x=0, y=0, w=0, h=0, number=b, tag="bib"))
 
     # Parse tags
-    tags = []
-    if args.tags:
+    tags: list[str] | None = None
+    if args.tags is not None:
+        tags = []
         for t in args.tags.split(","):
             t = t.strip()
             if t:
-                if t not in ALLOWED_TAGS:
+                if t not in BIB_PHOTO_TAGS:
                     print(f"Invalid tag: {t}")
-                    print(f"Allowed tags: {sorted(ALLOWED_TAGS)}")
+                    print(f"Allowed tags: {sorted(BIB_PHOTO_TAGS)}")
                     return 1
                 tags.append(t)
 
     # Get or create label
     existing = gt.get_photo(content_hash)
     if existing:
-        # Update existing
-        if args.bibs is not None:
-            existing.bibs = sorted(set(bibs))
-        if args.tags is not None:
+        if bib_boxes is not None:
+            existing.boxes = bib_boxes
+        if tags is not None:
             existing.tags = tags
         if args.split:
             existing.split = args.split
-        existing.bib_labeled = True
+        existing.labeled = True
         label = existing
     else:
-        # Create new
-        label = PhotoLabel(
+        label = BibPhotoLabel(
             content_hash=content_hash,
-            bibs=bibs,
-            tags=tags,
+            boxes=bib_boxes or [],
+            tags=tags or [],
             split=args.split or "full",
-            bib_labeled=True,
+            labeled=True,
         )
         gt.add_photo(label)
 
-    save_ground_truth(gt)
+    save_bib_ground_truth(gt)
     print(f"Saved label for {content_hash[:8]}...")
     print(f"  Bibs: {label.bibs}")
     print(f"  Tags: {label.tags}")
@@ -543,6 +552,10 @@ def cmd_set_baseline(args: argparse.Namespace) -> int:
     save_baseline(run)
     print(f"\n✅ Baseline set to {run.metadata.run_id}")
     return 0
+
+
+# Alias for bnr.py backward compat
+cmd_update_baseline = cmd_set_baseline
 
 
 def build_parser() -> argparse.ArgumentParser:

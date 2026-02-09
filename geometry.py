@@ -29,8 +29,11 @@ def scale_bbox(bbox: Bbox, factor: float) -> Bbox:
     return [[int(p[0] * factor), int(p[1] * factor)] for p in bbox]
 
 
-def rect_iou(rect_a: tuple[int, int, int, int], rect_b: tuple[int, int, int, int]) -> float:
-    """Compute IoU between two rectangles (x1, y1, x2, y2)."""
+def compute_intersection_over_union(
+    rect_a: tuple[int, int, int, int],
+    rect_b: tuple[int, int, int, int],
+) -> float:
+    """Compute intersection-over-union between two rectangles (x1, y1, x2, y2)."""
     ax1, ay1, ax2, ay2 = rect_a
     bx1, by1, bx2, by2 = rect_b
 
@@ -49,3 +52,8 @@ def rect_iou(rect_a: tuple[int, int, int, int], rect_b: tuple[int, int, int, int
     if denom <= 0:
         return 0.0
     return inter_area / denom
+
+
+def rect_iou(rect_a: tuple[int, int, int, int], rect_b: tuple[int, int, int, int]) -> float:
+    """Compute IoU between two rectangles (x1, y1, x2, y2)."""
+    return compute_intersection_over_union(rect_a, rect_b)
