@@ -48,7 +48,7 @@ from benchmarking.ground_truth import (
 )
 from benchmarking.face_embeddings import build_embedding_index, find_top_k, EmbeddingIndex
 from benchmarking.ghost import load_suggestion_store
-from benchmarking.identities import load_identities, add_identity
+from benchmarking.identities import load_identities, add_identity, rename_identity
 from benchmarking.photo_index import load_photo_index, get_path_for_hash
 from benchmarking.runner import (
     list_runs,
@@ -428,6 +428,9 @@ LABELING_TEMPLATE = """
             <button class="nav-btn" onclick="navigate('prev')" {{ 'disabled' if not has_prev else '' }}>← Prev</button>
             <span class="position">{{ current }} / {{ total }}</span>
             <button class="nav-btn" onclick="navigate('next')" {{ 'disabled' if not has_next else '' }}>Next →</button>
+            {% if next_unlabeled_url %}
+            <button class="nav-btn" onclick="navigateUnlabeled()">Next unlabeled →→</button>
+            {% endif %}
         </div>
         <div class="filter-section" style="background: transparent; border: none; padding: 0;">
             <select class="filter-select" style="width: auto;" id="filter" onchange="applyFilter()">
@@ -629,6 +632,11 @@ LABELING_TEMPLATE = """
             const prevUrl = {{ prev_url|tojson }};
             const nextUrl = {{ next_url|tojson }};
             const url = direction === 'prev' ? prevUrl : nextUrl;
+            if (url) window.location.href = url;
+        }
+
+        function navigateUnlabeled() {
+            const url = {{ next_unlabeled_url|tojson }};
             if (url) window.location.href = url;
         }
 
@@ -840,6 +848,7 @@ FACE_LABELING_TEMPLATE = """
             padding: 4px 0;
         }
         .suggestion-chip {
+            position: relative;
             padding: 3px 8px;
             background: #0f3460;
             border: 1px solid #1a4a7a;
@@ -850,6 +859,36 @@ FACE_LABELING_TEMPLATE = """
             white-space: nowrap;
         }
         .suggestion-chip:hover { background: #1a4a7a; color: #fff; }
+        .crop-tooltip {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 6px;
+            border: 2px solid #1a4a7a;
+            border-radius: 4px;
+            background: #16213e;
+            padding: 2px;
+            z-index: 100;
+        }
+        .crop-tooltip img {
+            display: block;
+            max-width: 96px;
+            max-height: 96px;
+        }
+        .suggestion-chip:hover .crop-tooltip { display: block; }
+        .anon-btn {
+            background: #0f3460;
+            color: #eee;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+        .anon-btn:hover { background: #1a4a7a; }
     </style>
 </head>
 <body>
@@ -860,6 +899,9 @@ FACE_LABELING_TEMPLATE = """
             <button class="nav-btn" onclick="navigate('prev')" {{ 'disabled' if not has_prev else '' }}>← Prev</button>
             <span class="position">{{ current }} / {{ total }}</span>
             <button class="nav-btn" onclick="navigate('next')" {{ 'disabled' if not has_next else '' }}>Next →</button>
+            {% if next_unlabeled_url %}
+            <button class="nav-btn" onclick="navigateUnlabeled()">Next unlabeled →→</button>
+            {% endif %}
         </div>
         <div class="filter-section" style="background: transparent; border: none; padding: 0;">
             <select class="filter-select" style="width: auto;" id="filter" onchange="applyFilter()">
@@ -893,7 +935,10 @@ FACE_LABELING_TEMPLATE = """
                     <label><input type="radio" name="faceScope" value="uncertain"> uncertain</label>
                 </div>
                 <label>Identity</label>
-                <input type="text" id="faceIdentity" placeholder="e.g. Alice" list="identityList">
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <input type="text" id="faceIdentity" placeholder="e.g. Alice" list="identityList" style="flex:1;margin-bottom:0;">
+                    <button type="button" id="assignAnonBtn" class="anon-btn" onclick="assignAnonymous()">Anon</button>
+                </div>
                 <datalist id="identityList"></datalist>
                 <div id="identitySuggestions" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
                 <label style="margin-top: 8px;">Box Tags</label>
@@ -989,6 +1034,29 @@ FACE_LABELING_TEMPLATE = """
                 });
         }
 
+        // --- Assign anonymous identity ---
+        async function assignAnonymous() {
+            const state = LabelingUI.getState();
+            if (state.selectedIdx < 0) return;
+            const resp = await fetch('/api/identities');
+            const data = await resp.json();
+            const existing = (data.identities || [])
+                .filter(id => /^anon-\\d+$/.test(id))
+                .map(id => parseInt(id.split('-')[1], 10));
+            const next = existing.length ? Math.max(...existing) + 1 : 1;
+            const name = 'anon-' + next;
+            document.getElementById('faceIdentity').value = name;
+            state.boxes[state.selectedIdx].identity = name;
+            await fetch('/api/identities', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name })
+            });
+            renderBoxList(state.boxes);
+            LabelingUI.render();
+            loadIdentities();
+        }
+
         // --- Identity suggestions ---
         let _suggestAbort = null;
         function fetchIdentitySuggestions(box) {
@@ -1009,6 +1077,15 @@ FACE_LABELING_TEMPLATE = """
                         const chip = document.createElement('span');
                         chip.className = 'suggestion-chip';
                         chip.textContent = s.identity + ' ' + Math.round(s.similarity * 100) + '%';
+                        if (s.content_hash && s.box_index !== undefined) {
+                            const tooltip = document.createElement('span');
+                            tooltip.className = 'crop-tooltip';
+                            const img = document.createElement('img');
+                            img.src = '/api/face_crop/' + s.content_hash + '/' + s.box_index;
+                            img.alt = s.identity;
+                            tooltip.appendChild(img);
+                            chip.appendChild(tooltip);
+                        }
                         chip.addEventListener('click', function() {
                             document.getElementById('faceIdentity').value = s.identity;
                             const state = LabelingUI.getState();
@@ -1168,6 +1245,11 @@ FACE_LABELING_TEMPLATE = """
             const prevUrl = {{ prev_url|tojson }};
             const nextUrl = {{ next_url|tojson }};
             const url = direction === 'prev' ? prevUrl : nextUrl;
+            if (url) window.location.href = url;
+        }
+
+        function navigateUnlabeled() {
+            const url = {{ next_unlabeled_url|tojson }};
             if (url) window.location.href = url;
         }
 
@@ -1860,6 +1942,19 @@ def create_app() -> Flask:
         prev_url = url_for('label_photo', content_hash=hashes[idx - 1][:8], filter=filter_type) if has_prev else None
         next_url = url_for('label_photo', content_hash=hashes[idx + 1][:8], filter=filter_type) if has_next else None
 
+        # Find next unlabeled photo (in full sorted list, starting after current)
+        all_hashes_sorted = sorted(load_photo_index().keys())
+        next_unlabeled_url = None
+        try:
+            all_idx = all_hashes_sorted.index(full_hash)
+            for h in all_hashes_sorted[all_idx + 1:]:
+                lbl = bib_gt.get_photo(h)
+                if not lbl or not lbl.labeled:
+                    next_unlabeled_url = url_for('label_photo', content_hash=h[:8], filter=filter_type)
+                    break
+        except ValueError:
+            pass
+
         # Get latest run ID for inspector link
         runs = list_runs()
         latest_run_id = runs[0]['run_id'] if runs else None
@@ -1877,6 +1972,7 @@ def create_app() -> Flask:
             has_next=has_next,
             prev_url=prev_url,
             next_url=next_url,
+            next_unlabeled_url=next_unlabeled_url,
             filter=filter_type,
             latest_run_id=latest_run_id,
         )
@@ -1965,6 +2061,19 @@ def create_app() -> Flask:
         prev_url = url_for('face_label_photo', content_hash=hashes[idx - 1][:8], filter=filter_type) if has_prev else None
         next_url = url_for('face_label_photo', content_hash=hashes[idx + 1][:8], filter=filter_type) if has_next else None
 
+        # Find next unlabeled photo (in full sorted list, starting after current)
+        all_hashes_sorted = sorted(load_photo_index().keys())
+        next_unlabeled_url = None
+        try:
+            all_idx = all_hashes_sorted.index(full_hash)
+            for h in all_hashes_sorted[all_idx + 1:]:
+                fl = face_gt.get_photo(h)
+                if not fl or not is_face_labeled(fl):
+                    next_unlabeled_url = url_for('face_label_photo', content_hash=h[:8], filter=filter_type)
+                    break
+        except ValueError:
+            pass
+
         runs = list_runs()
         latest_run_id = runs[0]['run_id'] if runs else None
 
@@ -1982,6 +2091,7 @@ def create_app() -> Flask:
             has_next=has_next,
             prev_url=prev_url,
             next_url=next_url,
+            next_unlabeled_url=next_unlabeled_url,
             filter=filter_type,
             latest_run_id=latest_run_id,
         )
@@ -2096,6 +2206,33 @@ def create_app() -> Flask:
         ids = add_identity(name)
         return jsonify({'identities': ids})
 
+    @app.route('/api/rename_identity', methods=['POST'])
+    def rename_identity_api():
+        """Rename an identity across all face GT entries and the identities list."""
+        data = request.get_json() or {}
+        old_name = (data.get('old_name') or '').strip()
+        new_name = (data.get('new_name') or '').strip()
+
+        if not old_name or not new_name:
+            return jsonify({'error': 'Missing old_name or new_name'}), 400
+        if old_name == new_name:
+            return jsonify({'error': 'old_name and new_name are the same'}), 400
+
+        # Update face ground truth boxes
+        face_gt = load_face_ground_truth()
+        updated_count = 0
+        for label in face_gt.photos.values():
+            for box in label.boxes:
+                if box.identity == old_name:
+                    box.identity = new_name
+                    updated_count += 1
+        save_face_ground_truth(face_gt)
+
+        # Update identities list
+        ids = rename_identity(old_name, new_name)
+
+        return jsonify({'updated_count': updated_count, 'identities': ids})
+
     # -------------------------------------------------------------------------
     # Face identity suggestion endpoint
     # -------------------------------------------------------------------------
@@ -2171,6 +2308,46 @@ def create_app() -> Flask:
 
         matches = find_top_k(embeddings[0], emb_index, k=k)
         return jsonify({'suggestions': [m.to_dict() for m in matches]})
+
+    # -------------------------------------------------------------------------
+    # Face crop endpoint (for identity suggestion hover previews)
+    # -------------------------------------------------------------------------
+    @app.route('/api/face_crop/<content_hash>/<int:box_index>')
+    def face_crop(content_hash, box_index):
+        """Return a JPEG crop of a labeled face box."""
+        index = load_photo_index()
+        full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
+        if not full_hash:
+            abort(404)
+
+        face_gt = load_face_ground_truth()
+        label = face_gt.get_photo(full_hash)
+        if not label or box_index < 0 or box_index >= len(label.boxes):
+            abort(404)
+
+        box = label.boxes[box_index]
+        if not box.has_coords:
+            abort(404)
+
+        photo_path = get_path_for_hash(full_hash, PHOTOS_DIR, index)
+        if not photo_path or not photo_path.exists():
+            abort(404)
+
+        from PIL import Image
+        import io
+
+        img = Image.open(photo_path)
+        w, h = img.size
+        left = int(box.x * w)
+        upper = int(box.y * h)
+        right = int((box.x + box.w) * w)
+        lower = int((box.y + box.h) * h)
+        crop = img.crop((left, upper, right, lower))
+
+        buf = io.BytesIO()
+        crop.save(buf, format='JPEG', quality=85)
+        buf.seek(0)
+        return send_file(buf, mimetype='image/jpeg')
 
     # -------------------------------------------------------------------------
     # Benchmark Routes

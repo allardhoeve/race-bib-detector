@@ -1,6 +1,9 @@
 """Tests for web_app API endpoints (bib boxes, face boxes, identities)."""
 
+import io
+
 import pytest
+from PIL import Image
 
 from benchmarking.ghost import (
     BibSuggestion,
@@ -318,6 +321,96 @@ class TestIdentitiesApi:
 
 
 # =============================================================================
+# Rename Identity API
+# =============================================================================
+
+
+class TestRenameIdentityApi:
+    def test_rename_missing_params_400(self, app_client):
+        """No body / missing fields returns 400."""
+        resp = app_client.post("/api/rename_identity", json={})
+        assert resp.status_code == 400
+
+        resp = app_client.post("/api/rename_identity", json={"old_name": "Alice"})
+        assert resp.status_code == 400
+
+        resp = app_client.post("/api/rename_identity", json={"new_name": "Bob"})
+        assert resp.status_code == 400
+
+    def test_rename_same_name_400(self, app_client):
+        """old == new returns 400."""
+        resp = app_client.post(
+            "/api/rename_identity", json={"old_name": "Alice", "new_name": "Alice"}
+        )
+        assert resp.status_code == 400
+
+    def test_rename_updates_face_boxes(self, app_client):
+        """Renaming identity updates all face GT boxes."""
+        # Save face labels with anon-1 identity
+        boxes = [
+            {"x": 0.1, "y": 0.2, "w": 0.15, "h": 0.2, "scope": "keep", "identity": "anon-1"},
+            {"x": 0.5, "y": 0.3, "w": 0.1, "h": 0.15, "scope": "keep", "identity": "Bob"},
+        ]
+        app_client.post(
+            "/api/face_labels",
+            json={"content_hash": HASH_A, "boxes": boxes, "face_tags": []},
+        )
+        # Also save for HASH_B with anon-1
+        app_client.post(
+            "/api/face_labels",
+            json={
+                "content_hash": HASH_B,
+                "boxes": [{"x": 0.2, "y": 0.3, "w": 0.1, "h": 0.1, "scope": "keep", "identity": "anon-1"}],
+                "face_tags": [],
+            },
+        )
+
+        resp = app_client.post(
+            "/api/rename_identity", json={"old_name": "anon-1", "new_name": "Alice"}
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["updated_count"] == 2  # one in HASH_A, one in HASH_B
+
+        # Verify boxes are updated
+        resp_a = app_client.get(f"/api/face_boxes/{HASH_A}")
+        boxes_a = resp_a.get_json()["boxes"]
+        assert boxes_a[0]["identity"] == "Alice"
+        assert boxes_a[1]["identity"] == "Bob"  # unchanged
+
+        resp_b = app_client.get(f"/api/face_boxes/{HASH_B}")
+        boxes_b = resp_b.get_json()["boxes"]
+        assert boxes_b[0]["identity"] == "Alice"
+
+    def test_rename_updates_identities_list(self, app_client):
+        """Renaming updates the identities list: old removed, new added."""
+        app_client.post("/api/identities", json={"name": "anon-1"})
+        app_client.post("/api/identities", json={"name": "Bob"})
+
+        resp = app_client.post(
+            "/api/rename_identity", json={"old_name": "anon-1", "new_name": "Alice"}
+        )
+        assert resp.status_code == 200
+        ids = resp.get_json()["identities"]
+        assert "Alice" in ids
+        assert "anon-1" not in ids
+        assert "Bob" in ids
+
+    def test_rename_no_matches_returns_zero(self, app_client):
+        """Rename an identity that has no boxes returns updated_count=0."""
+        app_client.post("/api/identities", json={"name": "anon-5"})
+
+        resp = app_client.post(
+            "/api/rename_identity", json={"old_name": "anon-5", "new_name": "Carol"}
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["updated_count"] == 0
+        assert "Carol" in data["identities"]
+        assert "anon-5" not in data["identities"]
+
+
+# =============================================================================
 # Face Identity Suggestions API
 # =============================================================================
 
@@ -355,3 +448,111 @@ class TestFaceIdentitySuggestions:
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["suggestions"] == []
+
+
+# =============================================================================
+# Face Crop API
+# =============================================================================
+
+
+def _make_test_jpeg(path, width=100, height=80):
+    """Create a small test JPEG file."""
+    img = Image.new("RGB", (width, height), color=(255, 0, 0))
+    img.save(path, format="JPEG")
+
+
+@pytest.fixture
+def crop_client(tmp_path, monkeypatch):
+    """Test client with PHOTOS_DIR pointed at tmp_path and a real JPEG."""
+    bib_gt_path = tmp_path / "bib_ground_truth.json"
+    face_gt_path = tmp_path / "face_ground_truth.json"
+    suggestions_path = tmp_path / "suggestions.json"
+    identities_path = tmp_path / "face_identities.json"
+    index_path = tmp_path / "photo_index.json"
+    photos_dir = tmp_path / "photos"
+    photos_dir.mkdir()
+
+    # Create a test photo
+    _make_test_jpeg(photos_dir / "photo_a.jpg")
+
+    save_photo_index({HASH_A: ["photo_a.jpg"]}, index_path)
+
+    monkeypatch.setattr(
+        "benchmarking.ground_truth.get_bib_ground_truth_path", lambda: bib_gt_path
+    )
+    monkeypatch.setattr(
+        "benchmarking.ground_truth.get_face_ground_truth_path", lambda: face_gt_path
+    )
+    monkeypatch.setattr(
+        "benchmarking.ghost.get_suggestion_store_path", lambda: suggestions_path
+    )
+    monkeypatch.setattr(
+        "benchmarking.identities.get_identities_path", lambda: identities_path
+    )
+    monkeypatch.setattr(
+        "benchmarking.photo_index.get_photo_index_path", lambda: index_path
+    )
+    monkeypatch.setattr("benchmarking.web_app.PHOTOS_DIR", photos_dir)
+
+    from benchmarking.web_app import create_app
+
+    app = create_app()
+    app.config["TESTING"] = True
+    return app.test_client()
+
+
+class TestFaceCropApi:
+    def test_unknown_hash_404(self, crop_client):
+        resp = crop_client.get(f"/api/face_crop/{HASH_UNKNOWN}/0")
+        assert resp.status_code == 404
+
+    def test_no_face_gt_404(self, crop_client):
+        """Hash exists in index but has no face GT entry."""
+        resp = crop_client.get(f"/api/face_crop/{HASH_A}/0")
+        assert resp.status_code == 404
+
+    def test_box_index_out_of_range_404(self, crop_client):
+        """Box index beyond available boxes."""
+        # Save a face label with one box
+        crop_client.post(
+            "/api/face_labels",
+            json={
+                "content_hash": HASH_A,
+                "boxes": [{"x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "scope": "keep"}],
+                "face_tags": [],
+            },
+        )
+        resp = crop_client.get(f"/api/face_crop/{HASH_A}/5")
+        assert resp.status_code == 404
+
+    def test_zero_area_box_404(self, crop_client):
+        """Box with zero-area coords returns 404."""
+        crop_client.post(
+            "/api/face_labels",
+            json={
+                "content_hash": HASH_A,
+                "boxes": [{"x": 0, "y": 0, "w": 0, "h": 0, "scope": "keep"}],
+                "face_tags": [],
+            },
+        )
+        resp = crop_client.get(f"/api/face_crop/{HASH_A}/0")
+        assert resp.status_code == 404
+
+    def test_success_returns_jpeg(self, crop_client):
+        """Valid hash + box_index returns a cropped JPEG."""
+        crop_client.post(
+            "/api/face_labels",
+            json={
+                "content_hash": HASH_A,
+                "boxes": [{"x": 0.1, "y": 0.1, "w": 0.5, "h": 0.5, "scope": "keep"}],
+                "face_tags": [],
+            },
+        )
+        resp = crop_client.get(f"/api/face_crop/{HASH_A}/0")
+        assert resp.status_code == 200
+        assert resp.content_type == "image/jpeg"
+
+        # Verify it's a valid JPEG we can open
+        img = Image.open(io.BytesIO(resp.data))
+        assert img.format == "JPEG"
+        assert img.width > 0 and img.height > 0

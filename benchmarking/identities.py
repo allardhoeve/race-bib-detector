@@ -34,3 +34,12 @@ def add_identity(name: str, path: Path | None = None) -> list[str]:
     ids = sorted(set(ids))
     save_identities(ids, path)
     return ids
+
+
+def rename_identity(old: str, new: str, path: Path | None = None) -> list[str]:
+    """Rename an identity in the list. Returns the updated sorted list."""
+    ids = load_identities(path)
+    ids = [new if name == old else name for name in ids]
+    ids = sorted(set(ids))
+    save_identities(ids, path)
+    return ids
