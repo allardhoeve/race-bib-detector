@@ -30,14 +30,17 @@ Geometric priors (bibs sit below faces) belong in stage 3 as a pipeline heuristi
 
 ## Ground Truth Schema
 
-Split into two files with independent freeze/staging lifecycles:
+Split into two files with independent freeze/staging lifecycles (schema version 3):
 
-- `bib_ground_truth.json` -- bib bounding boxes, bib numbers, bib tags.
+- `bib_ground_truth.json` -- bib bounding boxes, bib numbers, bib tags, split assignment.
 - `face_ground_truth.json` -- face bounding boxes, scope tags, identity labels.
+- `suggestions.json` -- precomputed detection suggestions (ghost labels), separate from human labels. Each photo entry carries provenance metadata (backend, version, config).
 
-The photo index remains shared (photo identity via content hash).
+The photo index remains shared (`photo_index.json`, photo identity via SHA256 content hash).
 
 `face_count` is not stored; it is derived from the `keep`-scoped face box list.
+
+Bounding box coordinates are normalised to `[0, 1]` image space. Legacy migrated entries have zero-area coordinates (`has_coords == False`) until boxes are drawn in the labeling UI.
 
 ### Bib Labels
 
@@ -75,46 +78,70 @@ The photo index remains shared (photo identity via content hash).
 
 ### Workflow
 
-1. Mark an album as part of the test suite. Copy photos into the reference set and run ghost labeling (precomputed bib/face suggestions).
-2. Use the labeling UI to confirm or correct ghost labels. Bib and face labeling are separate flows.
-3. Freeze staging into a named benchmark set when labeling is complete.
-4. Run benchmarks against frozen sets.
-5. If a label needs correction, move the photo back to staging, relabel, and re-freeze as a new version.
+1. Run `bnr benchmark prepare <path>` to copy photos from a local directory into the benchmark set. This deduplicates by content hash and runs ghost labeling (precomputed bib/face suggestions).
+2. Use the labeling UI (`bnr benchmark ui`) to confirm or correct ghost labels. Bib and face labeling are separate flows.
+3. Run benchmarks (`bnr benchmark run`) to evaluate the pipeline against labeled data.
+4. *(Future)* Freeze into a named benchmark set when labeling is complete. Frozen sets are immutable.
+5. *(Future)* If a label needs correction, update in the staging set and re-freeze as a new version.
 
-Refresh runs apply only to staging; frozen sets remain immutable.
+`--refresh` re-runs ghost labeling on existing photos. `--reset-labels` clears human labels without removing photos. Refresh runs apply only to the mutable set; frozen sets (once implemented) remain immutable.
 
 ## Scorecard
 
-### Phase 1 (boxes + links -- no identity labels required)
+Two scoring systems run in parallel:
 
-- **Bib localization:** detection precision/recall using IoU vs ground-truth bib boxes.
-- **Bib OCR:** accuracy conditioned on correct localization (exact and partial handling).
-- **Face detection:** precision/recall using IoU vs ground-truth face boxes (scoped to `keep`).
-- **Bib-face linking:** link accuracy (correct pairings vs ground-truth links).
+**Number-based metrics** (works now, on all 225+ labeled photos):
+- Set-intersection of expected vs detected bib numbers per photo.
+- Precision, recall, F1, plus per-photo PASS/PARTIAL/MISS status.
+- Baseline comparison with regression detection.
 
-### Phase 2 (activates once identity labels exist)
+**IoU scorecard** (activates once GT boxes have coordinates, i.e. after Step 4 labeling):
+- **Bib localization:** detection precision/recall using greedy IoU matching vs GT bib boxes.
+- **Bib OCR:** accuracy conditioned on correct localization (exact string match on matched pairs).
+- **Face detection:** precision/recall using IoU vs GT face boxes (scoped to `keep` only; `ignore`/`unknown` excluded).
 
-- **Face clustering:** pairwise F1 or NMI.
-- **Retrieval quality:** percentage of "wanted images" found (and top-k recall).
+Both scorecards are implemented in `benchmarking/scoring.py` (`BibScorecard`, `FaceScorecard`) and printed by `bnr benchmark run`.
 
-Every run is archived with metadata: timestamp, git commit hash, config, runtime, and metrics.
+### Future scorecard extensions
+
+- **Bib-face linking:** link accuracy (correct pairings vs ground-truth links). Requires Step 5.
+- **Face clustering:** pairwise F1 or NMI. Requires identity labels.
+- **Retrieval quality:** percentage of "wanted images" found (top-k recall).
+
+Every run is archived with metadata (timestamp, git commit, config, runtime, metrics) in `benchmarking/results/<run_id>/run.json`.
 
 ## CLI Commands
 
-- `bnr benchmark prepare [--album <id>] [--refresh] [--reset-labels]`
-  - Copies photos into the benchmark folder.
-  - Runs ghost labeling (face + bib suggestions).
-  - Writes or updates the staging set metadata.
-- `bnr benchmark freeze --name <name>`
-  - Freezes the current staging set into an immutable benchmark set version.
-- `bnr benchmark label faces`
-  - Opens the face labeling UI with faint suggestions and face scope tags.
-- `bnr benchmark label bibs`
-  - Opens the bib labeling UI.
-- `bnr benchmark run [--set <name>|--all] [--split iteration|full]`
-  - Runs metrics and writes a scorecard artifact.
+Implemented:
+
+- `bnr benchmark prepare <path> [--refresh] [--reset-labels]`
+  - Copies photos from a local directory into the benchmark folder (dedup by content hash).
+  - Runs ghost labeling (face + bib suggestions) on new photos.
+  - `--refresh` re-runs ghost labeling on all photos.
+  - `--reset-labels` clears all human labels (keeps photos and GT entries).
+- `bnr benchmark run [--full] [--note "..."]`
+  - Runs detection on iteration split (default) or full split.
+  - Prints number-based metrics and IoU scorecard.
+  - Archives results to `benchmarking/results/<run_id>/run.json`.
+- `bnr benchmark ui`
+  - Opens the labeling + benchmark inspection web UI.
 - `bnr benchmark list`
-  - Shows frozen sets and run history.
+  - Shows saved benchmark runs with metrics summary.
+- `bnr benchmark baseline [-f]`
+  - Sets a run as the regression baseline.
+- `bnr benchmark scan`
+  - Rescans the photos directory and updates the index.
+- `bnr benchmark stats`
+  - Shows ground truth labeling statistics.
+- `bnr benchmark clean [--keep-latest N] [--keep-baseline] [-f]`
+  - Removes old benchmark runs.
+
+Planned (deferred):
+
+- `bnr benchmark freeze --name <name>`
+  - Freezes the current staging set into a named immutable benchmark set.
+- `bnr benchmark label faces` / `bnr benchmark label bibs`
+  - Dedicated labeling commands (currently labeling is via `bnr benchmark ui`).
 
 ## Future Work
 
@@ -126,9 +153,13 @@ Define `fast` / `balanced` / `best` presets to reduce the configuration surface.
 
 Create an `experiments/` area for automated parameter searches. Harness runs bounded search across parameter combinations or alternative backends, reports top results by the scorecard. Must not modify production defaults or data.
 
+## Resolved Questions
+
+- **Storage:** Photos stay in `photos/`. Ground truth, suggestions, index, and run results all live under `benchmarking/`. Frozen sets (Step 1) will be named snapshots of the same data.
+- **Scale:** Current set has 468 photos (225 labeled). Sufficient for the milestone; `bnr benchmark prepare` makes it easy to grow.
+
 ## Open Questions
 
-- **Storage:** Where do frozen benchmark sets live? Git LFS? A separate directory? The current `photos/` folder?
-- **Scale:** The architecture targets 200-1000 images. Is the current set sufficient?
 - **Identity bootstrap:** Identity labels don't exist yet. The plan is to accumulate them via the face labeling UI. Is a dedicated identity labeling pass needed?
 - **CI integration:** Should `bnr benchmark run` gate PRs, or is it advisory-only?
+- **Frozen set naming:** Frozen sets should have explicit human-readable names (e.g. `benchmark_v1`, `clubkamp_2024`). Exact on-disk layout TBD in Step 1.

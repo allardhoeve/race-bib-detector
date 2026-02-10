@@ -85,14 +85,6 @@ class TestBibValidation:
 class TestDetectionDataclass:
     """Tests for the Detection dataclass."""
 
-    def test_detection_creation(self):
-        """Test basic Detection creation."""
-        from detection import Detection
-        det = Detection(bib_number="123", confidence=0.95, bbox=[[0, 0], [10, 0], [10, 10], [0, 10]])
-        assert det.bib_number == "123"
-        assert det.confidence == 0.95
-        assert det.bbox == [[0, 0], [10, 0], [10, 10], [0, 10]]
-
     def test_detection_scale_bbox(self):
         """Test Detection.scale_bbox returns new Detection with scaled bbox."""
         from detection import Detection
@@ -131,33 +123,6 @@ class TestDetectionDataclass:
         d = {"bib_number": "789", "confidence": 0.7, "bbox": [[5, 5], [15, 5], [15, 15], [5, 15]], "source": "full_image"}
         det = Detection.from_dict(d)
         assert det.source == "full_image"
-
-    def test_detection_default_source(self):
-        """Test Detection defaults to white_region source."""
-        from detection import Detection
-        det = Detection(bib_number="123", confidence=0.9, bbox=[[0, 0], [10, 0], [10, 10], [0, 10]])
-        assert det.source == "white_region"
-        assert det.source_candidate is None
-
-    def test_detection_with_source_candidate(self):
-        """Test Detection can track its source BibCandidate."""
-        from detection import Detection, BibCandidate
-        candidate = BibCandidate(
-            bbox=(100, 100, 50, 30),
-            area=1500,
-            aspect_ratio=1.67,
-            median_brightness=200,
-            mean_brightness=195,
-            relative_area=0.05,
-        )
-        det = Detection(
-            bib_number="456",
-            confidence=0.85,
-            bbox=[[110, 110], [140, 110], [140, 125], [110, 125]],
-            source="white_region",
-            source_candidate=candidate,
-        )
-        assert det.source_candidate is candidate
         assert det.source_candidate.bbox == (100, 100, 50, 30)
 
     def test_detection_scale_bbox_preserves_lineage(self):

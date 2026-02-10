@@ -25,7 +25,8 @@ Step 1 (staging/frozen sets) is deferred — not needed for labeling or scoring.
 ## Step 0.5: First scorecard (parallel track, start after step 0)
 
 Minimal scoring against the new schema so labeling effort pays off immediately.
-Even 10 hand-labeled photos give useful signal.
+Number-based metrics work now on all labeled photos. IoU scorecard activates
+once GT boxes have coordinates (drawn in step 4 labeling UI).
 
 - [x] Add `compute_iou(box_a, box_b)` utility
 - [x] Add `match_boxes(predicted, ground_truth, iou_threshold=0.5)` — greedy IoU matching, returns TP/FP/FN
@@ -49,6 +50,14 @@ Even 10 hand-labeled photos give useful signal.
 - [x] Run bib detection on each benchmark photo, save suggestion boxes
 - [x] Store provenance metadata per suggestion (backend, version, config)
 - [x] Persist suggestions alongside ground truth (separate from human labels)
+
+## Step 3.9: Cleanup (tests)
+
+- [ ] Remove dataclass/accessor-only tests in `tests/test_photo.py`, keeping behavior like `get_paths` errors.
+- [ ] Prune round-trip and field-mirroring tests in `tests/test_ground_truth.py`, keeping tag/split validation and `bib_numbers_int` logic.
+- [ ] Trim `tests/test_ghost.py` to store semantics and one serialization snapshot; drop per-dataclass accessor tests.
+- [ ] Simplify `tests/test_bib_detection.py` by keeping `scale_bbox` and `from_dict` compat checks, dropping basic constructor/accessor tests.
+- [ ] Reduce `tests/test_preprocessing.py` property alias checks to conditional behavior only (e.g., `resized` when scaled).
 
 ## Step 4: Labeling UI
 
@@ -93,6 +102,6 @@ Depends on steps 0, 2, 3.
 
 ### Step 6: Full scorecard with archiving
 
-- [ ] Archive every run with metadata (timestamp, git hash, config, runtime)
-- [ ] Baseline comparison (regression detection)
-- [ ] Bib-face link accuracy metric
+- [x] Archive every run with metadata (timestamp, git hash, config, runtime) *(already works — runner saves to results/\<run_id\>/run.json)*
+- [x] Baseline comparison (regression detection) *(already works — `bnr benchmark baseline` + compare_to_baseline)*
+- [ ] Bib-face link accuracy metric *(requires step 5)*

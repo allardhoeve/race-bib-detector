@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import pytest
 
 from benchmarking.ghost import (
     BibSuggestion,
-    FaceSuggestion,
     Provenance,
     PhotoSuggestions,
     SuggestionStore,
@@ -17,112 +15,6 @@ from benchmarking.ghost import (
     save_suggestion_store,
     normalize_quad,
 )
-
-
-# =============================================================================
-# Provenance
-# =============================================================================
-
-
-class TestProvenance:
-    def test_creation(self):
-        p = Provenance(backend="easyocr", version="1.7.1", config={"gpu": False})
-        assert p.backend == "easyocr"
-        assert p.version == "1.7.1"
-
-    def test_round_trip(self):
-        p = Provenance(backend="opencv_dnn_ssd", version="4.8.0", config={"confidence": 0.5})
-        d = p.to_dict()
-        p2 = Provenance.from_dict(d)
-        assert p2.backend == p.backend
-        assert p2.version == p.version
-        assert p2.config == p.config
-
-
-# =============================================================================
-# BibSuggestion
-# =============================================================================
-
-
-class TestBibSuggestion:
-    def test_creation(self):
-        s = BibSuggestion(x=0.1, y=0.2, w=0.3, h=0.15, number="42", confidence=0.95)
-        assert s.number == "42"
-        assert s.confidence == 0.95
-
-    def test_has_coords(self):
-        s = BibSuggestion(x=0.1, y=0.2, w=0.3, h=0.15, number="42", confidence=0.9)
-        assert s.has_coords is True
-
-    def test_zero_area_no_coords(self):
-        s = BibSuggestion(x=0, y=0, w=0, h=0, number="42", confidence=0.9)
-        assert s.has_coords is False
-
-    def test_round_trip(self):
-        s = BibSuggestion(x=0.1, y=0.2, w=0.3, h=0.15, number="42", confidence=0.95)
-        d = s.to_dict()
-        s2 = BibSuggestion.from_dict(d)
-        assert s2.x == pytest.approx(s.x)
-        assert s2.number == s.number
-        assert s2.confidence == pytest.approx(s.confidence)
-
-
-# =============================================================================
-# FaceSuggestion
-# =============================================================================
-
-
-class TestFaceSuggestion:
-    def test_creation(self):
-        s = FaceSuggestion(x=0.4, y=0.1, w=0.15, h=0.2, confidence=0.88)
-        assert s.confidence == 0.88
-
-    def test_round_trip(self):
-        s = FaceSuggestion(x=0.4, y=0.1, w=0.15, h=0.2, confidence=0.88)
-        d = s.to_dict()
-        s2 = FaceSuggestion.from_dict(d)
-        assert s2.x == pytest.approx(s.x)
-        assert s2.confidence == pytest.approx(s.confidence)
-
-
-# =============================================================================
-# PhotoSuggestions
-# =============================================================================
-
-
-class TestPhotoSuggestions:
-    def test_empty(self):
-        ps = PhotoSuggestions(content_hash="abc123")
-        assert ps.bibs == []
-        assert ps.faces == []
-        assert ps.provenance is None
-
-    def test_with_suggestions(self):
-        prov = Provenance(backend="test", version="1.0", config={})
-        ps = PhotoSuggestions(
-            content_hash="abc123",
-            bibs=[BibSuggestion(x=0.1, y=0.2, w=0.3, h=0.15, number="42", confidence=0.9)],
-            faces=[FaceSuggestion(x=0.4, y=0.1, w=0.15, h=0.2, confidence=0.88)],
-            provenance=prov,
-        )
-        assert len(ps.bibs) == 1
-        assert len(ps.faces) == 1
-        assert ps.provenance.backend == "test"
-
-    def test_round_trip(self):
-        prov = Provenance(backend="test", version="1.0", config={"k": "v"})
-        ps = PhotoSuggestions(
-            content_hash="abc123",
-            bibs=[BibSuggestion(x=0.1, y=0.2, w=0.3, h=0.15, number="42", confidence=0.9)],
-            faces=[FaceSuggestion(x=0.4, y=0.1, w=0.15, h=0.2, confidence=0.88)],
-            provenance=prov,
-        )
-        d = ps.to_dict()
-        ps2 = PhotoSuggestions.from_dict("abc123", d)
-        assert ps2.content_hash == "abc123"
-        assert len(ps2.bibs) == 1
-        assert len(ps2.faces) == 1
-        assert ps2.provenance.backend == "test"
 
 
 # =============================================================================
@@ -159,29 +51,6 @@ class TestSuggestionStore:
         store.add(PhotoSuggestions(content_hash="aaa"))
         store.add(PhotoSuggestions(content_hash="bbb"))
         assert store.hashes() == {"aaa", "bbb"}
-
-    def test_round_trip(self):
-        store = SuggestionStore()
-        prov = Provenance(backend="test", version="1.0", config={})
-        store.add(PhotoSuggestions(
-            content_hash="h1",
-            bibs=[BibSuggestion(x=0.1, y=0.2, w=0.3, h=0.15, number="42", confidence=0.9)],
-            faces=[],
-            provenance=prov,
-        ))
-        store.add(PhotoSuggestions(
-            content_hash="h2",
-            bibs=[],
-            faces=[FaceSuggestion(x=0.5, y=0.5, w=0.1, h=0.1, confidence=0.7)],
-            provenance=prov,
-        ))
-
-        d = store.to_dict()
-        store2 = SuggestionStore.from_dict(d)
-        assert store2.has("h1")
-        assert store2.has("h2")
-        assert len(store2.get("h1").bibs) == 1
-        assert len(store2.get("h2").faces) == 1
 
 
 # =============================================================================

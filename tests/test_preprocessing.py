@@ -263,49 +263,6 @@ class TestPreprocessResult:
         mapped = result.map_bbox_to_original(bbox)
         assert mapped == [[20, 20], [40, 20], [40, 40], [20, 40]]
 
-    def test_ocr_image_returns_processed(self):
-        """ocr_image should return processed image."""
-        processed = np.zeros((100, 200), dtype=np.uint8)
-        result = PreprocessResult(
-            original=np.zeros((200, 400, 3), dtype=np.uint8),
-            processed=processed,
-            scale_factor=2.0,
-            config=PreprocessConfig(target_width=200),
-        )
-        assert result.ocr_image is processed
-
-    def test_ocr_grayscale_returns_processed(self):
-        """ocr_grayscale should return processed image (which is grayscale)."""
-        processed = np.zeros((100, 200), dtype=np.uint8)
-        result = PreprocessResult(
-            original=np.zeros((200, 400, 3)),
-            processed=processed,
-            scale_factor=2.0,
-            config=PreprocessConfig(target_width=200),
-        )
-        assert result.ocr_grayscale is processed
-
-    def test_ocr_dimensions_returns_processed_dimensions(self):
-        """ocr_dimensions should return (width, height) of processed image."""
-        result = PreprocessResult(
-            original=np.zeros((200, 400, 3)),
-            processed=np.zeros((100, 200)),
-            scale_factor=2.0,
-            config=PreprocessConfig(target_width=200),
-        )
-        assert result.ocr_dimensions == (200, 100)
-
-    def test_legacy_grayscale_property(self):
-        """grayscale property should return processed for backwards compat."""
-        processed = np.zeros((100, 200), dtype=np.uint8)
-        result = PreprocessResult(
-            original=np.zeros((200, 400, 3)),
-            processed=processed,
-            scale_factor=2.0,
-            config=PreprocessConfig(target_width=200),
-        )
-        assert result.grayscale is processed
-
     def test_legacy_resized_property_when_scaled(self):
         """resized property should return processed when scale_factor != 1."""
         processed = np.zeros((100, 200), dtype=np.uint8)
