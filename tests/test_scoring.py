@@ -7,7 +7,6 @@ import pytest
 from benchmarking.scoring import (
     compute_iou,
     match_boxes,
-    MatchResult,
     BibScorecard,
     FaceScorecard,
     score_bibs,
@@ -353,23 +352,23 @@ class TestScoreFaces:
         assert sc.detection_fp == 0
         assert sc.detection_fn == 0
 
-    def test_ignore_scoped_gt_excluded(self):
-        """GT faces with scope='ignore' should not count as FN."""
+    def test_exclude_scoped_gt_excluded(self):
+        """GT faces with scope='exclude' should not count as FN."""
         gt = [
             FaceBox(x=0.1, y=0.1, w=0.15, h=0.2, scope="keep"),
-            FaceBox(x=0.5, y=0.5, w=0.15, h=0.2, scope="ignore"),
+            FaceBox(x=0.5, y=0.5, w=0.15, h=0.2, scope="exclude"),
         ]
         pred = [FaceBox(x=0.1, y=0.1, w=0.15, h=0.2)]
         sc = score_faces(pred, gt)
         assert sc.detection_tp == 1
-        assert sc.detection_fn == 0  # ignore-scoped excluded
+        assert sc.detection_fn == 0  # exclude-scoped excluded
 
-    def test_unknown_scoped_gt_excluded(self):
-        """GT faces with scope='unknown' should be excluded from scoring."""
-        gt = [FaceBox(x=0.1, y=0.1, w=0.15, h=0.2, scope="unknown")]
+    def test_uncertain_scoped_gt_excluded(self):
+        """GT faces with scope='uncertain' should be excluded from scoring."""
+        gt = [FaceBox(x=0.1, y=0.1, w=0.15, h=0.2, scope="uncertain")]
         pred = [FaceBox(x=0.1, y=0.1, w=0.15, h=0.2)]
         sc = score_faces(pred, gt)
-        # unknown GT is not scored — pred becomes FP
+        # uncertain GT is not scored — pred becomes FP
         assert sc.detection_tp == 0
         assert sc.detection_fp == 1
 

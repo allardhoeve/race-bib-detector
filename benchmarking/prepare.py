@@ -23,8 +23,8 @@ from .ground_truth import (
     load_face_ground_truth,
     save_face_ground_truth,
 )
-from .photo_index import load_photo_index, save_photo_index
-from .scanner import compute_content_hash, is_image_file, scan_photos, build_photo_index
+from .photo_index import save_photo_index
+from .scanner import scan_photos, build_photo_index
 
 
 @dataclass

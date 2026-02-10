@@ -313,7 +313,7 @@ def score_faces(
     """Score face detections against ground truth.
 
     Only ``keep``-scoped GT boxes with coords are included in scoring.
-    ``ignore`` and ``unknown`` scoped GT boxes are excluded entirely.
+    ``exclude`` and ``uncertain`` scoped GT boxes are excluded entirely.
 
     Args:
         predicted: Predicted face boxes (from detection pipeline).

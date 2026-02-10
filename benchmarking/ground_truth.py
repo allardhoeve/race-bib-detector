@@ -21,7 +21,11 @@ SCHEMA_VERSION = 3
 BIB_BOX_TAGS = frozenset({"bib", "not_bib", "bib_partial"})
 
 # Per-box face scope (should this face be recognized?)
-FACE_SCOPE_TAGS = frozenset({"keep", "ignore", "unknown"})
+#   keep     — real participant face, scored during evaluation
+#   exclude  — visible but irrelevant (spectators, crowd), excluded from scoring
+#   uncertain — labeler unsure whether face matters, excluded until resolved
+FACE_SCOPE_TAGS = frozenset({"keep", "exclude", "uncertain"})
+_FACE_SCOPE_COMPAT = {"ignore": "exclude", "unknown": "uncertain"}
 
 # Photo-level bib condition descriptors
 BIB_PHOTO_TAGS = frozenset({
@@ -39,12 +43,13 @@ FACE_BOX_TAGS = frozenset({"tiny", "blurry", "occluded", "profile", "looking_dow
 
 # Photo-level face condition descriptors (scene-level only)
 FACE_PHOTO_TAGS = frozenset({
-    "face_no_faces",
+    "no_faces",
     "light_faces",
 })
 
 # Compat set: old per-photo tags that now live on boxes, kept for loading legacy data
 _FACE_PHOTO_TAGS_COMPAT = FACE_PHOTO_TAGS | frozenset({
+    "face_no_faces",  # old name for no_faces
     "face_tiny_faces",
     "face_blurry_faces",
     "face_occluded_faces",
@@ -275,12 +280,14 @@ class FaceBox:
 
     @classmethod
     def from_dict(cls, data: dict) -> FaceBox:
+        scope = data.get("scope", "keep")
+        scope = _FACE_SCOPE_COMPAT.get(scope, scope)
         return cls(
             x=data["x"],
             y=data["y"],
             w=data["w"],
             h=data["h"],
-            scope=data.get("scope", "keep"),
+            scope=scope,
             identity=data.get("identity"),
             tags=data.get("tags", []),
         )
@@ -314,10 +321,15 @@ class FacePhotoLabel:
 
     @classmethod
     def from_dict(cls, content_hash: str, data: dict) -> FacePhotoLabel:
+        # Migrate legacy photo tag name
+        tags = [
+            "no_faces" if t == "face_no_faces" else t
+            for t in data.get("tags", [])
+        ]
         return cls(
             content_hash=content_hash,
             boxes=[FaceBox.from_dict(b) for b in data.get("boxes", [])],
-            tags=data.get("tags", []),
+            tags=tags,
         )
 
 

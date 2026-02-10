@@ -16,7 +16,7 @@ import config
 import db
 from detection import detect_bib_numbers, Detection, DetectionResult
 from preprocessing import PreprocessConfig
-from faces import get_face_backend, get_face_backend_by_name
+from faces import get_face_backend, get_face_backend_by_name, get_face_embedder
 from faces.artifacts import (
     save_face_candidates_preview,
     save_face_snippet,
@@ -253,11 +253,12 @@ def process_image(
                             type(fallback_face_backend).__name__,
                         )
 
+            embedder = get_face_embedder()
+            embedder_model_info = embedder.model_info()
             embeddings_by_backend: list[tuple[list, list, object]] = []
             for backend, backend_boxes in detections_by_backend:
-                embeddings = backend.embed_faces(image_rgb, backend_boxes)
-                model_info = backend.model_info()
-                embeddings_by_backend.append((backend_boxes, embeddings, model_info))
+                embeddings = embedder.embed(image_rgb, backend_boxes)
+                embeddings_by_backend.append((backend_boxes, embeddings, embedder_model_info))
 
             paths = ImagePaths.for_cache_path(cache_path)
             paths.ensure_dirs_exist()

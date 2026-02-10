@@ -1,19 +1,7 @@
 """Tests for web_app API endpoints (bib boxes, face boxes, identities)."""
 
-import json
 import pytest
-from pathlib import Path
 
-from benchmarking.ground_truth import (
-    BibBox,
-    BibPhotoLabel,
-    BibGroundTruth,
-    FaceBox,
-    FacePhotoLabel,
-    FaceGroundTruth,
-    save_bib_ground_truth,
-    save_face_ground_truth,
-)
 from benchmarking.ghost import (
     BibSuggestion,
     FaceSuggestion,
@@ -21,7 +9,6 @@ from benchmarking.ghost import (
     SuggestionStore,
     save_suggestion_store,
 )
-from benchmarking.identities import save_identities
 from benchmarking.photo_index import save_photo_index
 
 
@@ -194,7 +181,7 @@ class TestFaceBoxApi:
     def test_save_and_load_face_boxes(self, app_client):
         boxes = [
             {"x": 0.1, "y": 0.2, "w": 0.15, "h": 0.2, "scope": "keep", "identity": "Alice"},
-            {"x": 0.5, "y": 0.3, "w": 0.1, "h": 0.15, "scope": "ignore"},
+            {"x": 0.5, "y": 0.3, "w": 0.1, "h": 0.15, "scope": "exclude"},
         ]
         save_resp = app_client.post(
             "/api/face_labels",
@@ -207,7 +194,7 @@ class TestFaceBoxApi:
         assert len(data["boxes"]) == 2
         assert data["boxes"][0]["scope"] == "keep"
         assert data["boxes"][0]["identity"] == "Alice"
-        assert data["boxes"][1]["scope"] == "ignore"
+        assert data["boxes"][1]["scope"] == "exclude"
 
     def test_save_face_backward_compat(self, app_client):
         """Sending face_count without boxes keeps current behavior (compat tags)."""
@@ -225,11 +212,11 @@ class TestFaceBoxApi:
         """Save face boxes with per-box tags, verify round-trip."""
         boxes = [
             {"x": 0.1, "y": 0.2, "w": 0.15, "h": 0.2, "scope": "keep", "tags": ["tiny", "blurry"]},
-            {"x": 0.5, "y": 0.3, "w": 0.1, "h": 0.15, "scope": "ignore", "tags": ["profile"]},
+            {"x": 0.5, "y": 0.3, "w": 0.1, "h": 0.15, "scope": "exclude", "tags": ["profile"]},
         ]
         save_resp = app_client.post(
             "/api/face_labels",
-            json={"content_hash": HASH_A, "boxes": boxes, "face_tags": ["face_no_faces"]},
+            json={"content_hash": HASH_A, "boxes": boxes, "face_tags": ["no_faces"]},
         )
         assert save_resp.status_code == 200
 
@@ -238,7 +225,7 @@ class TestFaceBoxApi:
         assert len(data["boxes"]) == 2
         assert data["boxes"][0]["tags"] == ["tiny", "blurry"]
         assert data["boxes"][1]["tags"] == ["profile"]
-        assert "face_no_faces" in data["tags"]
+        assert "no_faces" in data["tags"]
 
     def test_save_face_box_invalid_tag_400(self, app_client):
         """Invalid per-box tag returns 400."""
@@ -328,3 +315,43 @@ class TestIdentitiesApi:
         resp = app_client.get("/api/identities")
         data = resp.get_json()
         assert data["identities"] == ["Alice", "Bob", "Charlie"]
+
+
+# =============================================================================
+# Face Identity Suggestions API
+# =============================================================================
+
+
+class TestFaceIdentitySuggestions:
+    def test_missing_params_400(self, app_client):
+        """Missing box coordinates returns 400."""
+        resp = app_client.get(f"/api/face_identity_suggestions/{HASH_A}")
+        assert resp.status_code == 400
+
+    def test_unknown_hash_404(self, app_client):
+        resp = app_client.get(
+            f"/api/face_identity_suggestions/{HASH_UNKNOWN}"
+            "?box_x=0.1&box_y=0.2&box_w=0.3&box_h=0.4"
+        )
+        assert resp.status_code == 404
+
+    def test_empty_index_returns_empty_suggestions(self, app_client, monkeypatch):
+        """When no labeled faces exist, returns empty suggestions."""
+        import numpy as np
+        from benchmarking.face_embeddings import EmbeddingIndex
+
+        # Monkeypatch the embedding index cache to have an empty index
+        monkeypatch.setattr(
+            "benchmarking.web_app.build_embedding_index",
+            lambda *a, **kw: EmbeddingIndex(
+                embeddings=np.empty((0, 3), dtype=np.float32),
+            ),
+        )
+
+        resp = app_client.get(
+            f"/api/face_identity_suggestions/{HASH_A}"
+            "?box_x=0.1&box_y=0.2&box_w=0.3&box_h=0.4"
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["suggestions"] == []

@@ -7,7 +7,6 @@ import logging
 import platform
 import socket
 import subprocess
-import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -31,16 +30,15 @@ from config import (
     FACE_FALLBACK_MIN_FACE_COUNT,
 )
 from detection import detect_bib_numbers
+from geometry import bbox_to_rect
 from preprocessing import PreprocessConfig
 from warnings_utils import suppress_torch_mps_pin_memory_warning
 
-logger = logging.getLogger(__name__)
-
-from .ground_truth import load_bib_ground_truth, BibBox, BibPhotoLabel, BibGroundTruth
+from .ground_truth import load_bib_ground_truth, BibBox, BibPhotoLabel
 from .photo_index import load_photo_index, get_path_for_hash
 from .scoring import score_bibs, BibScorecard
 
-from geometry import bbox_to_rect
+logger = logging.getLogger(__name__)
 
 # Photos directory
 PHOTOS_DIR = Path(__file__).parent.parent / "photos"
@@ -183,7 +181,7 @@ class PipelineConfig:
         if self.target_width:
             parts.append(f"w={self.target_width}")
         if self.clahe_enabled:
-            parts.append(f"CLAHE")
+            parts.append("CLAHE")
         return ", ".join(parts) if parts else "default"
 
 

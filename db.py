@@ -6,7 +6,7 @@ import sqlite3
 from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
-from photo import compute_photo_hash, Photo
+from photo import compute_photo_hash
 from faces.types import FaceBbox, FaceModelInfo, embedding_to_bytes
 
 if TYPE_CHECKING:

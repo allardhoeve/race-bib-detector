@@ -126,7 +126,10 @@ FACE_FALLBACK_MIN_FACE_COUNT = 2
 FACE_FALLBACK_MAX = 3
 FACE_FALLBACK_IOU_THRESHOLD = 0.3
 
-# Simple embedding size (square grayscale image size)
+# Face embedder selection (swappable via config)
+FACE_EMBEDDER = "facenet"
+
+# Simple embedding size (square grayscale image size, used by pixel embedder)
 FACE_EMBEDDING_SIZE = 32
 
 # Face snippet padding ratio (fraction of bbox size)

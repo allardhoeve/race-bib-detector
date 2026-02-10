@@ -250,8 +250,8 @@ var LabelingUI = (function () {
         not_bib: '#ff4444',
         bib_partial: '#ffaa00',
         keep: '#00aaff',
-        ignore: '#ff4444',
-        unknown: '#888888',
+        exclude: '#ff4444',
+        uncertain: '#888888',
     };
 
     function render() {
@@ -589,6 +589,7 @@ var LabelingUI = (function () {
                 state.suggestions = data.suggestions || [];
                 state.selectedIdx = -1;
                 render();
+                notifyBoxesChanged();
                 return data;
             });
     }

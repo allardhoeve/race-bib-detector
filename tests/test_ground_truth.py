@@ -20,8 +20,6 @@ from benchmarking.ground_truth import (
     load_bib_ground_truth,
     save_bib_ground_truth,
     load_face_ground_truth,
-    save_face_ground_truth,
-    migrate_from_legacy,
 )
 
 
@@ -146,8 +144,8 @@ class TestFacePhotoLabel:
         boxes = [
             FaceBox(x=0.1, y=0.1, w=0.1, h=0.1, scope="keep"),
             FaceBox(x=0.2, y=0.2, w=0.1, h=0.1, scope="keep"),
-            FaceBox(x=0.3, y=0.3, w=0.1, h=0.1, scope="ignore"),
-            FaceBox(x=0.4, y=0.4, w=0.1, h=0.1, scope="unknown"),
+            FaceBox(x=0.3, y=0.3, w=0.1, h=0.1, scope="exclude"),
+            FaceBox(x=0.4, y=0.4, w=0.1, h=0.1, scope="uncertain"),
         ]
         label = FacePhotoLabel(content_hash="abc", boxes=boxes)
         assert label.face_count == 2
@@ -171,7 +169,8 @@ class TestFacePhotoLabel:
     def test_compat_set_includes_all(self):
         assert FACE_PHOTO_TAGS < _FACE_PHOTO_TAGS_COMPAT
         assert "face_tiny_faces" in _FACE_PHOTO_TAGS_COMPAT
-        assert "face_no_faces" in _FACE_PHOTO_TAGS_COMPAT
+        assert "face_no_faces" in _FACE_PHOTO_TAGS_COMPAT  # old name kept for compat
+        assert "no_faces" in _FACE_PHOTO_TAGS_COMPAT
 
 
 # =============================================================================

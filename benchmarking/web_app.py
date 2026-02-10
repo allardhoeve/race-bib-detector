@@ -16,6 +16,8 @@ import random
 import sys
 from pathlib import Path
 
+import numpy as np
+
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -43,16 +45,14 @@ from benchmarking.ground_truth import (
     ALLOWED_TAGS,
     ALLOWED_FACE_TAGS,
     FACE_BOX_TAGS,
-    ALLOWED_SPLITS,
 )
+from benchmarking.face_embeddings import build_embedding_index, find_top_k, EmbeddingIndex
 from benchmarking.ghost import load_suggestion_store
 from benchmarking.identities import load_identities, add_identity
 from benchmarking.photo_index import load_photo_index, get_path_for_hash
 from benchmarking.runner import (
-    BenchmarkRun,
     list_runs,
     get_run,
-    get_latest_run,
     RESULTS_DIR,
 )
 from config import ITERATION_SPLIT_PROBABILITY
@@ -839,6 +839,17 @@ FACE_LABELING_TEMPLATE = """
             color: #888;
             padding: 4px 0;
         }
+        .suggestion-chip {
+            padding: 3px 8px;
+            background: #0f3460;
+            border: 1px solid #1a4a7a;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #ccc;
+            white-space: nowrap;
+        }
+        .suggestion-chip:hover { background: #1a4a7a; color: #fff; }
     </style>
 </head>
 <body>
@@ -878,12 +889,13 @@ FACE_LABELING_TEMPLATE = """
                 <label>Scope</label>
                 <div class="tag-radios" id="scopeRadios">
                     <label><input type="radio" name="faceScope" value="keep" checked> keep</label>
-                    <label><input type="radio" name="faceScope" value="ignore"> ignore</label>
-                    <label><input type="radio" name="faceScope" value="unknown"> unknown</label>
+                    <label><input type="radio" name="faceScope" value="exclude"> exclude</label>
+                    <label><input type="radio" name="faceScope" value="uncertain"> uncertain</label>
                 </div>
                 <label>Identity</label>
                 <input type="text" id="faceIdentity" placeholder="e.g. Alice" list="identityList">
                 <datalist id="identityList"></datalist>
+                <div id="identitySuggestions" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
                 <label style="margin-top: 8px;">Box Tags</label>
                 <div class="tags-grid" id="boxTagsGrid">
                     {% for tag in face_box_tags %}
@@ -977,6 +989,41 @@ FACE_LABELING_TEMPLATE = """
                 });
         }
 
+        // --- Identity suggestions ---
+        let _suggestAbort = null;
+        function fetchIdentitySuggestions(box) {
+            const container = document.getElementById('identitySuggestions');
+            container.innerHTML = '';
+            if (!box || !box.w || !box.h) return;
+            if (_suggestAbort) _suggestAbort.abort();
+            _suggestAbort = new AbortController();
+            const params = new URLSearchParams({
+                box_x: box.x, box_y: box.y, box_w: box.w, box_h: box.h, k: 5
+            });
+            fetch('/api/face_identity_suggestions/' + contentHash + '?' + params,
+                  {signal: _suggestAbort.signal})
+                .then(r => r.json())
+                .then(data => {
+                    container.innerHTML = '';
+                    (data.suggestions || []).forEach(s => {
+                        const chip = document.createElement('span');
+                        chip.className = 'suggestion-chip';
+                        chip.textContent = s.identity + ' ' + Math.round(s.similarity * 100) + '%';
+                        chip.addEventListener('click', function() {
+                            document.getElementById('faceIdentity').value = s.identity;
+                            const state = LabelingUI.getState();
+                            if (state.selectedIdx >= 0) {
+                                state.boxes[state.selectedIdx].identity = s.identity;
+                                renderBoxList(state.boxes);
+                                LabelingUI.render();
+                            }
+                        });
+                        container.appendChild(chip);
+                    });
+                })
+                .catch(e => { if (e.name !== 'AbortError') console.warn('Suggestion fetch failed:', e); });
+        }
+
         // --- Box list rendering ---
         function renderBoxList(boxes) {
             const list = document.getElementById('boxList');
@@ -1027,6 +1074,13 @@ FACE_LABELING_TEMPLATE = """
             });
 
             document.getElementById('faceIdentity').focus();
+
+            // Fetch identity suggestions if identity is empty
+            if (!box.identity) {
+                fetchIdentitySuggestions(box);
+            } else {
+                document.getElementById('identitySuggestions').innerHTML = '';
+            }
         }
 
         // Update box when editor changes
@@ -1130,7 +1184,7 @@ FACE_LABELING_TEMPLATE = """
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT' && e.key !== 'Enter' && e.key !== 'Escape') return;
 
-            if (e.key === 'n') { e.preventDefault(); toggleFaceTag('face_no_faces'); return; }
+            if (e.key === 'n') { e.preventDefault(); toggleFaceTag('no_faces'); return; }
             if (e.key === 'l') { e.preventDefault(); toggleFaceTag('light_faces'); return; }
 
             if (e.key === 'ArrowLeft') navigate('prev');
@@ -1579,7 +1633,7 @@ BENCHMARK_INSPECT_TEMPLATE = """
                     const title = isDeclined
                         ? `CLAHE declined (range=${rangeValue}, threshold=${thresholdValue})`
                         : '';
-                    const onclick = isDeclined ? '' : `onclick="showImage('${tab.key}')"`; 
+                    const onclick = isDeclined ? '' : `onclick="showImage('${tab.key}')"`;
                     const disabled = isDeclined ? 'disabled' : '';
                     const shortcutText = shortcut === null ? '' : ` <span style="color:#666;font-size:11px">(${shortcut})</span>`;
                     const declinedText = isDeclined ? ' <span style="color:#555;font-size:11px">(declined)</span>' : '';
@@ -2041,6 +2095,82 @@ def create_app() -> Flask:
             return jsonify({'error': 'Missing name'}), 400
         ids = add_identity(name)
         return jsonify({'identities': ids})
+
+    # -------------------------------------------------------------------------
+    # Face identity suggestion endpoint
+    # -------------------------------------------------------------------------
+    _embedding_index_cache: dict[str, EmbeddingIndex] = {}
+
+    @app.route('/api/face_identity_suggestions/<content_hash>')
+    def face_identity_suggestions(content_hash):
+        """Suggest identities for a face box using embedding similarity."""
+        index = load_photo_index()
+        full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
+        if not full_hash:
+            return jsonify({'error': 'Photo not found'}), 404
+
+        try:
+            box_x = float(request.args['box_x'])
+            box_y = float(request.args['box_y'])
+            box_w = float(request.args['box_w'])
+            box_h = float(request.args['box_h'])
+        except (KeyError, ValueError):
+            return jsonify({'error': 'Missing or invalid box_x/box_y/box_w/box_h'}), 400
+
+        k = request.args.get('k', 5, type=int)
+
+        # Build or retrieve cached embedding index
+        if 'index' not in _embedding_index_cache:
+            try:
+                from faces.embedder import get_face_embedder
+                embedder = get_face_embedder()
+                face_gt = load_face_ground_truth()
+                _embedding_index_cache['index'] = build_embedding_index(
+                    face_gt, PHOTOS_DIR, index, embedder
+                )
+                logger.info(
+                    "Built embedding index: %d faces",
+                    _embedding_index_cache['index'].size,
+                )
+            except Exception as e:
+                logger.exception("Failed to build embedding index: %s", e)
+                return jsonify({'suggestions': []})
+
+        emb_index = _embedding_index_cache['index']
+        if emb_index.size == 0:
+            return jsonify({'suggestions': []})
+
+        # Load photo and compute query embedding
+        photo_path = get_path_for_hash(full_hash, PHOTOS_DIR, index)
+        if not photo_path or not photo_path.exists():
+            return jsonify({'error': 'Photo file not found'}), 404
+
+        import cv2 as _cv2
+        image_data = photo_path.read_bytes()
+        image_array = _cv2.imdecode(
+            np.frombuffer(image_data, np.uint8), _cv2.IMREAD_COLOR
+        )
+        if image_array is None:
+            return jsonify({'error': 'Failed to decode image'}), 500
+        image_rgb = _cv2.cvtColor(image_array, _cv2.COLOR_BGR2RGB)
+        h, w = image_rgb.shape[:2]
+
+        # Convert normalised coords to pixel bbox polygon
+        from geometry import rect_to_bbox
+        px = int(box_x * w)
+        py = int(box_y * h)
+        pw = int(box_w * w)
+        ph = int(box_h * h)
+        bbox = rect_to_bbox(px, py, pw, ph)
+
+        from faces.embedder import get_face_embedder
+        embedder = get_face_embedder()
+        embeddings = embedder.embed(image_rgb, [bbox])
+        if not embeddings:
+            return jsonify({'suggestions': []})
+
+        matches = find_top_k(embeddings[0], emb_index, k=k)
+        return jsonify({'suggestions': [m.to_dict() for m in matches]})
 
     # -------------------------------------------------------------------------
     # Benchmark Routes

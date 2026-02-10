@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
-from PIL import Image
 from config import SNIPPET_PADDING_RATIO
 from geometry import Bbox, bbox_to_rect
 

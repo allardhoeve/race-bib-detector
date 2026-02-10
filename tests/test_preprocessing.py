@@ -20,7 +20,6 @@ from preprocessing import (
     to_grayscale,
     resize_to_width,
     # Class-based API
-    PreprocessStep,
     GrayscaleStep,
     ResizeStep,
     CLAHEStep,

@@ -1,18 +1,6 @@
 # Claude Code Guidelines
 
-## Contributing
-
-Always write a commit message to commit.txt after changes. If a commit message already exists add to it. You can update
-the commit title if it is necessary. Make sure the git commit message conforms to the Git standard:
-
-> Commit summary that is short enough for git
->
-> Long message detailing everything. There is no text limit.
-> In fact, more (if terse) if better.
-
-If the commit message becomes large, suggest to the user that they should commit the code.
-
-## Recoring TODOs
+## Recording TODOs
 
 TODOs are always written with [ ] syntax so it is clear what is done.
 

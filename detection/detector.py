@@ -181,7 +181,6 @@ def detect_bib_numbers(
     # Save candidates and detections visualizations if artifact_dir provided
     if artifact_dir:
         from pathlib import Path
-        import cv2
         from utils import draw_candidates_on_image, draw_bounding_boxes_on_gray
 
         # Save candidates visualization

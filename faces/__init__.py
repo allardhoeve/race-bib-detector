@@ -7,6 +7,7 @@ and shared data structures for face detections and embeddings.
 
 from .backend import FaceBackend, get_face_backend, get_face_backend_by_name, OpenCVHaarFaceBackend
 from .clustering import cluster_album_faces, similarity_label
+from .embedder import FaceEmbedder, get_face_embedder, get_face_embedder_by_name
 from .types import FaceBbox, FaceModelInfo, FaceDetection, embedding_from_bytes, embedding_to_bytes
 
 __all__ = [
@@ -14,6 +15,9 @@ __all__ = [
     "get_face_backend",
     "get_face_backend_by_name",
     "OpenCVHaarFaceBackend",
+    "FaceEmbedder",
+    "get_face_embedder",
+    "get_face_embedder_by_name",
     "FaceBbox",
     "FaceModelInfo",
     "FaceDetection",

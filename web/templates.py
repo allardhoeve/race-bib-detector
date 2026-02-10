@@ -431,7 +431,7 @@ HTML_TEMPLATE = """
                 width: 100%;
             }
         }
-        
+
         h1 a {
             text-decoration: none;
             color: white;

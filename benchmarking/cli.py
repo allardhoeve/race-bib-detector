@@ -45,7 +45,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
     print(f"Scanning {photos_dir}...")
     index, stats = update_photo_index(photos_dir, recursive=True)
 
-    print(f"\nScan complete:")
+    print("\nScan complete:")
     print(f"  Total files: {stats['total_files']}")
     print(f"  Unique photos: {stats['unique_hashes']}")
     print(f"  Duplicates: {stats['duplicates']}")
@@ -56,7 +56,7 @@ def cmd_scan(args: argparse.Namespace) -> int:
     labeled = sum(1 for p in gt.photos.values() if p.labeled)
     unlabeled = stats['unique_hashes'] - labeled
 
-    print(f"\nLabeling status:")
+    print("\nLabeling status:")
     print(f"  Labeled: {labeled}")
     print(f"  Unlabeled: {unlabeled}")
 
@@ -89,29 +89,29 @@ def cmd_stats(args: argparse.Namespace) -> int:
     total_bibs = sum(len(p.bib_numbers_int) for p in bib_gt.photos.values())
     print(f"Total bib annotations: {total_bibs}")
 
-    print(f"\nBy split:")
+    print("\nBy split:")
     for split in sorted(ALLOWED_SPLITS):
         count = len(bib_gt.get_by_split(split))
         print(f"  {split}: {count}")
 
-    print(f"\nBy bib tag:")
+    print("\nBy bib tag:")
     for tag in sorted(BIB_PHOTO_TAGS):
         count = sum(1 for p in bib_gt.photos.values() if tag in p.tags)
         if count > 0:
             print(f"  {tag}: {count}")
 
-    print(f"\nFace labeling:")
+    print("\nFace labeling:")
     face_photos_with_boxes = sum(1 for p in face_gt.photos.values() if p.boxes)
     print(f"  Photos with face boxes: {face_photos_with_boxes}")
     print(f"  Photos without face boxes: {len(face_gt.photos) - face_photos_with_boxes}")
 
-    print(f"\nBy face photo tag:")
+    print("\nBy face photo tag:")
     for tag in sorted(FACE_PHOTO_TAGS):
         count = sum(1 for p in face_gt.photos.values() if tag in p.tags)
         if count > 0:
             print(f"  {tag}: {count}")
 
-    print(f"\nBy face box tag:")
+    print("\nBy face box tag:")
     for tag in sorted(FACE_BOX_TAGS):
         count = sum(
             1 for p in face_gt.photos.values()
@@ -303,7 +303,7 @@ def cmd_prepare(args: argparse.Namespace) -> int:
         refresh=args.refresh,
     )
 
-    print(f"\nPrepare complete:")
+    print("\nPrepare complete:")
     print(f"  Copied: {result.copied}")
     print(f"  Skipped (already present): {result.skipped}")
     print(f"  Total photos in benchmark: {result.total_photos}")
@@ -329,7 +329,6 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
         run_benchmark,
         compare_to_baseline,
         load_baseline,
-        RESULTS_DIR,
     )
     from config import BENCHMARK_REGRESSION_TOLERANCE
 
@@ -354,15 +353,15 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     if run.metadata.note:
         print(f"Note: {run.metadata.note}")
 
-    print(f"\nMetrics:")
+    print("\nMetrics:")
     print(f"  Precision: {m.precision:.1%}")
     print(f"  Recall:    {m.recall:.1%}")
     print(f"  F1:        {m.f1:.1%}")
 
-    print(f"\nDetection counts:")
+    print("\nDetection counts:")
     print(f"  TP: {m.total_tp}  FP: {m.total_fp}  FN: {m.total_fn}")
 
-    print(f"\nPhoto status:")
+    print("\nPhoto status:")
     print(f"  PASS:    {m.pass_count:3} ({m.pass_count/m.total_photos:.0%})")
     print(f"  PARTIAL: {m.partial_count:3} ({m.partial_count/m.total_photos:.0%})")
     print(f"  MISS:    {m.miss_count:3} ({m.miss_count/m.total_photos:.0%})")
@@ -375,11 +374,11 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
         if has_iou_data:
             print(f"\n{format_scorecard(bib=sc)}")
         else:
-            print(f"\nIoU Scorecard: no GT boxes with coordinates yet")
+            print("\nIoU Scorecard: no GT boxes with coordinates yet")
 
     # Tag breakdown if verbose
     if verbose and any(r.tags for r in run.photo_results):
-        print(f"\nBy tag:")
+        print("\nBy tag:")
         tag_stats: dict[str, dict] = {}
         for r in run.photo_results:
             for tag in r.tags:
@@ -403,13 +402,13 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
         if baseline:
             judgement, details = compare_to_baseline(run, BENCHMARK_REGRESSION_TOLERANCE)
 
-            print(f"\n" + "-" * 60)
+            print("\n" + "-" * 60)
             print("BASELINE COMPARISON")
             print("-" * 60)
             print(f"Baseline: {details['baseline_commit']} ({details['baseline_timestamp'][:10]})")
             print(f"Tolerance: {BENCHMARK_REGRESSION_TOLERANCE:.1%}")
 
-            print(f"\nDeltas:")
+            print("\nDeltas:")
             print(f"  Precision: {details['precision_delta']:+.1%} (was {details['baseline_precision']:.1%})")
             print(f"  Recall:    {details['recall_delta']:+.1%} (was {details['baseline_recall']:.1%})")
             print(f"  F1:        {details['f1_delta']:+.1%} (was {details['baseline_f1']:.1%})")
@@ -417,17 +416,17 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
             # Judgement with color/emphasis
             print(f"\n{'=' * 60}")
             if judgement == "REGRESSED":
-                print(f"JUDGEMENT: ❌ REGRESSED")
+                print("JUDGEMENT: ❌ REGRESSED")
                 exit_code = 1
             elif judgement == "IMPROVED":
-                print(f"JUDGEMENT: ✅ IMPROVED")
+                print("JUDGEMENT: ✅ IMPROVED")
             else:
-                print(f"JUDGEMENT: ➖ NO CHANGE")
+                print("JUDGEMENT: ➖ NO CHANGE")
             print("=" * 60)
         else:
-            print(f"\nNo baseline exists. Run 'bnr benchmark set-baseline' to create one.")
+            print("\nNo baseline exists. Run 'bnr benchmark set-baseline' to create one.")
     else:
-        print(f"\n(Baseline comparison only available for 'full' split)")
+        print("\n(Baseline comparison only available for 'full' split)")
 
     return exit_code
 
@@ -452,7 +451,7 @@ def cmd_benchmark_inspect(args: argparse.Namespace) -> int:
         run_id = run.metadata.run_id
 
     print(f"Open http://localhost:30002/benchmark/{run_id}/ in your browser")
-    print(f"Or run 'python -m benchmarking.cli ui' to start the server")
+    print("Or run 'python -m benchmarking.cli ui' to start the server")
     return 0
 
 
@@ -645,10 +644,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     # scan command
-    scan_parser = subparsers.add_parser("scan", help="Scan photos directory")
+    subparsers.add_parser("scan", help="Scan photos directory")
 
     # ui command
-    ui_parser = subparsers.add_parser("ui", help="Launch web UI (labels + benchmark inspection)")
+    subparsers.add_parser("ui", help="Launch web UI (labels + benchmark inspection)")
 
     # benchmark command
     benchmark_parser = subparsers.add_parser("benchmark", help="Run benchmark")
@@ -681,7 +680,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     # benchmark-list command
-    benchmark_list_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "benchmark-list", help="List saved benchmark runs"
     )
 
@@ -718,7 +717,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     # stats command
-    stats_parser = subparsers.add_parser("stats", help="Show statistics")
+    subparsers.add_parser("stats", help="Show statistics")
 
     # unlabeled command
     unlabeled_parser = subparsers.add_parser(
