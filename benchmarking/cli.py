@@ -18,6 +18,7 @@ from benchmarking.ground_truth import (
     load_face_ground_truth,
     BIB_PHOTO_TAGS,
     FACE_PHOTO_TAGS,
+    FACE_BOX_TAGS,
     ALLOWED_SPLITS,
 )
 from logging_utils import configure_logging, add_logging_args
@@ -104,11 +105,20 @@ def cmd_stats(args: argparse.Namespace) -> int:
     print(f"  Photos with face boxes: {face_photos_with_boxes}")
     print(f"  Photos without face boxes: {len(face_gt.photos) - face_photos_with_boxes}")
 
-    print(f"\nBy face tag:")
+    print(f"\nBy face photo tag:")
     for tag in sorted(FACE_PHOTO_TAGS):
         count = sum(1 for p in face_gt.photos.values() if tag in p.tags)
         if count > 0:
             print(f"  {tag}: {count}")
+
+    print(f"\nBy face box tag:")
+    for tag in sorted(FACE_BOX_TAGS):
+        count = sum(
+            1 for p in face_gt.photos.values()
+            for b in p.boxes if tag in b.tags
+        )
+        if count > 0:
+            print(f"  {tag}: {count} boxes")
 
     return 0
 

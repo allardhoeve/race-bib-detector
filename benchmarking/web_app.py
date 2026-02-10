@@ -34,6 +34,7 @@ from flask import (
 from benchmarking.ground_truth import (
     BibBox,
     BibPhotoLabel,
+    FaceBox,
     FacePhotoLabel,
     load_bib_ground_truth,
     save_bib_ground_truth,
@@ -41,8 +42,11 @@ from benchmarking.ground_truth import (
     save_face_ground_truth,
     ALLOWED_TAGS,
     ALLOWED_FACE_TAGS,
+    FACE_BOX_TAGS,
     ALLOWED_SPLITS,
 )
+from benchmarking.ghost import load_suggestion_store
+from benchmarking.identities import load_identities, add_identity
 from benchmarking.photo_index import load_photo_index, get_path_for_hash
 from benchmarking.runner import (
     BenchmarkRun,
@@ -278,26 +282,87 @@ LABELING_TEMPLATE = """
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 15px;
         }
         .form-section h3 {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             color: #0f9b0f;
             font-size: 14px;
             text-transform: uppercase;
         }
-        .bibs-input {
+        .image-panel {
+            position: relative;
+            padding: 0;
+        }
+        .canvas-container {
+            position: absolute;
+            inset: 0;
+        }
+        .canvas-container img {
             width: 100%;
-            padding: 12px;
-            font-size: 18px;
+            height: 100%;
+            object-fit: contain;
+        }
+        .canvas-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .box-list {
+            list-style: none;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .box-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            border-bottom: 1px solid #0f3460;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .box-item:hover { background: #252545; }
+        .box-item.selected { background: #0f3460; border-left: 3px solid #0f9b0f; }
+        .box-item .box-label { font-family: monospace; }
+        .box-item .box-delete {
+            color: #ff4444;
+            cursor: pointer;
+            padding: 2px 6px;
+            font-size: 16px;
+        }
+        .box-editor {
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            display: none;
+        }
+        .box-editor.visible { display: block; }
+        .box-editor label { font-size: 12px; color: #888; display: block; margin-bottom: 4px; }
+        .box-editor input[type=text] {
+            width: 100%;
+            padding: 8px;
+            font-size: 16px;
             border: 2px solid #0f3460;
             border-radius: 4px;
-            background: #1a1a2e;
+            background: #16213e;
             color: #eee;
+            margin-bottom: 8px;
         }
-        .bibs-input:focus {
-            outline: none;
-            border-color: #0f9b0f;
+        .box-editor input[type=text]:focus { outline: none; border-color: #0f9b0f; }
+        .tag-radios { display: flex; gap: 8px; flex-wrap: wrap; }
+        .tag-radios label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: #16213e;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #eee;
         }
         .tags-grid {
             display: grid;
@@ -353,11 +418,6 @@ LABELING_TEMPLATE = """
             font-size: 11px;
             color: #666;
         }
-        .help-text {
-            font-size: 12px;
-            color: #bbb;
-            line-height: 1.4;
-        }
     </style>
 </head>
 <body>
@@ -380,14 +440,27 @@ LABELING_TEMPLATE = """
 
     <div class="main">
         <div class="image-panel">
-            <img src="{{ url_for('serve_photo', content_hash=content_hash) }}" alt="Photo">
+            <div class="canvas-container">
+                <img id="photo" src="{{ url_for('serve_photo', content_hash=content_hash) }}" alt="Photo">
+                <canvas id="canvas"></canvas>
+            </div>
         </div>
 
         <div class="form-panel">
             <div class="form-section">
-                <h3>Bib Numbers</h3>
-                <input type="text" class="bibs-input" id="bibs" placeholder="e.g. 123, 456"
-                       value="{{ bibs_str }}" autofocus>
+                <h3>Bib Boxes</h3>
+                <ul class="box-list" id="boxList"></ul>
+            </div>
+
+            <div class="box-editor" id="boxEditor">
+                <label>Bib Number</label>
+                <input type="text" id="boxNumber" placeholder="e.g. 123">
+                <label>Tag</label>
+                <div class="tag-radios" id="boxTagRadios">
+                    <label><input type="radio" name="boxTag" value="bib" checked> bib</label>
+                    <label><input type="radio" name="boxTag" value="not_bib"> not bib</label>
+                    <label><input type="radio" name="boxTag" value="bib_partial"> partial</label>
+                </div>
             </div>
 
             <div class="form-section">
@@ -426,11 +499,12 @@ LABELING_TEMPLATE = """
             </div>
 
             <div class="keyboard-hint">
-                ← → navigate | Enter save | Esc clear | O obscured | N no bib | B blurry
+                ← → navigate | Enter save | Del delete box | Tab accept suggestion | O obscured | N no bib | B blurry
             </div>
         </div>
     </div>
 
+    <script src="{{ url_for('serve_static', filename='labeling.js') }}"></script>
     <script>
         let currentSplit = '{{ split }}';
         const contentHash = '{{ content_hash }}';
@@ -447,14 +521,6 @@ LABELING_TEMPLATE = """
                         .map(cb => cb.value);
         }
 
-        function getBibs() {
-            const input = document.getElementById('bibs').value;
-            if (!input.trim()) return [];
-            return input.split(/[\\s,]+/)
-                       .map(s => parseInt(s.trim(), 10))
-                       .filter(n => !isNaN(n));
-        }
-
         function showStatus(message, isError) {
             const status = document.getElementById('status');
             status.textContent = message;
@@ -463,10 +529,79 @@ LABELING_TEMPLATE = """
             setTimeout(() => { status.style.display = 'none'; }, 2000);
         }
 
+        // --- Box list rendering ---
+        function renderBoxList(boxes) {
+            const list = document.getElementById('boxList');
+            list.innerHTML = '';
+            boxes.forEach((box, i) => {
+                const li = document.createElement('li');
+                li.className = 'box-item' + (i === LabelingUI.getState().selectedIdx ? ' selected' : '');
+                li.innerHTML = '<span class="box-label">' +
+                    (box.number || '?') + ' [' + (box.tag || 'bib') + ']</span>' +
+                    '<span class="box-delete" data-idx="' + i + '">×</span>';
+                li.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('box-delete')) {
+                        LabelingUI.getState().selectedIdx = parseInt(e.target.dataset.idx);
+                        LabelingUI.deleteSelected();
+                    } else {
+                        LabelingUI.selectBox(i);
+                    }
+                });
+                list.appendChild(li);
+            });
+        }
+
+        function onBoxSelected(idx, box) {
+            const editor = document.getElementById('boxEditor');
+            if (idx < 0 || !box) {
+                editor.classList.remove('visible');
+                return;
+            }
+            editor.classList.add('visible');
+            document.getElementById('boxNumber').value = box.number || '';
+            const radios = document.querySelectorAll('input[name="boxTag"]');
+            radios.forEach(r => { r.checked = r.value === (box.tag || 'bib'); });
+
+            // Update box list selection
+            document.querySelectorAll('.box-item').forEach((el, i) => {
+                el.classList.toggle('selected', i === idx);
+            });
+
+            // Focus number input
+            document.getElementById('boxNumber').focus();
+        }
+
+        // Update box when editor changes
+        document.getElementById('boxNumber').addEventListener('input', function() {
+            const state = LabelingUI.getState();
+            if (state.selectedIdx >= 0) {
+                state.boxes[state.selectedIdx].number = this.value;
+                renderBoxList(state.boxes);
+                LabelingUI.render();
+            }
+        });
+
+        document.querySelectorAll('input[name="boxTag"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const state = LabelingUI.getState();
+                if (state.selectedIdx >= 0) {
+                    state.boxes[state.selectedIdx].tag = this.value;
+                    renderBoxList(state.boxes);
+                    LabelingUI.render();
+                }
+            });
+        });
+
+        // --- Save ---
         async function save() {
+            const state = LabelingUI.getState();
             const data = {
                 content_hash: contentHash,
-                bibs: getBibs(),
+                boxes: state.boxes.map(b => ({
+                    x: b.x, y: b.y, w: b.w, h: b.h,
+                    number: b.number || '',
+                    tag: b.tag || 'bib'
+                })),
                 tags: getSelectedTags(),
                 split: currentSplit
             };
@@ -517,13 +652,28 @@ LABELING_TEMPLATE = """
             if (e.key === 'ArrowLeft') navigate('prev');
             else if (e.key === 'ArrowRight') navigate('next');
             else if (e.key === 'Enter') { e.preventDefault(); save(); }
-            else if (e.key === 'Escape') {
-                document.getElementById('bibs').value = '';
-                document.getElementById('bibs').focus();
-            }
         });
 
-        document.getElementById('bibs').focus();
+        // --- Init canvas UI ---
+        const img = document.getElementById('photo');
+        const canvas = document.getElementById('canvas');
+
+        function startUI() {
+            LabelingUI.init({
+                mode: 'bib',
+                contentHash: contentHash,
+                imgEl: img,
+                canvasEl: canvas,
+                onBoxesChanged: renderBoxList,
+                onBoxSelected: onBoxSelected,
+            });
+        }
+
+        if (img.complete && img.naturalWidth) {
+            startUI();
+        } else {
+            img.addEventListener('load', startUI);
+        }
     </script>
 </body>
 </html>
@@ -548,26 +698,87 @@ FACE_LABELING_TEMPLATE = """
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 15px;
         }
         .form-section h3 {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             color: #0f9b0f;
             font-size: 14px;
             text-transform: uppercase;
         }
-        .count-input {
+        .image-panel {
+            position: relative;
+            padding: 0;
+        }
+        .canvas-container {
+            position: absolute;
+            inset: 0;
+        }
+        .canvas-container img {
             width: 100%;
-            padding: 12px;
-            font-size: 18px;
+            height: 100%;
+            object-fit: contain;
+        }
+        .canvas-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .box-list {
+            list-style: none;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .box-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            border-bottom: 1px solid #0f3460;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .box-item:hover { background: #252545; }
+        .box-item.selected { background: #0f3460; border-left: 3px solid #0f9b0f; }
+        .box-item .box-label { font-family: monospace; }
+        .box-item .box-delete {
+            color: #ff4444;
+            cursor: pointer;
+            padding: 2px 6px;
+            font-size: 16px;
+        }
+        .box-editor {
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            display: none;
+        }
+        .box-editor.visible { display: block; }
+        .box-editor label { font-size: 12px; color: #888; display: block; margin-bottom: 4px; }
+        .box-editor input[type=text] {
+            width: 100%;
+            padding: 8px;
+            font-size: 14px;
             border: 2px solid #0f3460;
             border-radius: 4px;
-            background: #1a1a2e;
+            background: #16213e;
             color: #eee;
+            margin-bottom: 8px;
         }
-        .count-input:focus {
-            outline: none;
-            border-color: #0f9b0f;
+        .box-editor input[type=text]:focus { outline: none; border-color: #0f9b0f; }
+        .tag-radios { display: flex; gap: 8px; flex-wrap: wrap; }
+        .tag-radios label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: #16213e;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #eee;
         }
         .tags-grid {
             display: grid;
@@ -623,6 +834,11 @@ FACE_LABELING_TEMPLATE = """
             font-size: 11px;
             color: #666;
         }
+        .face-count-display {
+            font-size: 13px;
+            color: #888;
+            padding: 4px 0;
+        }
     </style>
 </head>
 <body>
@@ -645,23 +861,42 @@ FACE_LABELING_TEMPLATE = """
 
     <div class="main">
         <div class="image-panel">
-            <img src="{{ url_for('serve_photo', content_hash=content_hash) }}" alt="Photo">
+            <div class="canvas-container">
+                <img id="photo" src="{{ url_for('serve_photo', content_hash=content_hash) }}" alt="Photo">
+                <canvas id="canvas"></canvas>
+            </div>
         </div>
 
         <div class="form-panel">
             <div class="form-section">
-                <h3>Face Count</h3>
-                <input type="number" min="0" class="count-input" id="faceCount" placeholder="e.g. 3"
-                       value="{{ face_count if face_count is not none else '' }}" autofocus>
-                <div class="help-text">
-                    Count faces you can clearly recognize as faces (including profiles).
-                    Skip backs of heads or shapes that are not clearly faces. Use tags
-                    for tiny/blurry/occluded cases instead of forcing the count.
+                <h3>Face Boxes</h3>
+                <ul class="box-list" id="boxList"></ul>
+                <div class="face-count-display" id="faceCountDisplay">Keep faces: 0</div>
+            </div>
+
+            <div class="box-editor" id="boxEditor">
+                <label>Scope</label>
+                <div class="tag-radios" id="scopeRadios">
+                    <label><input type="radio" name="faceScope" value="keep" checked> keep</label>
+                    <label><input type="radio" name="faceScope" value="ignore"> ignore</label>
+                    <label><input type="radio" name="faceScope" value="unknown"> unknown</label>
+                </div>
+                <label>Identity</label>
+                <input type="text" id="faceIdentity" placeholder="e.g. Alice" list="identityList">
+                <datalist id="identityList"></datalist>
+                <label style="margin-top: 8px;">Box Tags</label>
+                <div class="tags-grid" id="boxTagsGrid">
+                    {% for tag in face_box_tags %}
+                    <div class="tag-checkbox">
+                        <input type="checkbox" id="box_tag_{{ tag }}" name="box_tags" value="{{ tag }}">
+                        <label for="box_tag_{{ tag }}">{{ tag.replace('_', ' ') }}</label>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
 
             <div class="form-section">
-                <h3>Face Tags</h3>
+                <h3>Photo Tags</h3>
                 <div class="tags-grid">
                     {% for tag in all_face_tags %}
                     <div class="tag-checkbox">
@@ -696,12 +931,13 @@ FACE_LABELING_TEMPLATE = """
             </div>
 
             <div class="keyboard-hint">
-                ← → navigate | Enter save | Esc clear |
-                N no faces | T tiny | O occluded | B blurry
+                ← → navigate | Enter save | Del delete box | Tab accept suggestion |
+                N no faces | L light
             </div>
         </div>
     </div>
 
+    <script src="{{ url_for('serve_static', filename='labeling.js') }}"></script>
     <script>
         let currentSplit = '{{ split }}';
         const contentHash = '{{ content_hash }}';
@@ -718,13 +954,6 @@ FACE_LABELING_TEMPLATE = """
                         .map(cb => cb.value);
         }
 
-        function getFaceCount() {
-            const input = document.getElementById('faceCount').value;
-            if (!input.trim()) return null;
-            const parsed = parseInt(input, 10);
-            return isNaN(parsed) ? null : parsed;
-        }
-
         function showStatus(message, isError) {
             const status = document.getElementById('status');
             status.textContent = message;
@@ -733,10 +962,131 @@ FACE_LABELING_TEMPLATE = """
             setTimeout(() => { status.style.display = 'none'; }, 2000);
         }
 
+        // --- Identity autocomplete ---
+        function loadIdentities() {
+            fetch('/api/identities')
+                .then(r => r.json())
+                .then(data => {
+                    const dl = document.getElementById('identityList');
+                    dl.innerHTML = '';
+                    (data.identities || []).forEach(id => {
+                        const opt = document.createElement('option');
+                        opt.value = id;
+                        dl.appendChild(opt);
+                    });
+                });
+        }
+
+        // --- Box list rendering ---
+        function renderBoxList(boxes) {
+            const list = document.getElementById('boxList');
+            list.innerHTML = '';
+            boxes.forEach((box, i) => {
+                const li = document.createElement('li');
+                li.className = 'box-item' + (i === LabelingUI.getState().selectedIdx ? ' selected' : '');
+                let label = (box.identity || box.scope || 'keep');
+                const boxTags = box.tags || [];
+                if (boxTags.length) label += ' [' + boxTags.join(',') + ']';
+                li.innerHTML = '<span class="box-label">' + label + '</span>' +
+                    '<span class="box-delete" data-idx="' + i + '">×</span>';
+                li.addEventListener('click', function(e) {
+                    if (e.target.classList.contains('box-delete')) {
+                        LabelingUI.getState().selectedIdx = parseInt(e.target.dataset.idx);
+                        LabelingUI.deleteSelected();
+                    } else {
+                        LabelingUI.selectBox(i);
+                    }
+                });
+                list.appendChild(li);
+            });
+
+            // Update face count display
+            const keepCount = boxes.filter(b => (b.scope || 'keep') === 'keep').length;
+            document.getElementById('faceCountDisplay').textContent = 'Keep faces: ' + keepCount;
+        }
+
+        function onBoxSelected(idx, box) {
+            const editor = document.getElementById('boxEditor');
+            if (idx < 0 || !box) {
+                editor.classList.remove('visible');
+                return;
+            }
+            editor.classList.add('visible');
+            const radios = document.querySelectorAll('input[name="faceScope"]');
+            radios.forEach(r => { r.checked = r.value === (box.scope || 'keep'); });
+            document.getElementById('faceIdentity').value = box.identity || '';
+
+            // Set box tag checkboxes
+            const boxTags = box.tags || [];
+            document.querySelectorAll('input[name="box_tags"]').forEach(cb => {
+                cb.checked = boxTags.includes(cb.value);
+            });
+
+            document.querySelectorAll('.box-item').forEach((el, i) => {
+                el.classList.toggle('selected', i === idx);
+            });
+
+            document.getElementById('faceIdentity').focus();
+        }
+
+        // Update box when editor changes
+        document.getElementById('faceIdentity').addEventListener('input', function() {
+            const state = LabelingUI.getState();
+            if (state.selectedIdx >= 0) {
+                state.boxes[state.selectedIdx].identity = this.value;
+                renderBoxList(state.boxes);
+                LabelingUI.render();
+            }
+        });
+
+        document.querySelectorAll('input[name="faceScope"]').forEach(radio => {
+            radio.addEventListener('change', function() {
+                const state = LabelingUI.getState();
+                if (state.selectedIdx >= 0) {
+                    state.boxes[state.selectedIdx].scope = this.value;
+                    renderBoxList(state.boxes);
+                    LabelingUI.render();
+                }
+            });
+        });
+
+        document.querySelectorAll('input[name="box_tags"]').forEach(cb => {
+            cb.addEventListener('change', function() {
+                const state = LabelingUI.getState();
+                if (state.selectedIdx >= 0) {
+                    const tags = Array.from(document.querySelectorAll('input[name="box_tags"]:checked'))
+                        .map(c => c.value);
+                    state.boxes[state.selectedIdx].tags = tags;
+                    renderBoxList(state.boxes);
+                    LabelingUI.render();
+                }
+            });
+        });
+
+        // --- Save ---
         async function save() {
+            const state = LabelingUI.getState();
+
+            // Auto-add new identities
+            const newIdentities = state.boxes
+                .filter(b => b.identity && b.identity.trim())
+                .map(b => b.identity.trim());
+            for (const name of new Set(newIdentities)) {
+                await fetch('/api/identities', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name })
+                });
+            }
+
             const data = {
                 content_hash: contentHash,
-                face_count: getFaceCount(),
+                boxes: state.boxes.map(b => ({
+                    x: b.x, y: b.y, w: b.w, h: b.h,
+                    scope: b.scope || 'keep',
+                    identity: b.identity || undefined,
+                    tags: (b.tags && b.tags.length) ? b.tags : undefined
+                })),
                 face_tags: getSelectedFaceTags(),
                 split: currentSplit
             };
@@ -781,20 +1131,34 @@ FACE_LABELING_TEMPLATE = """
             if (e.target.tagName === 'INPUT' && e.key !== 'Enter' && e.key !== 'Escape') return;
 
             if (e.key === 'n') { e.preventDefault(); toggleFaceTag('face_no_faces'); return; }
-            if (e.key === 't') { e.preventDefault(); toggleFaceTag('face_tiny_faces'); return; }
-            if (e.key === 'o') { e.preventDefault(); toggleFaceTag('face_occluded_faces'); return; }
-            if (e.key === 'b') { e.preventDefault(); toggleFaceTag('face_blurry_faces'); return; }
+            if (e.key === 'l') { e.preventDefault(); toggleFaceTag('light_faces'); return; }
 
             if (e.key === 'ArrowLeft') navigate('prev');
             else if (e.key === 'ArrowRight') navigate('next');
             else if (e.key === 'Enter') { e.preventDefault(); save(); }
-            else if (e.key === 'Escape') {
-                document.getElementById('faceCount').value = '';
-                document.getElementById('faceCount').focus();
-            }
         });
 
-        document.getElementById('faceCount').focus();
+        // --- Init canvas UI ---
+        const img = document.getElementById('photo');
+        const canvas = document.getElementById('canvas');
+
+        function startUI() {
+            LabelingUI.init({
+                mode: 'face',
+                contentHash: contentHash,
+                imgEl: img,
+                canvasEl: canvas,
+                onBoxesChanged: renderBoxList,
+                onBoxSelected: onBoxSelected,
+            });
+            loadIdentities();
+        }
+
+        if (img.complete && img.naturalWidth) {
+            startUI();
+        } else {
+            img.addEventListener('load', startUI);
+        }
     </script>
 </body>
 </html>
@@ -1465,11 +1829,14 @@ def create_app() -> Flask:
 
     @app.route('/api/labels', methods=['POST'])
     def save_label():
-        """Save a photo label."""
+        """Save a photo label.
+
+        Accepts either ``boxes`` (list of {x,y,w,h,number,tag} dicts) or
+        the legacy ``bibs`` (list of ints) for backward compatibility.
+        """
         data = request.get_json()
 
         content_hash = data.get('content_hash')
-        bibs = data.get('bibs', [])
         tags = data.get('tags', [])
         split = data.get('split', 'full')
 
@@ -1478,7 +1845,11 @@ def create_app() -> Flask:
 
         try:
             bib_gt = load_bib_ground_truth()
-            boxes = [BibBox(x=0, y=0, w=0, h=0, number=str(b), tag="bib") for b in bibs]
+            if 'boxes' in data:
+                boxes = [BibBox.from_dict(b) for b in data['boxes']]
+            else:
+                bibs = data.get('bibs', [])
+                boxes = [BibBox(x=0, y=0, w=0, h=0, number=str(b), tag="bib") for b in bibs]
             label = BibPhotoLabel(
                 content_hash=content_hash,
                 boxes=boxes,
@@ -1550,6 +1921,7 @@ def create_app() -> Flask:
             face_tags=face_label.tags if face_label else [],
             split=default_split,
             all_face_tags=sorted(ALLOWED_FACE_TAGS),
+            face_box_tags=sorted(FACE_BOX_TAGS),
             current=idx + 1,
             total=total,
             has_prev=has_prev,
@@ -1562,22 +1934,28 @@ def create_app() -> Flask:
 
     @app.route('/api/face_labels', methods=['POST'])
     def save_face_label():
-        """Save face count/tags for a photo label."""
+        """Save face boxes/tags for a photo label.
+
+        Accepts ``boxes`` (list of {x,y,w,h,scope,identity} dicts) or
+        falls back to empty boxes for backward compatibility.
+        """
         data = request.get_json()
 
         content_hash = data.get('content_hash')
-        face_count = data.get('face_count')
         face_tags = data.get('face_tags', [])
-        split = data.get('split', 'full')
 
         if not content_hash:
             return jsonify({'error': 'Missing content_hash'}), 400
 
         try:
             face_gt = load_face_ground_truth()
+            if 'boxes' in data:
+                boxes = [FaceBox.from_dict(b) for b in data['boxes']]
+            else:
+                boxes = []
             label = FacePhotoLabel(
                 content_hash=content_hash,
-                boxes=[],  # Face boxes come from the canvas UI (step 4)
+                boxes=boxes,
                 tags=face_tags,
             )
         except (ValueError, TypeError) as e:
@@ -1587,6 +1965,82 @@ def create_app() -> Flask:
         save_face_ground_truth(face_gt)
 
         return jsonify({'status': 'ok'})
+
+    # -------------------------------------------------------------------------
+    # Box API endpoints (canvas UI)
+    # -------------------------------------------------------------------------
+    @app.route('/api/bib_boxes/<content_hash>')
+    def get_bib_boxes(content_hash):
+        """Get bib boxes, suggestions, tags, split, and labeled status."""
+        index = load_photo_index()
+        full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
+        if not full_hash:
+            return jsonify({'error': 'Photo not found'}), 404
+
+        bib_gt = load_bib_ground_truth()
+        label = bib_gt.get_photo(full_hash)
+
+        store = load_suggestion_store()
+        photo_sugg = store.get(full_hash)
+        suggestions = [s.to_dict() for s in photo_sugg.bibs] if photo_sugg else []
+
+        if label:
+            return jsonify({
+                'boxes': [b.to_dict() for b in label.boxes],
+                'suggestions': suggestions,
+                'tags': label.tags,
+                'split': label.split,
+                'labeled': label.labeled,
+            })
+        else:
+            return jsonify({
+                'boxes': [],
+                'suggestions': suggestions,
+                'tags': [],
+                'split': 'full',
+                'labeled': False,
+            })
+
+    @app.route('/api/face_boxes/<content_hash>')
+    def get_face_boxes(content_hash):
+        """Get face boxes, suggestions, and tags."""
+        index = load_photo_index()
+        full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
+        if not full_hash:
+            return jsonify({'error': 'Photo not found'}), 404
+
+        face_gt = load_face_ground_truth()
+        label = face_gt.get_photo(full_hash)
+
+        store = load_suggestion_store()
+        photo_sugg = store.get(full_hash)
+        suggestions = [s.to_dict() for s in photo_sugg.faces] if photo_sugg else []
+
+        if label:
+            return jsonify({
+                'boxes': [b.to_dict() for b in label.boxes],
+                'suggestions': suggestions,
+                'tags': label.tags,
+            })
+        else:
+            return jsonify({
+                'boxes': [],
+                'suggestions': suggestions,
+                'tags': [],
+            })
+
+    @app.route('/api/identities')
+    def get_identities():
+        return jsonify({'identities': load_identities()})
+
+    @app.route('/api/identities', methods=['POST'])
+    def post_identity():
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        if not name:
+            return jsonify({'error': 'Missing name'}), 400
+        ids = add_identity(name)
+        return jsonify({'identities': ids})
 
     # -------------------------------------------------------------------------
     # Benchmark Routes
@@ -1698,6 +2152,21 @@ def create_app() -> Flask:
             abort(404)
 
         return send_file(artifact_path)
+
+    # -------------------------------------------------------------------------
+    # Static files & test route
+    # -------------------------------------------------------------------------
+    @app.route('/static/<path:filename>')
+    def serve_static(filename):
+        """Serve static assets (JS, CSS, HTML)."""
+        static_dir = Path(__file__).parent / 'static'
+        return send_from_directory(static_dir, filename)
+
+    @app.route('/test/labeling')
+    def test_labeling():
+        """Serve the browser integration test page."""
+        static_dir = Path(__file__).parent / 'static'
+        return send_from_directory(static_dir, 'test_labeling.html')
 
     return app
 

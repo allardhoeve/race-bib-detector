@@ -34,14 +34,21 @@ BIB_PHOTO_TAGS = frozenset({
     "other_banners",
 })
 
-# Photo-level face condition descriptors
+# Per-box face condition descriptors (short names, context is obvious)
+FACE_BOX_TAGS = frozenset({"tiny", "blurry", "occluded", "profile", "looking_down"})
+
+# Photo-level face condition descriptors (scene-level only)
 FACE_PHOTO_TAGS = frozenset({
     "face_no_faces",
-    "face_tiny_faces",
-    "face_occluded_faces",
-    "face_blurry_faces",
-    "face_profile",
     "light_faces",
+})
+
+# Compat set: old per-photo tags that now live on boxes, kept for loading legacy data
+_FACE_PHOTO_TAGS_COMPAT = FACE_PHOTO_TAGS | frozenset({
+    "face_tiny_faces",
+    "face_blurry_faces",
+    "face_occluded_faces",
+    "face_profile",
 })
 
 # Allowed split values (shared between bib and face)
@@ -50,7 +57,7 @@ Split = Literal["iteration", "full"]
 
 # Backward-compat aliases used by web_app.py templates
 ALLOWED_TAGS = BIB_PHOTO_TAGS
-ALLOWED_FACE_TAGS = FACE_PHOTO_TAGS
+ALLOWED_FACE_TAGS = FACE_PHOTO_TAGS  # web_app.py uses this for photo-level checkboxes
 
 
 # =============================================================================
@@ -239,10 +246,14 @@ class FaceBox:
     h: float
     scope: str = "keep"
     identity: str | None = None
+    tags: list[str] = field(default_factory=list)
 
     def __post_init__(self):
         if self.scope not in FACE_SCOPE_TAGS:
             raise ValueError(f"Invalid face scope: {self.scope!r}")
+        invalid = set(self.tags) - FACE_BOX_TAGS
+        if invalid:
+            raise ValueError(f"Invalid face box tags: {invalid}")
 
     @property
     def has_coords(self) -> bool:
@@ -258,6 +269,8 @@ class FaceBox:
         }
         if self.identity is not None:
             d["identity"] = self.identity
+        if self.tags:
+            d["tags"] = self.tags
         return d
 
     @classmethod
@@ -269,6 +282,7 @@ class FaceBox:
             h=data["h"],
             scope=data.get("scope", "keep"),
             identity=data.get("identity"),
+            tags=data.get("tags", []),
         )
 
 
@@ -284,7 +298,7 @@ class FacePhotoLabel:
     tags: list[str] = field(default_factory=list)
 
     def __post_init__(self):
-        invalid = set(self.tags) - FACE_PHOTO_TAGS
+        invalid = set(self.tags) - _FACE_PHOTO_TAGS_COMPAT
         if invalid:
             raise ValueError(f"Invalid face photo tags: {invalid}")
 
@@ -436,7 +450,7 @@ def migrate_from_legacy(
         # face-related tags that were in the old bib tags list
         face_tags = list(photo.get("face_tags", []))
         for t in photo.get("tags", []):
-            if t in FACE_PHOTO_TAGS and t not in face_tags:
+            if t in _FACE_PHOTO_TAGS_COMPAT and t not in face_tags:
                 face_tags.append(t)
 
         face_gt.add_photo(FacePhotoLabel(

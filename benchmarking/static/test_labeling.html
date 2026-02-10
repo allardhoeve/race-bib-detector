@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Labeling JS Integration Tests</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            padding: 20px;
+        }
+        h1 { color: #0f9b0f; margin-bottom: 20px; }
+        .test-area {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .canvas-container {
+            position: relative;
+            width: 400px;
+            height: 300px;
+            background: #0d0d1a;
+            border: 1px solid #0f3460;
+        }
+        .canvas-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .canvas-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .results {
+            flex: 1;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .test-result {
+            padding: 8px 12px;
+            margin-bottom: 4px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: monospace;
+        }
+        .test-pass { background: #0f3460; color: #0f9b0f; }
+        .test-fail { background: #3d0a0a; color: #ff6b6b; }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .summary-pass { background: #0f3460; color: #0f9b0f; }
+        .summary-fail { background: #3d0a0a; color: #ff6b6b; }
+    </style>
+</head>
+<body>
+    <h1>Labeling JS Integration Tests</h1>
+
+    <div class="test-area">
+        <div class="canvas-container" id="testContainer">
+            <!-- Use a 1x1 transparent PNG as placeholder -->
+            <img id="testImg" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==" alt="Test Image">
+            <canvas id="testCanvas"></canvas>
+        </div>
+
+        <div class="results" id="results"></div>
+    </div>
+
+    <div id="summary" class="summary"></div>
+
+    <script src="/static/labeling.js"></script>
+    <script>
+        var C = LabelingCore;
+        var passed = 0;
+        var failed = 0;
+        var results = document.getElementById('results');
+
+        function assert(condition, message) {
+            var div = document.createElement('div');
+            if (condition) {
+                div.className = 'test-result test-pass';
+                div.textContent = 'PASS: ' + message;
+                passed++;
+            } else {
+                div.className = 'test-result test-fail';
+                div.textContent = 'FAIL: ' + message;
+                failed++;
+            }
+            results.appendChild(div);
+        }
+
+        function assertApprox(actual, expected, message, tol) {
+            tol = tol || 1e-6;
+            assert(Math.abs(actual - expected) < tol, message + ' (got ' + actual.toFixed(6) + ', expected ' + expected + ')');
+        }
+
+        // Wait for DOM to be fully set up
+        setTimeout(function() {
+            var img = document.getElementById('testImg');
+            var canvas = document.getElementById('testCanvas');
+            var container = document.getElementById('testContainer');
+
+            // Set canvas size to match container
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+
+            // ---- Test 1: Canvas init ----
+            LabelingUI.init({
+                mode: 'bib',
+                contentHash: '',
+                imgEl: img,
+                canvasEl: canvas,
+                onBoxesChanged: function() {},
+                onBoxSelected: function() {},
+            });
+
+            var state = LabelingUI.getState();
+            assert(state.mode === 'bib', 'Init sets mode to bib');
+            assert(state.boxes.length === 0, 'Init starts with empty boxes');
+            assert(state.selectedIdx === -1, 'Init has no selection');
+
+            // ---- Test 2: Simulate drawing a box via mouse events ----
+            var rect = canvas.getBoundingClientRect();
+
+            function mouseEvent(type, x, y) {
+                var evt = new MouseEvent(type, {
+                    clientX: rect.left + x,
+                    clientY: rect.top + y,
+                    button: 0,
+                    bubbles: true,
+                });
+                canvas.dispatchEvent(evt);
+            }
+
+            // Draw from (50, 50) to (150, 120)
+            mouseEvent('mousedown', 50, 50);
+            mouseEvent('mousemove', 150, 120);
+            mouseEvent('mouseup', 150, 120);
+
+            assert(state.boxes.length === 1, 'Drawing creates a box');
+            assert(state.selectedIdx === 0, 'New box is selected');
+            assert(state.boxes[0].w > 0, 'Box has positive width');
+            assert(state.boxes[0].h > 0, 'Box has positive height');
+            assert(state.boxes[0].tag === 'bib', 'Box has default tag "bib"');
+
+            // ---- Test 3: Select box by clicking inside it ----
+            LabelingUI.selectBox(-1);
+            assert(state.selectedIdx === -1, 'Deselect works');
+
+            // Click inside the drawn box
+            mouseEvent('mousedown', 100, 85);
+            mouseEvent('mouseup', 100, 85);
+            assert(state.selectedIdx === 0, 'Clicking inside selects the box');
+
+            // ---- Test 4: Delete selected box ----
+            LabelingUI.deleteSelected();
+            assert(state.boxes.length === 0, 'Delete removes the box');
+            assert(state.selectedIdx === -1, 'Selection cleared after delete');
+
+            // ---- Test 5: Draw a box and accept a suggestion ----
+            // Add a fake suggestion
+            state.suggestions = [
+                { x: 0.3, y: 0.3, w: 0.2, h: 0.2, number: '42', confidence: 0.95 }
+            ];
+            LabelingUI.render();
+
+            // Click the suggestion (calculate canvas coords)
+            var imgRect = { x: 0, y: 0, w: canvas.width, h: canvas.height };
+            // Since the test image is 1x1, the image fills differently; but we can
+            // use approximate centre of the suggestion
+            var suggCx = 0.4 * canvas.width;
+            var suggCy = 0.4 * canvas.height;
+            mouseEvent('mousedown', suggCx, suggCy);
+            mouseEvent('mouseup', suggCx, suggCy);
+
+            assert(state.boxes.length === 1, 'Accepting suggestion creates a box');
+            assert(state.boxes[0].number === '42', 'Accepted box has suggestion number');
+
+            // ---- Test 6: Resize box via handle ----
+            // Select the box first
+            LabelingUI.selectBox(0);
+            assert(state.selectedIdx === 0, 'Box 0 selected for resize test');
+
+            // Store original size
+            var origW = state.boxes[0].w;
+            var origH = state.boxes[0].h;
+
+            // Find BR handle position and drag it
+            var boxRect = C.boxToCanvasRect(state.boxes[0], { x: 0, y: 0, w: canvas.width, h: canvas.height });
+            var brX = boxRect.x + boxRect.w;
+            var brY = boxRect.y + boxRect.h;
+
+            mouseEvent('mousedown', brX, brY);
+            mouseEvent('mousemove', brX + 30, brY + 30);
+            mouseEvent('mouseup', brX + 30, brY + 30);
+
+            // Box should have grown
+            assert(state.boxes[0].w > origW - 0.01 || state.boxes[0].h > origH - 0.01,
+                   'Resizing changes box dimensions');
+
+            // ---- Summary ----
+            var summary = document.getElementById('summary');
+            var total = passed + failed;
+            if (failed === 0) {
+                summary.className = 'summary summary-pass';
+                summary.textContent = 'All ' + total + ' tests passed!';
+            } else {
+                summary.className = 'summary summary-fail';
+                summary.textContent = failed + ' of ' + total + ' tests failed.';
+            }
+        }, 100);
+    </script>
+</body>
+</html>

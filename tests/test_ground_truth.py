@@ -13,7 +13,10 @@ from benchmarking.ground_truth import (
     BibGroundTruth,
     FaceGroundTruth,
     BIB_BOX_TAGS,
+    FACE_BOX_TAGS,
     FACE_SCOPE_TAGS,
+    FACE_PHOTO_TAGS,
+    _FACE_PHOTO_TAGS_COMPAT,
     load_bib_ground_truth,
     save_bib_ground_truth,
     load_face_ground_truth,
@@ -60,6 +63,40 @@ class TestFaceBox:
         for scope in FACE_SCOPE_TAGS:
             box = FaceBox(x=0, y=0, w=0, h=0, scope=scope)
             assert box.scope == scope
+
+    def test_valid_box_tags(self):
+        box = FaceBox(x=0.1, y=0.1, w=0.1, h=0.1, tags=["tiny", "blurry"])
+        assert box.tags == ["tiny", "blurry"]
+
+    def test_all_valid_box_tags(self):
+        for tag in FACE_BOX_TAGS:
+            box = FaceBox(x=0, y=0, w=0.1, h=0.1, tags=[tag])
+            assert tag in box.tags
+
+    def test_invalid_box_tag_raises(self):
+        with pytest.raises(ValueError, match="Invalid face box tags"):
+            FaceBox(x=0, y=0, w=0.1, h=0.1, tags=["not_a_real_tag"])
+
+    def test_empty_tags_default(self):
+        box = FaceBox(x=0, y=0, w=0.1, h=0.1)
+        assert box.tags == []
+
+    def test_tags_round_trip(self):
+        box = FaceBox(x=0.1, y=0.2, w=0.3, h=0.4, scope="keep", tags=["profile", "looking_down"])
+        d = box.to_dict()
+        assert d["tags"] == ["profile", "looking_down"]
+        restored = FaceBox.from_dict(d)
+        assert restored.tags == ["profile", "looking_down"]
+
+    def test_empty_tags_not_serialised(self):
+        box = FaceBox(x=0.1, y=0.2, w=0.3, h=0.4)
+        d = box.to_dict()
+        assert "tags" not in d
+
+    def test_from_dict_missing_tags(self):
+        d = {"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4, "scope": "keep"}
+        box = FaceBox.from_dict(d)
+        assert box.tags == []
 
 
 # =============================================================================
@@ -118,6 +155,23 @@ class TestFacePhotoLabel:
     def test_invalid_tag_raises(self):
         with pytest.raises(ValueError, match="Invalid face photo tags"):
             FacePhotoLabel(content_hash="abc", tags=["not_a_tag"])
+
+    def test_new_photo_level_tags_valid(self):
+        for tag in FACE_PHOTO_TAGS:
+            label = FacePhotoLabel(content_hash="abc", tags=[tag])
+            assert tag in label.tags
+
+    def test_compat_old_photo_tags_still_load(self):
+        """Old per-photo face tags (now per-box) are still accepted during transition."""
+        old_tags = ["face_tiny_faces", "face_blurry_faces", "face_occluded_faces", "face_profile"]
+        for tag in old_tags:
+            label = FacePhotoLabel(content_hash="abc", tags=[tag])
+            assert tag in label.tags
+
+    def test_compat_set_includes_all(self):
+        assert FACE_PHOTO_TAGS < _FACE_PHOTO_TAGS_COMPAT
+        assert "face_tiny_faces" in _FACE_PHOTO_TAGS_COMPAT
+        assert "face_no_faces" in _FACE_PHOTO_TAGS_COMPAT
 
 
 # =============================================================================
