@@ -1,8 +1,6 @@
-"""TDD tests for benchmarking.ghost — precomputed detection suggestions."""
+"""Tests for benchmarking.ghost — store semantics, serialization, and normalize_quad."""
 
 from __future__ import annotations
-
-import json
 
 import pytest
 
@@ -18,24 +16,12 @@ from benchmarking.ghost import (
 
 
 # =============================================================================
-# SuggestionStore
+# SuggestionStore — semantic behavior
 # =============================================================================
 
 
 class TestSuggestionStore:
-    def test_empty(self):
-        store = SuggestionStore()
-        assert store.get("abc") is None
-        assert not store.has("abc")
-
-    def test_add_and_get(self):
-        store = SuggestionStore()
-        ps = PhotoSuggestions(content_hash="abc")
-        store.add(ps)
-        assert store.has("abc")
-        assert store.get("abc") is ps
-
-    def test_overwrite(self):
+    def test_overwrite_replaces_existing(self):
         store = SuggestionStore()
         ps1 = PhotoSuggestions(content_hash="abc")
         ps2 = PhotoSuggestions(
@@ -46,15 +32,9 @@ class TestSuggestionStore:
         store.add(ps2)
         assert len(store.get("abc").bibs) == 1
 
-    def test_hashes(self):
-        store = SuggestionStore()
-        store.add(PhotoSuggestions(content_hash="aaa"))
-        store.add(PhotoSuggestions(content_hash="bbb"))
-        assert store.hashes() == {"aaa", "bbb"}
-
 
 # =============================================================================
-# load/save
+# load/save — round-trip snapshot
 # =============================================================================
 
 
@@ -79,19 +59,9 @@ class TestLoadSave:
         assert store2.has("h1")
         assert store2.get("h1").bibs[0].number == "42"
 
-    def test_valid_json(self, tmp_path):
-        path = tmp_path / "suggestions.json"
-        store = SuggestionStore()
-        store.add(PhotoSuggestions(content_hash="h1"))
-        save_suggestion_store(store, path)
-
-        data = json.loads(path.read_text())
-        assert "photos" in data
-        assert "h1" in data["photos"]
-
 
 # =============================================================================
-# normalize_quad
+# normalize_quad — coordinate transformation
 # =============================================================================
 
 
@@ -121,7 +91,7 @@ class TestNormalizeQuad:
         assert x == 0.0 and y == 0.0 and w == 0.0 and h == 0.0
 
     def test_rotated_quad_uses_bounding_rect(self):
-        """Non-axis-aligned quad → bounding rectangle used."""
+        """Non-axis-aligned quad uses bounding rectangle."""
         quad = [[10, 0], [20, 10], [10, 20], [0, 10]]
         x, y, w, h = normalize_quad(quad, img_width=100, img_height=100)
         assert x == pytest.approx(0.0)

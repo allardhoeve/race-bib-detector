@@ -229,7 +229,7 @@ def cmd_label(args: argparse.Namespace) -> int:
                 except ValueError:
                     print(f"Invalid bib number: {b}")
                     return 1
-                bib_boxes.append(BibBox(x=0, y=0, w=0, h=0, number=b, tag="bib"))
+                bib_boxes.append(BibBox(x=0, y=0, w=0, h=0, number=b, scope="bib"))
 
     # Parse tags
     tags: list[str] | None = None

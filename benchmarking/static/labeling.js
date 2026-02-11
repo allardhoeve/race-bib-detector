@@ -248,7 +248,8 @@ var LabelingUI = (function () {
     var BOX_COLORS = {
         bib: '#00ff88',
         not_bib: '#ff4444',
-        bib_partial: '#ffaa00',
+        bib_obscured: '#ffaa00',
+        bib_clipped: '#88ccff',
         keep: '#00aaff',
         exclude: '#ff4444',
         uncertain: '#888888',
@@ -294,7 +295,7 @@ var LabelingUI = (function () {
 
     function drawBox(ctx, box, imgRect, isSelected) {
         var r = C.boxToCanvasRect(box, imgRect);
-        var colorKey = state.mode === 'bib' ? (box.tag || 'bib') : (box.scope || 'keep');
+        var colorKey = box.scope || (state.mode === 'bib' ? 'bib' : 'keep');
         var color = BOX_COLORS[colorKey] || '#00ff88';
 
         ctx.strokeStyle = color;
@@ -454,7 +455,7 @@ var LabelingUI = (function () {
             if (C.meetsMinSize(newBox, imgRect)) {
                 if (state.mode === 'bib') {
                     newBox.number = '';
-                    newBox.tag = 'bib';
+                    newBox.scope = 'bib';
                 } else {
                     newBox.scope = 'keep';
                     newBox.identity = '';
@@ -533,7 +534,7 @@ var LabelingUI = (function () {
         var newBox = { x: sugg.x, y: sugg.y, w: sugg.w, h: sugg.h };
         if (state.mode === 'bib') {
             newBox.number = sugg.number || '';
-            newBox.tag = 'bib';
+            newBox.scope = 'bib';
         } else {
             newBox.scope = 'keep';
             newBox.identity = '';

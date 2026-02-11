@@ -53,11 +53,11 @@ once GT boxes have coordinates (drawn in step 4 labeling UI).
 
 ## Step 3.9: Cleanup (tests)
 
-- [ ] Remove dataclass/accessor-only tests in `tests/test_photo.py`, keeping behavior like `get_paths` errors.
-- [ ] Prune round-trip and field-mirroring tests in `tests/test_ground_truth.py`, keeping tag/split validation and `bib_numbers_int` logic.
-- [ ] Trim `tests/test_ghost.py` to store semantics and one serialization snapshot; drop per-dataclass accessor tests.
-- [ ] Simplify `tests/test_bib_detection.py` by keeping `scale_bbox` and `from_dict` compat checks, dropping basic constructor/accessor tests.
-- [ ] Reduce `tests/test_preprocessing.py` property alias checks to conditional behavior only (e.g., `resized` when scaled).
+- [x] Remove dataclass/accessor-only tests in `tests/test_photo.py`, keeping behavior like `get_paths` errors. *(12→1 tests)*
+- [x] Prune round-trip and field-mirroring tests in `tests/test_ground_truth.py`, keeping tag/split validation and `bib_numbers_int` logic. *(27→17 tests)*
+- [x] Trim `tests/test_ghost.py` to store semantics and one serialization snapshot; drop per-dataclass accessor tests. *(12→7 tests)*
+- [x] Simplify `tests/test_bib_detection.py` by keeping `scale_bbox` and `from_dict` compat checks, dropping basic constructor/accessor tests. *(53→43 tests)*
+- [x] Reduce `tests/test_preprocessing.py` property alias checks to conditional behavior only (e.g., `resized` when scaled). *(76→47 tests)*
 
 ## Step 4: Labeling UI
 
@@ -65,27 +65,27 @@ Depends on steps 0, 2, 3.
 
 ### Shared: canvas box drawing
 
-- [ ] Add HTML5 canvas overlay on photo for click-drag rectangle drawing
-- [ ] Support resize handles (drag corners/edges to adjust existing boxes)
-- [ ] Support delete (click box + Delete key or X button)
-- [ ] Show ghost suggestions as dashed outlines; click to accept (turns solid), drag to adjust
-- [ ] Keyboard shortcut to cycle through unreviewed ghost suggestions
+- [x] Add HTML5 canvas overlay on photo for click-drag rectangle drawing
+- [x] Support resize handles (drag corners/edges to adjust existing boxes)
+- [x] Support delete (click box + Delete key or X button)
+- [x] Show ghost suggestions as dashed outlines; click to accept (turns solid), drag to adjust
+- [x] Keyboard shortcut to cycle through unreviewed ghost suggestions
 
 ### Face labeling (`bnr benchmark label faces`)
 
-- [ ] Render accepted face boxes as solid outlines with scope tag badge
-- [ ] Scope tag selector per box: `keep` / `ignore` / `unknown` (default `keep`)
-- [ ] Identity dropdown per face box: autocomplete from previously entered identities
-- [ ] Allow adding new identity (free-text) that gets added to the known list
-- [ ] Store identity list in a persistent file (e.g., `face_identities.json`)
-- [ ] Show identity name on box label when assigned
+- [x] Render accepted face boxes as solid outlines with scope tag badge
+- [x] Scope tag selector per box: `keep` / `exclude` / `uncertain` (default `keep`)
+- [x] Identity dropdown per face box: autocomplete from previously entered identities
+- [x] Allow adding new identity (free-text) that gets added to the known list
+- [x] Store identity list in a persistent file (`face_identities.json`)
+- [x] Show identity name on box label when assigned
 
 ### Bib labeling (`bnr benchmark label bibs`)
 
-- [ ] Same canvas box drawing as face labeling
-- [ ] Label selector per box: `bib` / `not bib` / `bib partial`
-- [ ] Number input field per bib box (supports `?` for unreadable digits, e.g., `62?`)
-- [ ] Show bib number on box label when entered
+- [x] Same canvas box drawing as face labeling
+- [x] Label selector per box: `bib` / `not_bib` / `bib_obscured` / `bib_clipped`
+- [x] Number input field per bib box (supports `?` for unreadable digits, e.g., `62?`)
+- [x] Show bib number on box label when entered
 
 ---
 

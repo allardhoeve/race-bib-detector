@@ -459,10 +459,11 @@ LABELING_TEMPLATE = """
                 <label>Bib Number</label>
                 <input type="text" id="boxNumber" placeholder="e.g. 123">
                 <label>Tag</label>
-                <div class="tag-radios" id="boxTagRadios">
-                    <label><input type="radio" name="boxTag" value="bib" checked> bib</label>
-                    <label><input type="radio" name="boxTag" value="not_bib"> not bib</label>
-                    <label><input type="radio" name="boxTag" value="bib_partial"> partial</label>
+                <div class="tag-radios" id="boxScopeRadios">
+                    <label><input type="radio" name="boxScope" value="bib" checked> bib</label>
+                    <label><input type="radio" name="boxScope" value="not_bib"> not bib</label>
+                    <label><input type="radio" name="boxScope" value="bib_obscured"> obscured</label>
+                    <label><input type="radio" name="boxScope" value="bib_clipped"> clipped</label>
                 </div>
             </div>
 
@@ -540,7 +541,7 @@ LABELING_TEMPLATE = """
                 const li = document.createElement('li');
                 li.className = 'box-item' + (i === LabelingUI.getState().selectedIdx ? ' selected' : '');
                 li.innerHTML = '<span class="box-label">' +
-                    (box.number || '?') + ' [' + (box.tag || 'bib') + ']</span>' +
+                    (box.number || '?') + ' [' + (box.scope || 'bib') + ']</span>' +
                     '<span class="box-delete" data-idx="' + i + '">×</span>';
                 li.addEventListener('click', function(e) {
                     if (e.target.classList.contains('box-delete')) {
@@ -562,8 +563,8 @@ LABELING_TEMPLATE = """
             }
             editor.classList.add('visible');
             document.getElementById('boxNumber').value = box.number || '';
-            const radios = document.querySelectorAll('input[name="boxTag"]');
-            radios.forEach(r => { r.checked = r.value === (box.tag || 'bib'); });
+            const radios = document.querySelectorAll('input[name="boxScope"]');
+            radios.forEach(r => { r.checked = r.value === (box.scope || 'bib'); });
 
             // Update box list selection
             document.querySelectorAll('.box-item').forEach((el, i) => {
@@ -584,11 +585,11 @@ LABELING_TEMPLATE = """
             }
         });
 
-        document.querySelectorAll('input[name="boxTag"]').forEach(radio => {
+        document.querySelectorAll('input[name="boxScope"]').forEach(radio => {
             radio.addEventListener('change', function() {
                 const state = LabelingUI.getState();
                 if (state.selectedIdx >= 0) {
-                    state.boxes[state.selectedIdx].tag = this.value;
+                    state.boxes[state.selectedIdx].scope = this.value;
                     renderBoxList(state.boxes);
                     LabelingUI.render();
                 }
@@ -603,7 +604,7 @@ LABELING_TEMPLATE = """
                 boxes: state.boxes.map(b => ({
                     x: b.x, y: b.y, w: b.w, h: b.h,
                     number: b.number || '',
-                    tag: b.tag || 'bib'
+                    scope: b.scope || 'bib'
                 })),
                 tags: getSelectedTags(),
                 split: currentSplit
@@ -1981,7 +1982,7 @@ def create_app() -> Flask:
     def save_label():
         """Save a photo label.
 
-        Accepts either ``boxes`` (list of {x,y,w,h,number,tag} dicts) or
+        Accepts either ``boxes`` (list of {x,y,w,h,number,scope} dicts) or
         the legacy ``bibs`` (list of ints) for backward compatibility.
         """
         data = request.get_json()
@@ -1999,7 +2000,7 @@ def create_app() -> Flask:
                 boxes = [BibBox.from_dict(b) for b in data['boxes']]
             else:
                 bibs = data.get('bibs', [])
-                boxes = [BibBox(x=0, y=0, w=0, h=0, number=str(b), tag="bib") for b in bibs]
+                boxes = [BibBox(x=0, y=0, w=0, h=0, number=str(b), scope="bib") for b in bibs]
             label = BibPhotoLabel(
                 content_hash=content_hash,
                 boxes=boxes,

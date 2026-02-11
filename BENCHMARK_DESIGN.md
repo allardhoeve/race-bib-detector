@@ -4,6 +4,18 @@ This document captures the design for the benchmark system: repeatable evaluatio
 
 Project-wide conventions and invariants live in `STANDARDS.md`.
 
+## Glossary
+
+| Abbreviation | Meaning |
+|---|---|
+| GT | Ground truth — the human-labeled reference data |
+| TP | True positive — a correct detection (prediction matches a GT box) |
+| FP | False positive — a spurious detection (prediction without matching GT box) |
+| FN | False negative — a missed detection (GT box without matching prediction) |
+| IoU | Intersection over Union — overlap metric (0–1) for comparing two boxes |
+| OCR | Optical character recognition — reading the bib number from a detected region |
+| P / R / F1 | Precision / Recall / F1-score — standard detection quality metrics |
+
 ## Problem Statement
 
 The current feedback loop is slow and expensive. Frequent parameter tuning across different backends and preprocessing options (e.g., CLAHE) increases micromanagement without guaranteed progress. Development needs to shift from "knob tweaking" to objective, repeatable evaluation.
@@ -44,7 +56,7 @@ Bounding box coordinates are normalised to `[0, 1]` image space. Legacy migrated
 
 ### Bib Labels
 
-- Bib labels: `bib`, `not bib`, `bib partial` (visible but incomplete number).
+- Bib labels: `bib`, `not_bib`, `bib_obscured` (real bib, too obscured to read — excluded from scoring), `bib_clipped` (readable but clipped at edge — scored).
 - Allow manual bib box drawing with optional partial number entry (e.g., `62?` when `621` is obscured).
 - Bib bounding boxes enable separating detection failure (region not found) from recognition failure (wrong OCR output).
 

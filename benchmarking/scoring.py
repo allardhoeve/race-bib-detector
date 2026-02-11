@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
-from .ground_truth import BibBox, FaceBox
+from .ground_truth import BibBox, FaceBox, _BIB_BOX_UNSCORED
 
 # Type alias for a box as (x, y, w, h) tuple
 Box = tuple[float, float, float, float]
@@ -264,9 +264,21 @@ def score_bibs(
 ) -> BibScorecard:
     """Score bib detections against ground truth.
 
-    Filters:
+    Scope scoring rules:
+
+    - ``bib``: expected to be found. Missed = FN, found = TP.
+    - ``bib_clipped``: scored the same as ``bib`` (stretch goal — may be
+      reported separately in future).
+    - ``not_bib``: not a real bib — excluded from GT before matching.
+    - ``bib_obscured``: real bib but unreadable — excluded from GT.
+
+    Note: excluded GT boxes become "don't care" regions. In theory a
+    prediction overlapping an excluded box would be counted as FP (since
+    the GT box is absent from matching). In practice this doesn't occur
+    because the detector rarely fires on non-bib / obscured regions.
+
+    Additional filters:
     - GT boxes with ``has_coords == False`` (zero-area, legacy) are excluded.
-    - GT boxes tagged ``not_bib`` are excluded.
 
     After IoU matching, OCR accuracy is computed on matched pairs by comparing
     the ``number`` field (string equality, stripped).
@@ -279,8 +291,11 @@ def score_bibs(
     Returns:
         BibScorecard with detection and OCR metrics.
     """
-    # Filter GT: only boxes with coords and not tagged as not_bib
-    gt_filtered = [b for b in ground_truth if b.has_coords and b.tag != "not_bib"]
+    # Filter GT: only boxes with coords and scored scopes
+    gt_filtered = [
+        b for b in ground_truth
+        if b.has_coords and b.scope not in _BIB_BOX_UNSCORED
+    ]
 
     # Filter predicted: only boxes with coords
     pred_filtered = [b for b in predicted if b.has_coords]

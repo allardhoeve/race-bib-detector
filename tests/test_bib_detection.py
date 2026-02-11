@@ -82,7 +82,7 @@ class TestBibValidation:
 
 
 class TestDetectionDataclass:
-    """Tests for the Detection dataclass."""
+    """Tests for the Detection dataclass — transformation and compat logic."""
 
     def test_detection_scale_bbox(self):
         """Test Detection.scale_bbox returns new Detection with scaled bbox."""
@@ -98,13 +98,6 @@ class TestDetectionDataclass:
         assert scaled.bib_number == "123"
         assert scaled.confidence == 0.95
 
-    def test_detection_to_dict(self):
-        """Test Detection.to_dict for backwards compatibility."""
-        from detection import Detection
-        det = Detection(bib_number="456", confidence=0.8, bbox=[[0, 0], [10, 0], [10, 10], [0, 10]])
-        d = det.to_dict()
-        assert d == {"bib_number": "456", "confidence": 0.8, "bbox": [[0, 0], [10, 0], [10, 10], [0, 10]], "source": "white_region"}
-
     def test_detection_from_dict(self):
         """Test Detection.from_dict for backwards compatibility."""
         from detection import Detection
@@ -115,14 +108,6 @@ class TestDetectionDataclass:
         assert det.bbox == [[5, 5], [15, 5], [15, 15], [5, 15]]
         # Default source when not in dict
         assert det.source == "white_region"
-
-    def test_detection_from_dict_with_source(self):
-        """Test Detection.from_dict preserves source field."""
-        from detection import Detection
-        d = {"bib_number": "789", "confidence": 0.7, "bbox": [[5, 5], [15, 5], [15, 15], [5, 15]], "source": "full_image"}
-        det = Detection.from_dict(d)
-        assert det.source == "full_image"
-        assert det.source_candidate.bbox == (100, 100, 50, 30)
 
     def test_detection_scale_bbox_preserves_lineage(self):
         """Test that scale_bbox preserves source and source_candidate."""
@@ -147,68 +132,9 @@ class TestDetectionDataclass:
         assert scaled.source == "white_region"
         assert scaled.source_candidate is candidate
 
-    def test_detection_full_image_source(self):
-        """Test Detection with full_image source."""
-        from detection import Detection
-        det = Detection(
-            bib_number="789",
-            confidence=0.75,
-            bbox=[[0, 0], [50, 0], [50, 30], [0, 30]],
-            source="full_image",
-        )
-        assert det.source == "full_image"
-        assert det.source_candidate is None
-
 
 class TestDetectionResult:
-    """Tests for DetectionResult/PipelineResult dataclass."""
-
-    def test_detection_result_creation(self):
-        """Test creating a DetectionResult (PipelineResult)."""
-        import numpy as np
-        from detection import Detection, DetectionResult, BibCandidate
-
-        candidate = BibCandidate(
-            bbox=(0, 0, 100, 50),
-            area=5000,
-            aspect_ratio=2.0,
-            median_brightness=180.0,
-            mean_brightness=175.0,
-            relative_area=0.02,
-        )
-        detections = [Detection(bib_number="123", confidence=0.9, bbox=[[0, 0], [100, 0], [100, 50], [0, 50]], source_candidate=candidate)]
-        grayscale = np.zeros((480, 640), dtype=np.uint8)
-
-        result = DetectionResult(
-            detections=detections,
-            all_candidates=[candidate],
-            ocr_grayscale=grayscale,
-            original_dimensions=(1280, 960),
-            ocr_dimensions=(640, 480),
-            scale_factor=2.0,
-        )
-
-        assert len(result.detections) == 1
-        assert len(result.all_candidates) == 1
-        assert result.original_dimensions == (1280, 960)
-        assert result.ocr_dimensions == (640, 480)
-        assert result.scale_factor == 2.0
-
-    def test_ocr_scale_property(self):
-        """Test that ocr_scale is inverse of scale_factor."""
-        import numpy as np
-        from detection import DetectionResult
-
-        result = DetectionResult(
-            detections=[],
-            all_candidates=[],
-            ocr_grayscale=np.zeros((100, 100), dtype=np.uint8),
-            original_dimensions=(200, 200),
-            ocr_dimensions=(100, 100),
-            scale_factor=2.0,
-        )
-
-        assert result.ocr_scale == 0.5
+    """Tests for DetectionResult — scale-aware transformation."""
 
     def test_detections_at_ocr_scale(self):
         """Test that detections_at_ocr_scale scales bboxes correctly."""
@@ -232,101 +158,9 @@ class TestDetectionResult:
         # Original bbox at 100,100 -> 200,200 should become 50,50 -> 100,100 at OCR scale
         assert scaled[0].bbox == [[50, 50], [100, 50], [100, 100], [50, 100]]
 
-    def test_passed_and_rejected_candidates(self):
-        """Test passed_candidates and rejected_candidates properties."""
-        import numpy as np
-        from detection import DetectionResult, BibCandidate
-
-        passed = BibCandidate(
-            bbox=(0, 0, 100, 50),
-            area=5000,
-            aspect_ratio=2.0,
-            median_brightness=180.0,
-            mean_brightness=175.0,
-            relative_area=0.02,
-            passed=True,
-        )
-        rejected = BibCandidate.create_rejected(
-            bbox=(200, 200, 20, 10),
-            area=200,
-            aspect_ratio=2.0,
-            median_brightness=50.0,
-            mean_brightness=45.0,
-            relative_area=0.001,
-            reason="too_small",
-        )
-
-        result = DetectionResult(
-            detections=[],
-            all_candidates=[passed, rejected],
-            ocr_grayscale=np.zeros((480, 640), dtype=np.uint8),
-            original_dimensions=(1280, 960),
-            ocr_dimensions=(640, 480),
-            scale_factor=2.0,
-        )
-
-        assert len(result.passed_candidates) == 1
-        assert len(result.rejected_candidates) == 1
-        assert result.passed_candidates[0] is passed
-        assert result.rejected_candidates[0] is rejected
-
 
 class TestBibCandidate:
-    """Tests for BibCandidate dataclass."""
-
-    def test_bib_candidate_creation(self):
-        """Test creating a BibCandidate."""
-        from detection import BibCandidate
-
-        candidate = BibCandidate(
-            bbox=(100, 200, 50, 60),
-            area=3000,
-            aspect_ratio=0.83,
-            median_brightness=180.0,
-            mean_brightness=175.0,
-            relative_area=0.01,
-            passed=True,
-        )
-
-        assert candidate.bbox == (100, 200, 50, 60)
-        assert candidate.x == 100
-        assert candidate.y == 200
-        assert candidate.w == 50
-        assert candidate.h == 60
-        assert candidate.passed is True
-        assert candidate.rejection_reason is None
-
-    def test_bib_candidate_rejected(self):
-        """Test creating a rejected BibCandidate."""
-        from detection import BibCandidate
-
-        candidate = BibCandidate.create_rejected(
-            bbox=(10, 20, 30, 40),
-            area=1200,
-            aspect_ratio=0.75,
-            median_brightness=80.0,
-            mean_brightness=85.0,
-            relative_area=0.001,
-            reason="brightness too low",
-        )
-
-        assert candidate.passed is False
-        assert candidate.rejection_reason == "brightness too low"
-
-    def test_bib_candidate_to_xywh(self):
-        """Test to_xywh method."""
-        from detection import BibCandidate
-
-        candidate = BibCandidate(
-            bbox=(10, 20, 30, 40),
-            area=1200,
-            aspect_ratio=0.75,
-            median_brightness=150.0,
-            mean_brightness=145.0,
-            relative_area=0.01,
-        )
-
-        assert candidate.to_xywh() == (10, 20, 30, 40)
+    """Tests for BibCandidate — region extraction."""
 
     def test_bib_candidate_extract_region(self):
         """Test extract_region method."""

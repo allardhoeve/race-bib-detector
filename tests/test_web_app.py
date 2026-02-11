@@ -74,8 +74,8 @@ class TestBibBoxApi:
     def test_save_and_load_bib_boxes_with_coords(self, app_client):
         """Save bib boxes with coordinates, then load them back."""
         boxes = [
-            {"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4, "number": "42", "tag": "bib"},
-            {"x": 0.5, "y": 0.6, "w": 0.1, "h": 0.1, "number": "7", "tag": "not_bib"},
+            {"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4, "number": "42", "scope": "bib"},
+            {"x": 0.5, "y": 0.6, "w": 0.1, "h": 0.1, "number": "7", "scope": "not_bib"},
         ]
         save_resp = app_client.post(
             "/api/labels",
@@ -93,7 +93,7 @@ class TestBibBoxApi:
         assert len(data["boxes"]) == 2
         assert data["boxes"][0]["number"] == "42"
         assert data["boxes"][0]["x"] == pytest.approx(0.1)
-        assert data["boxes"][1]["tag"] == "not_bib"
+        assert data["boxes"][1]["scope"] == "not_bib"
         assert data["labeled"] is True
 
     def test_save_bibs_backward_compat(self, app_client):
@@ -140,12 +140,12 @@ class TestBibBoxApi:
         resp = app_client.get(f"/api/bib_boxes/{HASH_UNKNOWN}")
         assert resp.status_code == 404
 
-    def test_save_invalid_tag_400(self, app_client):
+    def test_save_invalid_scope_400(self, app_client):
         resp = app_client.post(
             "/api/labels",
             json={
                 "content_hash": HASH_A,
-                "boxes": [{"x": 0, "y": 0, "w": 0.1, "h": 0.1, "number": "1", "tag": "invalid_tag"}],
+                "boxes": [{"x": 0, "y": 0, "w": 0.1, "h": 0.1, "number": "1", "scope": "invalid_scope"}],
                 "tags": [],
                 "split": "full",
             },

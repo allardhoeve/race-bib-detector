@@ -17,8 +17,9 @@ SCHEMA_VERSION = 3
 
 # --- Tag sets ----------------------------------------------------------------
 
-# Per-box bib label (what kind of bib detection is this?)
-BIB_BOX_TAGS = frozenset({"bib", "not_bib", "bib_partial"})
+# Per-box bib scope (should this box be scored?)
+BIB_BOX_SCOPES = frozenset({"bib", "not_bib", "bib_obscured", "bib_clipped"})
+_BIB_BOX_UNSCORED = frozenset({"not_bib", "bib_obscured"})
 
 # Per-box face scope (should this face be recognized?)
 #   keep     — real participant face, scored during evaluation
@@ -72,7 +73,7 @@ ALLOWED_FACE_TAGS = FACE_PHOTO_TAGS  # web_app.py uses this for photo-level chec
 
 @dataclass
 class BibBox:
-    """A single bib bounding box with number and label tag.
+    """A single bib bounding box with number and scope.
 
     Coordinates are in normalised [0, 1] image space.
     Legacy migrated boxes have x=y=w=h=0 (see ``has_coords``).
@@ -83,11 +84,11 @@ class BibBox:
     w: float
     h: float
     number: str
-    tag: str = "bib"
+    scope: str = "bib"
 
     def __post_init__(self):
-        if self.tag not in BIB_BOX_TAGS:
-            raise ValueError(f"Invalid bib box tag: {self.tag!r}")
+        if self.scope not in BIB_BOX_SCOPES:
+            raise ValueError(f"Invalid bib box scope: {self.scope!r}")
 
     @property
     def has_coords(self) -> bool:
@@ -100,7 +101,7 @@ class BibBox:
             "w": self.w,
             "h": self.h,
             "number": self.number,
-            "tag": self.tag,
+            "scope": self.scope,
         }
 
     @classmethod
@@ -111,7 +112,7 @@ class BibBox:
             w=data["w"],
             h=data["h"],
             number=data["number"],
-            tag=data.get("tag", "bib"),
+            scope=data.get("scope", data.get("tag", "bib")),
         )
 
 
@@ -121,7 +122,7 @@ class BibPhotoLabel:
 
     Attributes:
         content_hash: SHA256 content hash (canonical photo identity).
-        boxes: Bib bounding boxes with numbers and tags.
+        boxes: Bib bounding boxes with numbers and scopes.
         tags: Photo-level condition descriptors (from ``BIB_PHOTO_TAGS``).
         split: Which evaluation split this photo belongs to.
         labeled: True once a human has reviewed this photo's bibs.
@@ -144,11 +145,12 @@ class BibPhotoLabel:
     def bib_numbers_int(self) -> list[int]:
         """Bib numbers as sorted, deduplicated ints.
 
-        Skips ``not_bib`` boxes and non-numeric numbers (e.g. ``62?``).
+        Skips unscored boxes (``not_bib``, ``bib_obscured``) and non-numeric
+        numbers (e.g. ``62?``).
         """
         result: set[int] = set()
         for box in self.boxes:
-            if box.tag == "not_bib":
+            if box.scope in _BIB_BOX_UNSCORED:
                 continue
             try:
                 result.add(int(box.number))
@@ -443,7 +445,7 @@ def migrate_from_legacy(
         bib_boxes: list[BibBox] = []
         for bib_number in photo.get("bibs", []):
             bib_boxes.append(
-                BibBox(x=0, y=0, w=0, h=0, number=str(bib_number), tag="bib")
+                BibBox(x=0, y=0, w=0, h=0, number=str(bib_number), scope="bib")
             )
 
         # Filter tags: only keep those that belong to BIB_PHOTO_TAGS

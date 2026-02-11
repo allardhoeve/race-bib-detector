@@ -311,16 +311,38 @@ class TestScoreBibs:
         assert sc.detection_fn == 0  # zero-area GT excluded
         assert sc.detection_fp == 1  # predicted unmatched
 
-    def test_not_bib_tag_excluded(self):
-        """GT boxes tagged as 'not_bib' should be excluded from scoring."""
+    def test_not_bib_scope_excluded(self):
+        """GT boxes scoped as 'not_bib' should be excluded from scoring."""
         gt = [
             BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42"),
-            BibBox(x=0.5, y=0.5, w=0.2, h=0.2, number="0", tag="not_bib"),
+            BibBox(x=0.5, y=0.5, w=0.2, h=0.2, number="0", scope="not_bib"),
         ]
         pred = [BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
         sc = score_bibs(pred, gt)
         assert sc.detection_tp == 1
         assert sc.detection_fn == 0  # not_bib GT excluded
+
+    def test_bib_obscured_scope_excluded(self):
+        """GT boxes scoped as 'bib_obscured' should be excluded from scoring."""
+        gt = [
+            BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42"),
+            BibBox(x=0.5, y=0.5, w=0.2, h=0.2, number="99", scope="bib_obscured"),
+        ]
+        pred = [BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
+        sc = score_bibs(pred, gt)
+        assert sc.detection_tp == 1
+        assert sc.detection_fn == 0  # bib_obscured GT excluded
+
+    def test_bib_clipped_scope_scored(self):
+        """GT boxes scoped as 'bib_clipped' should be included in scoring."""
+        gt = [
+            BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42"),
+            BibBox(x=0.5, y=0.5, w=0.2, h=0.2, number="99", scope="bib_clipped"),
+        ]
+        pred = [BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
+        sc = score_bibs(pred, gt)
+        assert sc.detection_tp == 1
+        assert sc.detection_fn == 1  # bib_clipped GT is scored
 
     def test_both_empty(self):
         sc = score_bibs([], [])
