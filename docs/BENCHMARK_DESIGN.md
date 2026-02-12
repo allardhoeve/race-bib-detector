@@ -64,9 +64,12 @@ Bounding box coordinates are normalised to `[0, 1]` image space. Legacy migrated
 
 - Face labeling is manual-first: the user draws boxes for faces that should be recognized.
 - Auto-detected faces appear as faint suggestion boxes to accept, adjust, or ignore.
-- Scope tags: `keep` (should be recognized), `ignore` (blurry/obscured/background), `unknown`.
+- Scope tags: `keep` (should be recognized), `exclude` (blurry/obscured/background), `uncertain` (labeler unsure).
+- Backward compat: old `ignore`→`exclude`, `unknown`→`uncertain` via `_FACE_SCOPE_COMPAT`.
 - No `maybe` tag -- it adds metric ambiguity without clear scoring semantics.
-- Identity labels (person name/ID) per face, accumulated via the labeling UI.
+- Per-box tags: `tiny`, `blurry`, `occluded`, `profile`, `looking_down`.
+- Per-photo tags: `no_faces`, `light_faces`.
+- Identity labels (person name/ID) per face, accumulated via the labeling UI. Currently 137 named + 7 anonymous identities in `face_identities.json`.
 
 ### Bib-Face Associations
 
@@ -74,10 +77,11 @@ Bounding box coordinates are normalised to `[0, 1]` image space. Legacy migrated
 - Geometric priors belong in the pipeline, not the ground truth.
 - Optional auto-suggestions for links to speed labeling.
 
-### Identity Constraints
+### Identity Constraints *(future)*
 
 - Must-link / cannot-link constraints as hard ground truth (never overridden by clustering).
 - Suggestion queues for likely matches based on similarity and proximity.
+- Not yet implemented; tracked as future work.
 
 ## Reference Set Lifecycle
 
@@ -110,7 +114,7 @@ Two scoring systems run in parallel:
 **IoU scorecard** (activates once GT boxes have coordinates, i.e. after Step 4 labeling):
 - **Bib localization:** detection precision/recall using greedy IoU matching vs GT bib boxes.
 - **Bib OCR:** accuracy conditioned on correct localization (exact string match on matched pairs).
-- **Face detection:** precision/recall using IoU vs GT face boxes (scoped to `keep` only; `ignore`/`unknown` excluded).
+- **Face detection:** precision/recall using IoU vs GT face boxes (scoped to `keep` only; `exclude`/`uncertain` excluded).
 
 Both scorecards are implemented in `benchmarking/scoring.py` (`BibScorecard`, `FaceScorecard`) and printed by `bnr benchmark run`.
 
@@ -152,8 +156,6 @@ Planned (deferred):
 
 - `bnr benchmark freeze --name <name>`
   - Freezes the current staging set into a named immutable benchmark set.
-- `bnr benchmark label faces` / `bnr benchmark label bibs`
-  - Dedicated labeling commands (currently labeling is via `bnr benchmark ui`).
 
 ## Future Work
 
@@ -169,9 +171,9 @@ Create an `experiments/` area for automated parameter searches. Harness runs bou
 
 - **Storage:** Photos stay in `photos/`. Ground truth, suggestions, index, and run results all live under `benchmarking/`. Frozen sets (Step 1) will be named snapshots of the same data.
 - **Scale:** Current set has 468 photos (225 labeled). Sufficient for the milestone; `bnr benchmark prepare` makes it easy to grow.
+- **Identity bootstrap:** Identities are accumulated via the face labeling UI with embedding-based suggestions. Currently 137 named + 7 anonymous identities. No dedicated identity labeling pass needed.
 
 ## Open Questions
 
-- **Identity bootstrap:** Identity labels don't exist yet. The plan is to accumulate them via the face labeling UI. Is a dedicated identity labeling pass needed?
 - **CI integration:** Should `bnr benchmark run` gate PRs, or is it advisory-only?
 - **Frozen set naming:** Frozen sets should have explicit human-readable names (e.g. `benchmark_v1`, `clubkamp_2024`). Exact on-disk layout TBD in Step 1.

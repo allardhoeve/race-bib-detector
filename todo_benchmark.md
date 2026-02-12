@@ -1,107 +1,54 @@
 # Benchmark TODO
 
-Design rationale: see `BENCHMARK_DESIGN.md`.
-
-## Milestone: labeling UI + first scorecard
-
-Critical path: **0 → 2 → 3 → 4**, with **0.5** running in parallel after step 0.
-
-Step 1 (staging/frozen sets) is deferred — not needed for labeling or scoring.
+Design rationale: see `docs/BENCHMARK_DESIGN.md`. Tasks: see `todo/tasks/`.
 
 ---
 
-## Step 0: Delete old ground truth, create new schema
+## Completed milestone: labeling UI + first scorecard
 
-- [x] Delete `benchmarking/ground_truth.json`
-- [x] Delete `benchmarking/baseline.json`
-- [x] Remove `PhotoLabel` and `GroundTruth` classes from `benchmarking/ground_truth.py`
-- [x] Define `BibGroundTruth` schema (photo hash -> bib boxes, bib numbers, bib tags)
-- [x] Define `FaceGroundTruth` schema (photo hash -> face boxes, scope tags, identity labels)
-- [x] Write `bib_ground_truth.json` and `face_ground_truth.json` (migrated from legacy data)
-- [x] Remove `face_count` field (derived from `keep`-scoped face boxes going forward)
-- [x] Update `benchmarking/cli.py` to load/save the new schemas
-- [x] Update `benchmarking/web_app.py` to use new schemas
+Steps 0 → 0.5 → 2 → 3 → 3.9 → 4 are **done**. Summary:
 
-## Step 0.5: First scorecard (parallel track, start after step 0)
+- **Step 0**: New GT schema (v3) — split into `bib_ground_truth.json` + `face_ground_truth.json`, 468 photos migrated.
+- **Step 0.5**: IoU scorecard — `compute_iou`, `match_boxes`, `BibScorecard`, `FaceScorecard` in `scoring.py`.
+- **Step 2**: `bnr benchmark prepare <path>` — photo import with dedup, ghost labeling, `--refresh`/`--reset-labels`.
+- **Step 3**: Ghost labeling — precomputed bib/face suggestions with provenance metadata.
+- **Step 3.9**: Test cleanup — pruned trivial tests; 245 tests pass.
+- **Step 4**: Canvas-based labeling UI — box drawing, resize, delete, ghost suggestion acceptance, face scopes/identities, bib scopes/numbers.
 
-Minimal scoring against the new schema so labeling effort pays off immediately.
-Number-based metrics work now on all labeled photos. IoU scorecard activates
-once GT boxes have coordinates (drawn in step 4 labeling UI).
+### Architecture patterns (reference for future steps)
 
-- [x] Add `compute_iou(box_a, box_b)` utility
-- [x] Add `match_boxes(predicted, ground_truth, iou_threshold=0.5)` — greedy IoU matching, returns TP/FP/FN
-- [x] Bib scorecard: detection precision/recall (IoU) + OCR accuracy on matched boxes
-- [x] Face scorecard: detection precision/recall (IoU), scoped to `keep` boxes
-- [x] Wire into `bnr benchmark run` so it works with the new ground truth files
-- [x] Print scorecard summary to terminal (no archive/metadata yet — that's step 6)
-
-## Step 2: Prepare command
-
-- [x] Implement `bnr benchmark prepare <path>` (accepts source directory)
-  - [x] Copy photos from source into benchmark folder (dedup by hash)
-  - [x] Build/update photo index for benchmark photos
-  - [x] Run ghost labeling (step 3) on all new photos
-- [x] Implement `--refresh` flag (re-run ghost labeling on existing photos)
-- [x] Implement `--reset-labels` flag (clear labels, keep photos)
-
-## Step 3: Ghost labeling
-
-- [x] Run face detection on each benchmark photo, save suggestion boxes
-- [x] Run bib detection on each benchmark photo, save suggestion boxes
-- [x] Store provenance metadata per suggestion (backend, version, config)
-- [x] Persist suggestions alongside ground truth (separate from human labels)
-
-## Step 3.9: Cleanup (tests)
-
-- [x] Remove dataclass/accessor-only tests in `tests/test_photo.py`, keeping behavior like `get_paths` errors. *(12→1 tests)*
-- [x] Prune round-trip and field-mirroring tests in `tests/test_ground_truth.py`, keeping tag/split validation and `bib_numbers_int` logic. *(27→17 tests)*
-- [x] Trim `tests/test_ghost.py` to store semantics and one serialization snapshot; drop per-dataclass accessor tests. *(12→7 tests)*
-- [x] Simplify `tests/test_bib_detection.py` by keeping `scale_bbox` and `from_dict` compat checks, dropping basic constructor/accessor tests. *(53→43 tests)*
-- [x] Reduce `tests/test_preprocessing.py` property alias checks to conditional behavior only (e.g., `resized` when scaled). *(76→47 tests)*
-
-## Step 4: Labeling UI
-
-Depends on steps 0, 2, 3.
-
-### Shared: canvas box drawing
-
-- [x] Add HTML5 canvas overlay on photo for click-drag rectangle drawing
-- [x] Support resize handles (drag corners/edges to adjust existing boxes)
-- [x] Support delete (click box + Delete key or X button)
-- [x] Show ghost suggestions as dashed outlines; click to accept (turns solid), drag to adjust
-- [x] Keyboard shortcut to cycle through unreviewed ghost suggestions
-
-### Face labeling (`bnr benchmark label faces`)
-
-- [x] Render accepted face boxes as solid outlines with scope tag badge
-- [x] Scope tag selector per box: `keep` / `exclude` / `uncertain` (default `keep`)
-- [x] Identity dropdown per face box: autocomplete from previously entered identities
-- [x] Allow adding new identity (free-text) that gets added to the known list
-- [x] Store identity list in a persistent file (`face_identities.json`)
-- [x] Show identity name on box label when assigned
-
-### Bib labeling (`bnr benchmark label bibs`)
-
-- [x] Same canvas box drawing as face labeling
-- [x] Label selector per box: `bib` / `not_bib` / `bib_obscured` / `bib_clipped`
-- [x] Number input field per bib box (supports `?` for unreadable digits, e.g., `62?`)
-- [x] Show bib number on box label when entered
+- **JS split**: `LabelingCore` (pure logic) vs `LabelingUI` (DOM/canvas). New interactions should follow this split.
+- **API convention**: `PUT /api/{bib,face}_boxes/<hash>` saves full box list per photo. Step 5 should add `PUT /api/bib_face_links/<hash>`.
+- **Ghost suggestion filtering**: IoU > 0.3 against existing boxes → hidden. Tab cycles unreviewed.
 
 ---
 
-## Deferred (after milestone)
+## Deferred work
 
 ### Step 1: Staging and frozen sets
 
 - [ ] Define on-disk layout for staging set and frozen sets
 - [ ] Add `StagingSet` and `FrozenSet` data structures
 - [ ] Implement `bnr benchmark freeze --name <name>`
-- [ ] Implement `bnr benchmark list` (frozen sets + run history)
 
 ### Step 5: Bib-face associations
 
+Open questions (decide before implementation):
+
+- **GT representation**: how to store links — list of `(bib_index, face_index)` pairs per photo? Separate JSON file or nested inside existing GT?
+- **Labeling UX**: how to draw links in the canvas — click bib then click face? Drag a line? Show both box types simultaneously?
+- **Scoring**: match predicted links against GT links. Define what counts as a correct link (both boxes matched by IoU + correct pairing).
+- **Design note**: links are pure associations, not spatial rules. Geometric priors belong in the pipeline.
+
+Tasks:
+
+- [ ] Design GT representation for bib-face links
+- [ ] Add link drawing interaction to labeling UI
+- [ ] Add link scorecard (TP/FP/FN on `(bib_box, face_box)` pairs)
+- [ ] Wire link scoring into `bnr benchmark run`
+
 ### Step 6: Full scorecard with archiving
 
-- [x] Archive every run with metadata (timestamp, git hash, config, runtime) *(already works — runner saves to results/\<run_id\>/run.json)*
-- [x] Baseline comparison (regression detection) *(already works — `bnr benchmark baseline` + compare_to_baseline)*
+- [x] Archive every run with metadata *(already works — `results/<run_id>/run.json`)*
+- [x] Baseline comparison with regression detection *(already works — `bnr benchmark baseline`)*
 - [ ] Bib-face link accuracy metric *(requires step 5)*
