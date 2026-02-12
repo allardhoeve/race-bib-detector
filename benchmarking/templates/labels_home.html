@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Benchmark Labeling{% endblock %}
+{% block extra_styles %}
+        .content {
+            flex: 1;
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        h1 {
+            color: #0f9b0f;
+            font-size: 28px;
+        }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            padding: 20px;
+            border-radius: 8px;
+            background: #16213e;
+            border: 1px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .card h2 {
+            font-size: 18px;
+            color: #0f9b0f;
+        }
+        .card p {
+            color: #bbb;
+            font-size: 14px;
+        }
+        .card a {
+            display: inline-block;
+            margin-top: 10px;
+            color: #0f9b0f;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .card a:hover { text-decoration: underline; }
+{% endblock %}
+{% block body %}
+    <div class="header">
+        <div class="nav-info">
+            <span style="color: #0f9b0f; font-weight: bold;">Benchmark Labeling</span>
+        </div>
+    </div>
+
+    <div class="content">
+        <h1>Choose a labeling mode</h1>
+        <div class="cards">
+            <div class="card">
+                <h2>Bib Labels</h2>
+                <p>Label bib numbers and bib-related tags for benchmark scoring.</p>
+                <a href="{{ url_for('labels_index') }}">Start Bib Labeling →</a>
+            </div>
+            <div class="card">
+                <h2>Face Labels</h2>
+                <p>Label face counts and face-specific tags for face detection checks.</p>
+                <a href="{{ url_for('face_labels_index') }}">Start Face Labeling →</a>
+            </div>
+            <div class="card">
+                <h2>Benchmarks</h2>
+                <p>Inspect benchmark runs and compare pipeline passes.</p>
+                <a href="{{ url_for('benchmark_list') }}">View Benchmarks →</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}

@@ -1,6 +1,6 @@
 # Task 005b: Split routes into domain-based Blueprints
 
-Part 2 of 3 — see also [005a](task-005a-extract-templates-and-js.md), [005c](task-005c-extract-helpers-cleanup.md).
+Part 2 of 3 — see also [005a](../done/task-005a-extract-templates-and-js.md), [005c](task-005c-extract-helpers-cleanup.md).
 Depends on 005a being complete.
 
 ## Goal

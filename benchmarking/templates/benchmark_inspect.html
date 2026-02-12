@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title %}Inspect - {{ run.metadata.run_id }}{% endblock %}
+{% block extra_styles %}
+        .run-selector {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .run-select {
+            padding: 6px 10px;
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            color: #eee;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .metrics {
+            display: flex;
+            gap: 15px;
+            font-size: 14px;
+        }
+        .metric {
+            padding: 4px 10px;
+            background: #0f3460;
+            border-radius: 4px;
+        }
+        .metric-label { color: #888; }
+        .metric-value { font-weight: bold; }
+        .pipeline-info { background: #1a4a7a; }
+        .note-info { background: #16213e; border: 1px solid #0f3460; }
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-height: 0;
+        }
+        .image-tabs {
+            display: flex;
+            gap: 5px;
+            padding: 10px;
+            background: #0d0d1a;
+            border-bottom: 1px solid #0f3460;
+            flex-wrap: wrap;
+        }
+        .image-tab {
+            padding: 8px 16px;
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            color: #888;
+        }
+        .image-tab:hover { background: #0f3460; color: #eee; }
+        .image-tab.active { background: #0f3460; color: #0f9b0f; border-color: #0f9b0f; }
+        .image-tab.declined {
+            background: #141426;
+            border-color: #2a2a40;
+            color: #555;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        .image-tab.declined:hover { background: #141426; color: #555; }
+        .details-panel {
+            padding: 15px;
+            background: #16213e;
+            border-top: 1px solid #0f3460;
+        }
+        .details-row {
+            display: flex;
+            gap: 30px;
+            font-size: 14px;
+            flex-wrap: wrap;
+        }
+        .detail-item {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .detail-label { color: #888; }
+        .bib-list { display: flex; gap: 5px; flex-wrap: wrap; }
+        .bib {
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .bib-tp { background: #0f9b0f; color: white; }
+        .bib-fp { background: #d9534f; color: white; }
+        .bib-fn { background: #f0ad4e; color: black; }
+        .tags-list { display: flex; gap: 5px; flex-wrap: wrap; }
+        .tag {
+            padding: 2px 6px;
+            background: #0f3460;
+            border-radius: 3px;
+            font-size: 11px;
+        }
+{% endblock %}
+{% block body %}
+    <div class="header">
+        <div class="nav-info">
+            <a href="{{ url_for('benchmark_list') }}" class="nav-link">← Runs</a>
+            <div class="run-selector">
+                <select class="run-select" id="runSelect" onchange="changeRun()">
+                    {% for r in all_runs %}
+                    <option value="{{ r.run_id }}" {{ 'selected' if r.run_id == run.metadata.run_id else '' }}>
+                        {{ r.run_id }} ({{ r.timestamp[:10] }}) - {{ r.split }} [{{ r.pipeline or 'unknown' }} | {{ r.passes or 'unknown' }}]{% if r.note %} - {{ r.note }}{% endif %}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="metrics">
+                <span class="metric">
+                    <span class="metric-label">P:</span>
+                    <span class="metric-value">{{ "%.1f"|format(run.metrics.precision * 100) }}%</span>
+                </span>
+                <span class="metric">
+                    <span class="metric-label">R:</span>
+                    <span class="metric-value">{{ "%.1f"|format(run.metrics.recall * 100) }}%</span>
+                </span>
+                <span class="metric">
+                    <span class="metric-label">F1:</span>
+                    <span class="metric-value">{{ "%.1f"|format(run.metrics.f1 * 100) }}%</span>
+                </span>
+                <span class="metric pipeline-info">
+                    <span class="metric-label">Pipeline:</span>
+                    <span class="metric-value">{{ pipeline_summary }}</span>
+                </span>
+                <span class="metric pipeline-info">
+                    <span class="metric-label">Passes:</span>
+                    <span class="metric-value">{{ passes_summary }}</span>
+                </span>
+                {% if run.metadata.note %}
+                <span class="metric note-info">
+                    <span class="metric-label">Note:</span>
+                    <span class="metric-value">{{ run.metadata.note }}</span>
+                </span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="nav-info">
+            <button class="nav-btn" onclick="navigate('prev')" id="prevBtn">← Prev</button>
+            <span class="position"><span id="currentPos">{{ current_idx + 1 }}</span> / {{ filtered_results|length }}</span>
+            <button class="nav-btn" onclick="navigate('next')" id="nextBtn">Next →</button>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="sidebar">
+            <div class="filter-section">
+                <select class="filter-select" id="filter" onchange="applyFilter()">
+                    <option value="all" {{ 'selected' if filter == 'all' else '' }}>All ({{ run.metrics.total_photos }})</option>
+                    <option value="pass" {{ 'selected' if filter == 'pass' else '' }}>PASS ({{ run.metrics.pass_count }})</option>
+                    <option value="partial" {{ 'selected' if filter == 'partial' else '' }}>PARTIAL ({{ run.metrics.partial_count }})</option>
+                    <option value="miss" {{ 'selected' if filter == 'miss' else '' }}>MISS ({{ run.metrics.miss_count }})</option>
+                </select>
+            </div>
+            <ul class="photo-list">
+                {% for result in filtered_results %}
+                <li class="photo-item {{ 'active' if loop.index0 == current_idx else '' }}"
+                    onclick="selectPhoto({{ loop.index0 }})"
+                    data-idx="{{ loop.index0 }}"
+                    data-hash="{{ result.content_hash[:8] }}">
+                    <span class="photo-hash">{{ result.content_hash[:8] }}...</span>
+                    <span class="photo-status status-{{ result.status }}">{{ result.status }}</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="content">
+            <div class="image-tabs" id="imageTabs">
+                <!-- Tabs are dynamically generated based on available artifacts -->
+            </div>
+
+            <div class="image-panel">
+                <img id="mainImage" src="" alt="Photo">
+            </div>
+
+            <div class="details-panel">
+                <div class="details-row">
+                    <div class="detail-item">
+                        <span class="detail-label">Status:</span>
+                        <span id="detailStatus"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Expected:</span>
+                        <div class="bib-list" id="expectedBibs"></div>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Detected:</span>
+                        <div class="bib-list" id="detectedBibs"></div>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">TP/FP/FN:</span>
+                        <span id="detailCounts"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Time:</span>
+                        <span id="detailTime"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Tags:</span>
+                        <div class="tags-list" id="detailTags"></div>
+                    </div>
+                    <div class="detail-item">
+                        <a href="#" id="editLink" class="nav-link" style="padding: 0;">Edit Labels →</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="keyboard-hint">
+                ← → navigate | 1-N switch tabs
+            </div>
+        </div>
+    </div>
+
+    <script>
+      window.PAGE_DATA = {
+        photoResults:        {{ photo_results_json | safe }},
+        runId:               '{{ run.metadata.run_id }}',
+        currentIdx:          {{ current_idx }},
+        editLinkBase:        '{{ url_for("labels_index") }}',
+        photoUrlTemplate:    '{{ url_for("serve_photo", content_hash="HASH") }}',
+        artifactUrlTemplate: '{{ url_for("serve_artifact", run_id="RUN", hash_prefix="HASH", image_type="TYPE") }}',
+        inspectUrl:          '{{ url_for("benchmark_inspect", run_id=run.metadata.run_id) }}',
+        benchmarkListUrl:    '{{ url_for("benchmark_list") }}'
+      };
+    </script>
+    <script src="{{ url_for('serve_static', filename='benchmark_inspect.js') }}"></script>
+{% endblock %}

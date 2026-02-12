@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% block title %}Face Labeling - {{ current }} / {{ total }}{% endblock %}
+{% block extra_styles %}
+        .form-panel {
+            width: 350px;
+            padding: 20px;
+            background: #16213e;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .form-section h3 {
+            margin-bottom: 8px;
+            color: #0f9b0f;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        .image-panel {
+            position: relative;
+            padding: 0;
+        }
+        .canvas-container {
+            position: absolute;
+            inset: 0;
+        }
+        .canvas-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .canvas-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .box-list {
+            list-style: none;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .box-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 8px;
+            border-bottom: 1px solid #0f3460;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .box-item:hover { background: #252545; }
+        .box-item.selected { background: #0f3460; border-left: 3px solid #0f9b0f; }
+        .box-item .box-label { font-family: monospace; }
+        .box-item .box-delete {
+            color: #ff4444;
+            cursor: pointer;
+            padding: 2px 6px;
+            font-size: 16px;
+        }
+        .box-editor {
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            display: none;
+        }
+        .box-editor.visible { display: block; }
+        .box-editor label { font-size: 12px; color: #888; display: block; margin-bottom: 4px; }
+        .box-editor input[type=text] {
+            width: 100%;
+            padding: 8px;
+            font-size: 14px;
+            border: 2px solid #0f3460;
+            border-radius: 4px;
+            background: #16213e;
+            color: #eee;
+            margin-bottom: 8px;
+        }
+        .box-editor input[type=text]:focus { outline: none; border-color: #0f9b0f; }
+        .tag-radios { display: flex; gap: 8px; flex-wrap: wrap; }
+        .tag-radios label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 8px;
+            background: #16213e;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #eee;
+        }
+        .tags-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+        .tag-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .tag-checkbox:hover { background: #252545; }
+        .tag-checkbox input { width: 18px; height: 18px; }
+        .tag-checkbox label { cursor: pointer; font-size: 13px; }
+        .split-buttons { display: flex; gap: 10px; }
+        .split-btn {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #0f3460;
+            background: #1a1a2e;
+            color: #eee;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .split-btn:hover { border-color: #1a4a7a; }
+        .split-btn.active { border-color: #0f9b0f; background: #0f3460; }
+        .save-btn {
+            padding: 15px;
+            background: #0f9b0f;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .save-btn:hover { background: #0d8a0d; }
+        .status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .status.success { background: #0f3460; color: #0f9b0f; }
+        .status.error { background: #3d0a0a; color: #ff6b6b; }
+        .hash-display {
+            font-family: monospace;
+            font-size: 11px;
+            color: #666;
+        }
+        .face-count-display {
+            font-size: 13px;
+            color: #888;
+            padding: 4px 0;
+        }
+        .suggestion-chip {
+            position: relative;
+            padding: 3px 8px;
+            background: #0f3460;
+            border: 1px solid #1a4a7a;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #ccc;
+            white-space: nowrap;
+        }
+        .suggestion-chip:hover { background: #1a4a7a; color: #fff; }
+        .crop-tooltip {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-bottom: 6px;
+            border: 2px solid #1a4a7a;
+            border-radius: 4px;
+            background: #16213e;
+            padding: 2px;
+            z-index: 100;
+        }
+        .crop-tooltip img {
+            display: block;
+            max-width: 96px;
+            max-height: 96px;
+        }
+        .suggestion-chip:hover .crop-tooltip { display: block; }
+        .anon-btn {
+            background: #0f3460;
+            color: #eee;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            white-space: nowrap;
+        }
+        .anon-btn:hover { background: #1a4a7a; }
+{% endblock %}
+{% block body %}
+    <div class="header">
+        <div class="nav-info">
+            <a href="{{ url_for('benchmark_list') }}" class="nav-link">← Benchmarks</a>
+            <a href="{{ url_for('labels_index') }}" class="nav-link">Bib Labels →</a>
+            <button class="nav-btn" onclick="navigate('prev')" {{ 'disabled' if not has_prev else '' }}>← Prev</button>
+            <span class="position">{{ current }} / {{ total }}</span>
+            <button class="nav-btn" onclick="navigate('next')" {{ 'disabled' if not has_next else '' }}>Next →</button>
+            {% if next_unlabeled_url %}
+            <button class="nav-btn" onclick="navigateUnlabeled()">Next unlabeled →→</button>
+            {% endif %}
+        </div>
+        <div class="filter-section" style="background: transparent; border: none; padding: 0;">
+            <select class="filter-select" style="width: auto;" id="filter" onchange="applyFilter()">
+                <option value="all" {{ 'selected' if filter == 'all' else '' }}>All photos</option>
+                <option value="unlabeled" {{ 'selected' if filter == 'unlabeled' else '' }}>Unlabeled only</option>
+                <option value="labeled" {{ 'selected' if filter == 'labeled' else '' }}>Labeled only</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="image-panel">
+            <div class="canvas-container">
+                <img id="photo" src="{{ url_for('serve_photo', content_hash=content_hash) }}" alt="Photo">
+                <canvas id="canvas"></canvas>
+            </div>
+        </div>
+
+        <div class="form-panel">
+            <div class="form-section">
+                <h3>Face Boxes</h3>
+                <ul class="box-list" id="boxList"></ul>
+                <div class="face-count-display" id="faceCountDisplay">Keep faces: 0</div>
+            </div>
+
+            <div class="box-editor" id="boxEditor">
+                <label>Scope</label>
+                <div class="tag-radios" id="scopeRadios">
+                    <label><input type="radio" name="faceScope" value="keep" checked> keep</label>
+                    <label><input type="radio" name="faceScope" value="exclude"> exclude</label>
+                    <label><input type="radio" name="faceScope" value="uncertain"> uncertain</label>
+                </div>
+                <label>Identity</label>
+                <div style="display:flex;gap:6px;align-items:center;">
+                    <input type="text" id="faceIdentity" placeholder="e.g. Alice" list="identityList" style="flex:1;margin-bottom:0;">
+                    <button type="button" id="assignAnonBtn" class="anon-btn" onclick="assignAnonymous()">Anon</button>
+                </div>
+                <datalist id="identityList"></datalist>
+                <div id="identitySuggestions" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;"></div>
+                <label style="margin-top: 8px;">Box Tags</label>
+                <div class="tags-grid" id="boxTagsGrid">
+                    {% for tag in face_box_tags %}
+                    <div class="tag-checkbox">
+                        <input type="checkbox" id="box_tag_{{ tag }}" name="box_tags" value="{{ tag }}">
+                        <label for="box_tag_{{ tag }}">{{ tag.replace('_', ' ') }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Photo Tags</h3>
+                <div class="tags-grid">
+                    {% for tag in all_face_tags %}
+                    <div class="tag-checkbox">
+                        <input type="checkbox" id="face_tag_{{ tag }}" name="face_tags" value="{{ tag }}"
+                               {{ 'checked' if tag in face_tags else '' }}>
+                        <label for="face_tag_{{ tag }}">{{ tag.replace('_', ' ') }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Split</h3>
+                <div class="split-buttons">
+                    <button type="button" class="split-btn {{ 'active' if split == 'iteration' else '' }}"
+                            onclick="setSplit('iteration')">Iteration</button>
+                    <button type="button" class="split-btn {{ 'active' if split == 'full' else '' }}"
+                            onclick="setSplit('full')">Full</button>
+                </div>
+            </div>
+
+            <button class="save-btn" onclick="save()">Save & Next (Enter)</button>
+
+            <div id="status" class="status" style="display: none;"></div>
+
+            <div class="hash-display">
+                {{ content_hash[:8] }}...
+                {% if latest_run_id %}
+                <a href="{{ url_for('benchmark_inspect', run_id=latest_run_id, hash=content_hash[:8]) }}"
+                   style="color: #0f9b0f; margin-left: 10px;">View in Inspector →</a>
+                {% endif %}
+            </div>
+
+            <div class="keyboard-hint">
+                ← → navigate | Enter save | Del delete box | Tab accept suggestion |
+                N no faces | L light
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('serve_static', filename='labeling.js') }}"></script>
+    <script>
+      window.PAGE_DATA = {
+        split:            '{{ split }}',
+        contentHash:      '{{ content_hash }}',
+        saveUrl:          '{{ url_for("save_face_label") }}',
+        prevUrl:          {{ prev_url|tojson }},
+        nextUrl:          {{ next_url|tojson }},
+        nextUnlabeledUrl: {{ next_unlabeled_url|tojson }},
+        labelsIndexUrl:   '{{ url_for("face_labels_index") }}'
+      };
+    </script>
+    <script src="{{ url_for('serve_static', filename='face_labeling_ui.js') }}"></script>
+{% endblock %}

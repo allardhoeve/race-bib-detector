@@ -1,6 +1,6 @@
 # Task 005c: Extract helpers and static-serving cleanup
 
-Part 3 of 3 — see also [005a](task-005a-extract-templates-and-js.md), [005b](task-005b-blueprint-route-split.md).
+Part 3 of 3 — see also [005a](../done/task-005a-extract-templates-and-js.md), [005b](task-005b-blueprint-route-split.md).
 Depends on 005b being complete.
 
 ## Goal

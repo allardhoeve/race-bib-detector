@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Benchmark Runs{% endblock %}
+{% block extra_styles %}
+        .content {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+        }
+        h1 {
+            color: #0f9b0f;
+            margin-bottom: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #0f3460;
+        }
+        th {
+            background: #16213e;
+            color: #0f9b0f;
+            font-weight: 600;
+        }
+        tr:hover { background: #16213e; }
+        .run-link {
+            color: #0f9b0f;
+            text-decoration: none;
+            font-family: monospace;
+        }
+        .run-link:hover { text-decoration: underline; }
+        .baseline-badge {
+            background: #0f9b0f;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+        .pipeline-badge {
+            background: #0f3460;
+            color: #eee;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-family: monospace;
+        }
+        .metric { font-family: monospace; }
+        .no-runs {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+        }
+        .no-runs code {
+            display: block;
+            margin-top: 20px;
+            padding: 15px;
+            background: #16213e;
+            border-radius: 4px;
+        }
+{% endblock %}
+{% block body %}
+    <div class="header">
+        <div class="nav-info">
+            <a href="{{ url_for('labels_index') }}" class="nav-link">← Labels</a>
+            <span style="color: #0f9b0f; font-weight: bold;">Benchmark Runs</span>
+        </div>
+    </div>
+
+    <div class="content">
+        {% if runs %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Run ID</th>
+                    <th>Date</th>
+                    <th>Split</th>
+                    <th>Photos</th>
+                    <th>Precision</th>
+                    <th>Recall</th>
+                    <th>F1</th>
+                    <th>Commit</th>
+                    <th>Pipeline</th>
+                    <th>Passes</th>
+                    <th>Note</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for run in runs %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('benchmark_inspect', run_id=run.run_id) }}" class="run-link">
+                            {{ run.run_id }}
+                        </a>
+                        {% if run.is_baseline %}<span class="baseline-badge">baseline</span>{% endif %}
+                    </td>
+                    <td>{{ run.timestamp[:10] }}</td>
+                    <td>{{ run.split }}</td>
+                    <td class="metric">{{ run.total_photos }}</td>
+                    <td class="metric">{{ "%.1f%%"|format(run.precision * 100) }}</td>
+                    <td class="metric">{{ "%.1f%%"|format(run.recall * 100) }}</td>
+                    <td class="metric">{{ "%.1f%%"|format(run.f1 * 100) }}</td>
+                    <td style="font-family: monospace;">{{ run.git_commit }}</td>
+                    <td><span class="pipeline-badge">{{ run.pipeline or 'unknown' }}</span></td>
+                    <td><span class="pipeline-badge">{{ run.passes or 'unknown' }}</span></td>
+                    <td>{{ run.note or '' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="no-runs">
+            <h2>No benchmark runs yet</h2>
+            <p>Run a benchmark to create one:</p>
+            <code>python -m benchmarking.cli benchmark --split=full</code>
+        </div>
+        {% endif %}
+    </div>
+{% endblock %}
