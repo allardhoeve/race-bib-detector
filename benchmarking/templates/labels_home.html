@@ -14,7 +14,7 @@
         }
         .cards {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             gap: 20px;
         }
         .card {
@@ -24,19 +24,37 @@
             border: 1px solid #0f3460;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
+        }
+        .card--disabled {
+            opacity: 0.45;
+            pointer-events: none;
+        }
+        .card .step-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #555;
+            font-weight: 600;
         }
         .card h2 {
             font-size: 18px;
             color: #0f9b0f;
+            margin-top: 2px;
         }
         .card p {
             color: #bbb;
             font-size: 14px;
+            flex: 1;
+        }
+        .card .progress {
+            font-size: 13px;
+            color: #888;
+            font-variant-numeric: tabular-nums;
         }
         .card a {
             display: inline-block;
-            margin-top: 10px;
+            margin-top: 6px;
             color: #0f9b0f;
             text-decoration: none;
             font-weight: 600;
@@ -48,25 +66,45 @@
         <div class="nav-info">
             <span style="color: #0f9b0f; font-weight: bold;">Benchmark Labeling</span>
         </div>
+        <a class="nav-link" href="{{ url_for('benchmark.benchmark_list') }}">View Benchmarks →</a>
     </div>
 
     <div class="content">
-        <h1>Choose a labeling mode</h1>
+        <h1>Labeling workflow</h1>
         <div class="cards">
             <div class="card">
+                <span class="step-label">Step 1</span>
                 <h2>Bib Labels</h2>
-                <p>Label bib numbers and bib-related tags for benchmark scoring.</p>
+                <p>Draw boxes around bib numbers and assign scopes.</p>
+                <span class="progress">{{ bib_labeled }} / {{ total }} labeled</span>
                 <a href="{{ url_for('bib.labels_index') }}">Start Bib Labeling →</a>
             </div>
             <div class="card">
+                <span class="step-label">Step 2</span>
                 <h2>Face Labels</h2>
-                <p>Label face counts and face-specific tags for face detection checks.</p>
+                <p>Draw boxes around faces and assign identities.</p>
+                <span class="progress">{{ face_labeled }} / {{ total }} labeled</span>
                 <a href="{{ url_for('face.face_labels_index') }}">Start Face Labeling →</a>
             </div>
             <div class="card">
-                <h2>Benchmarks</h2>
-                <p>Inspect benchmark runs and compare pipeline passes.</p>
-                <a href="{{ url_for('benchmark.benchmark_list') }}">View Benchmarks →</a>
+                <span class="step-label">Step 3</span>
+                <h2>Bib–Face Links</h2>
+                <p>Associate each bib box with the face of its wearer.</p>
+                <span class="progress">
+                    {%- if links_labeled is none -%}
+                        N/A
+                    {%- else -%}
+                        {{ links_labeled }} / {{ total }} linked
+                    {%- endif -%}
+                </span>
+                <a href="/links/">Start Linking →</a>
+            </div>
+            <div class="card">
+                <span class="step-label">Step 4</span>
+                <h2>Staging &amp; Freeze</h2>
+                <p>Review completeness across all labeling dimensions and create a frozen
+                   benchmark snapshot when all photos are ready.</p>
+                <a href="{{ url_for('benchmark.staging') }}" class="btn">Open Staging</a>
             </div>
         </div>
     </div>

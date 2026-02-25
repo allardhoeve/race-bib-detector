@@ -5,6 +5,7 @@ import io
 import pytest
 from PIL import Image
 
+
 from benchmarking.ghost import (
     BibSuggestion,
     FaceSuggestion,
@@ -556,3 +557,146 @@ class TestFaceCropApi:
         img = Image.open(io.BytesIO(resp.data))
         assert img.format == "JPEG"
         assert img.width > 0 and img.height > 0
+
+
+# =============================================================================
+# Home Route
+# =============================================================================
+
+
+class TestHomeRoute:
+    def test_home_route_200(self, app_client):
+        """GET / returns 200."""
+        resp = app_client.get("/")
+        assert resp.status_code == 200
+
+    def test_home_route_shows_progress(self, app_client):
+        """Home page shows per-step labeled counts based on saved GT data."""
+        # Save one bib label and one face label via the API
+        app_client.post(
+            "/api/labels",
+            json={
+                "content_hash": HASH_A,
+                "boxes": [{"x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "number": "42", "scope": "bib"}],
+                "tags": [],
+                "split": "full",
+            },
+        )
+        app_client.post(
+            "/api/face_labels",
+            json={
+                "content_hash": HASH_A,
+                "boxes": [{"x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "scope": "keep"}],
+                "face_tags": [],
+            },
+        )
+
+        resp = app_client.get("/")
+        assert resp.status_code == 200
+        body = resp.data.decode()
+        # Index has 2 photos (HASH_A, HASH_B); 1 labeled in each dimension
+        assert "1 / 2" in body
+
+    def test_home_route_links_na(self, app_client, monkeypatch):
+        """Home page shows N/A for links when load_link_ground_truth raises."""
+        def _raise():
+            raise ImportError("link GT not available")
+
+        monkeypatch.setattr("benchmarking.ground_truth.load_link_ground_truth", _raise)
+        resp = app_client.get("/")
+        assert resp.status_code == 200
+        assert b"N/A" in resp.data
+
+
+# =============================================================================
+# Staging Route + Freeze API
+# =============================================================================
+
+
+@pytest.fixture
+def freeze_client(tmp_path, monkeypatch):
+    """Test client with all GT paths + FROZEN_DIR monkeypatched."""
+    bib_gt_path = tmp_path / "bib_ground_truth.json"
+    face_gt_path = tmp_path / "face_ground_truth.json"
+    link_gt_path = tmp_path / "bib_face_links.json"
+    suggestions_path = tmp_path / "suggestions.json"
+    identities_path = tmp_path / "face_identities.json"
+    index_path = tmp_path / "photo_index.json"
+    frozen_dir = tmp_path / "frozen"
+
+    from benchmarking.photo_index import save_photo_index
+    save_photo_index({HASH_A: ["photo_a.jpg"], HASH_B: ["photo_b.jpg"]}, index_path)
+
+    monkeypatch.setattr(
+        "benchmarking.ground_truth.get_bib_ground_truth_path", lambda: bib_gt_path
+    )
+    monkeypatch.setattr(
+        "benchmarking.ground_truth.get_face_ground_truth_path", lambda: face_gt_path
+    )
+    monkeypatch.setattr(
+        "benchmarking.ground_truth.get_link_ground_truth_path", lambda: link_gt_path
+    )
+    monkeypatch.setattr(
+        "benchmarking.ghost.get_suggestion_store_path", lambda: suggestions_path
+    )
+    monkeypatch.setattr(
+        "benchmarking.identities.get_identities_path", lambda: identities_path
+    )
+    monkeypatch.setattr(
+        "benchmarking.photo_index.get_photo_index_path", lambda: index_path
+    )
+    monkeypatch.setattr("benchmarking.sets.FROZEN_DIR", frozen_dir)
+
+    from benchmarking.web_app import create_app
+    app = create_app()
+    app.config["TESTING"] = True
+    return app.test_client()
+
+
+class TestStagingRoute:
+    def test_staging_route_200(self, freeze_client):
+        """GET /staging/ returns 200."""
+        resp = freeze_client.get("/staging/")
+        assert resp.status_code == 200
+
+
+class TestApiFreezeEndpoint:
+    def test_freeze_creates_snapshot(self, freeze_client):
+        """POST /api/freeze with valid hashes returns 200 and snapshot metadata."""
+        resp = freeze_client.post(
+            "/api/freeze",
+            json={"name": "test-snap", "hashes": [HASH_A], "description": "test"},
+        )
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data["name"] == "test-snap"
+        assert data["photo_count"] == 1
+        assert "created_at" in data
+
+    def test_freeze_conflict(self, freeze_client):
+        """POST /api/freeze with a name that already exists returns 409."""
+        freeze_client.post(
+            "/api/freeze",
+            json={"name": "dup-snap", "hashes": [HASH_A]},
+        )
+        resp = freeze_client.post(
+            "/api/freeze",
+            json={"name": "dup-snap", "hashes": [HASH_A]},
+        )
+        assert resp.status_code == 409
+
+    def test_freeze_missing_name(self, freeze_client):
+        """POST with empty name returns 400."""
+        resp = freeze_client.post(
+            "/api/freeze",
+            json={"name": "", "hashes": [HASH_A]},
+        )
+        assert resp.status_code == 400
+
+    def test_freeze_empty_hashes(self, freeze_client):
+        """POST with empty hashes list returns 400."""
+        resp = freeze_client.post(
+            "/api/freeze",
+            json={"name": "no-photos", "hashes": []},
+        )
+        assert resp.status_code == 400

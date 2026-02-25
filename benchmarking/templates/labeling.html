@@ -150,6 +150,7 @@
         <div class="nav-info">
             <a href="{{ url_for('benchmark.benchmark_list') }}" class="nav-link">← Benchmarks</a>
             <a href="{{ url_for('face.face_labels_index') }}" class="nav-link">Face Labels →</a>
+            <a href="{{ url_for('bib.link_photo', content_hash=content_hash[:8]) }}" class="nav-link">Links ⇄</a>
             <button class="nav-btn" onclick="navigate('prev')" {{ 'disabled' if not has_prev else '' }}>← Prev</button>
             <span class="position">{{ current }} / {{ total }}</span>
             <button class="nav-btn" onclick="navigate('next')" {{ 'disabled' if not has_next else '' }}>Next →</button>

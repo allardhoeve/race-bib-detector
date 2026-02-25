@@ -3,6 +3,7 @@
 This document captures the design for the benchmark system: repeatable evaluation of the bib detection, face detection, and clustering pipeline against labeled reference data.
 
 Project-wide conventions and invariants live in `STANDARDS.md`.
+UI layout and keyboard conventions live in `BENCHMARK_UI_DESIGN.md`.
 
 ## Glossary
 
@@ -73,9 +74,11 @@ Bounding box coordinates are normalised to `[0, 1]` image space. Legacy migrated
 
 ### Bib-Face Associations
 
-- Links between bibs and faces stored as plain facts in ground truth.
+- Links stored in `bib_face_links.json` as index pairs `[bib_index, face_index]`
+  referencing positions in the photo's `bib_label.boxes` and `face_label.boxes` lists.
 - Geometric priors belong in the pipeline, not the ground truth.
-- Optional auto-suggestions for links to speed labeling.
+- Saving an empty list (`[]`) explicitly marks a photo as processed with no links.
+- Optional auto-suggestions for links to speed labeling (not yet implemented).
 
 ### Identity Constraints *(future)*
 
@@ -95,10 +98,14 @@ Bounding box coordinates are normalised to `[0, 1]` image space. Legacy migrated
 ### Workflow
 
 1. Run `bnr benchmark prepare <path>` to copy photos from a local directory into the benchmark set. This deduplicates by content hash and runs ghost labeling (precomputed bib/face suggestions).
-2. Use the labeling UI (`bnr benchmark ui`) to confirm or correct ghost labels. Bib and face labeling are separate flows.
-3. Run benchmarks (`bnr benchmark run`) to evaluate the pipeline against labeled data.
-4. *(Future)* Freeze into a named benchmark set when labeling is complete. Frozen sets are immutable.
-5. *(Future)* If a label needs correction, update in the staging set and re-freeze as a new version.
+2. Use the labeling UI (`bnr benchmark ui`) to confirm or correct ghost labels. Three independent steps:
+   - **Bib labeling** (`/labels/`): draw bib boxes, assign scopes, assign split.
+   - **Face labeling** (`/faces/labels/`): draw face boxes, assign scopes and identity.
+   - **Link labeling** (`/links/`): associate each bib box with the face of its wearer. Only available for photos with both bib and face labels.
+3. Review completeness at `/staging/`. Photos are complete when all three dimensions are labeled (or trivially N/A — see Completeness below).
+4. Freeze into a named snapshot: `bnr benchmark freeze --name <name>` or via `POST /api/freeze` in the web UI. Frozen sets are immutable.
+5. Run benchmarks (`bnr benchmark run`) to evaluate the pipeline against labeled data.
+6. If a label needs correction, update in the staging set and re-freeze as a new version.
 
 `--refresh` re-runs ghost labeling on existing photos. `--reset-labels` clears human labels without removing photos. Refresh runs apply only to the mutable set; frozen sets (once implemented) remain immutable.
 
@@ -116,11 +123,15 @@ Two scoring systems run in parallel:
 - **Bib OCR:** accuracy conditioned on correct localization (exact string match on matched pairs).
 - **Face detection:** precision/recall using IoU vs GT face boxes (scoped to `keep` only; `exclude`/`uncertain` excluded).
 
-Both scorecards are implemented in `benchmarking/scoring.py` (`BibScorecard`, `FaceScorecard`) and printed by `bnr benchmark run`.
+All scorecards are implemented in `benchmarking/scoring.py` and printed by `bnr benchmark run`.
+
+**Link scorecard** (`LinkScorecard`): implemented in `scoring.py`, stub in `runner.py`.
+A predicted pair `(bib_box, face_box)` is TP only if both boxes match GT boxes at
+IoU ≥ threshold and the GT link between those indices exists. Currently TP/FP = 0 because
+the detection pipeline does not yet output link predictions.
 
 ### Future scorecard extensions
 
-- **Bib-face linking:** link accuracy (correct pairings vs ground-truth links). Requires Step 5.
 - **Face clustering:** pairwise F1 or NMI. Requires identity labels.
 - **Retrieval quality:** percentage of "wanted images" found (top-k recall).
 
@@ -152,10 +163,13 @@ Implemented:
 - `bnr benchmark clean [--keep-latest N] [--keep-baseline] [-f]`
   - Removes old benchmark runs.
 
-Planned (deferred):
-
-- `bnr benchmark freeze --name <name>`
-  - Freezes the current staging set into a named immutable benchmark set.
+- `bnr benchmark freeze --name <name> [--all] [--include-incomplete]`
+  - Freezes labeled photos into a named immutable snapshot.
+  - Default: only photos that are complete or known-negative.
+  - `--all`: freeze every photo in the index regardless of labeling status.
+  - `--include-incomplete`: include partially-labeled photos with a warning.
+- `bnr benchmark frozen-list`
+  - Lists all frozen snapshots with metadata.
 
 ## Future Work
 
@@ -167,6 +181,40 @@ Define `fast` / `balanced` / `best` presets to reduce the configuration surface.
 
 Create an `experiments/` area for automated parameter searches. Harness runs bounded search across parameter combinations or alternative backends, reports top results by the scorecard. Must not modify production defaults or data.
 
+## Completeness Model
+
+Completeness is **derived at query time** — no separate JSON file, no staleness risk.
+Implemented in `benchmarking/completeness.py`.
+
+A photo is complete when all three dimensions are done:
+
+| Dimension | "Done" definition |
+|---|---|
+| `bib_labeled` | `bib_label.labeled == True` |
+| `face_labeled` | `is_face_labeled(label)` — boxes or tags present |
+| `links_labeled` | `content_hash in link_gt.photos`, OR trivially True when `bib_box_count == 0` or `face_box_count == 0` |
+
+**Known negative:** both `bib_labeled` and `face_labeled` are True, and both box counts
+are 0. No link step is needed. Counts as complete and is visually distinguished from
+"Ready" in the staging UI.
+
+The staging page (`/staging/`) shows all touched photos with their completeness status
+and a freeze form. `POST /api/freeze` creates a named snapshot from selected hashes.
+
+## Design Decisions
+
+| Decision | Choice | Rationale |
+|---|---|---|
+| Completeness derived at query time | No separate JSON | Avoids staleness; GT files are the single source of truth |
+| `links_labeled` trivially True when 0 boxes | Shortcut | No link step needed if one dimension has no boxes |
+| Known negatives counted as complete | Yes | Correctly labeled with 0 boxes is not an error; distinguished from Ready in staging UI |
+| CLI freeze default | Complete + known-negative photos only | Prevents accidentally freezing unlabeled data; `--include-incomplete` available as escape hatch |
+| Link GT format | Index pairs `[bib_index, face_index]` | Simple, compact; indices reference the GT box list directly |
+| Blueprint ownership | `routes_bib.py` owns link routes | Links are created during bib labeling; no separate blueprint needed |
+| `not_bib` / `bib_obscured` excluded from scoring | `_BIB_BOX_UNSCORED = {"not_bib", "bib_obscured"}` | These regions are not valid detection targets; including them would inflate FN count |
+| Geometric priors not in GT | Pipeline responsibility | GT stores plain facts; the pipeline decides how to use spatial relationships |
+| Face scope compat mapping | `ignore`→`exclude`, `unknown`→`uncertain` | Preserves older labeled data without a migration script |
+
 ## Resolved Questions
 
 - **Storage:** Photos stay in `photos/`. Ground truth, suggestions, index, and run results all live under `benchmarking/`. Frozen sets (Step 1) will be named snapshots of the same data.
@@ -176,4 +224,5 @@ Create an `experiments/` area for automated parameter searches. Harness runs bou
 ## Open Questions
 
 - **CI integration:** Should `bnr benchmark run` gate PRs, or is it advisory-only?
-- **Frozen set naming:** Frozen sets should have explicit human-readable names (e.g. `benchmark_v1`, `clubkamp_2024`). Exact on-disk layout TBD in Step 1.
+- **Link suggestions:** Auto-suggest likely bib-face pairs (e.g. bibs below faces, spatial proximity) to speed link labeling. Not yet implemented.
+- **Frozen set use in runner:** `run_benchmark()` currently runs against the full staging set. Using a named frozen set as input is deferred.

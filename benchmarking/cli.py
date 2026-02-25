@@ -376,6 +376,10 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
         else:
             print("\nIoU Scorecard: no GT boxes with coordinates yet")
 
+    if run.link_scorecard and run.link_scorecard.gt_link_count > 0:
+        from benchmarking.scoring import format_scorecard
+        print(f"\n{format_scorecard(link=run.link_scorecard)}")
+
     # Tag breakdown if verbose
     if verbose and any(r.tags for r in run.photo_results):
         print("\nBy tag:")
@@ -617,12 +621,10 @@ def cmd_set_baseline(args: argparse.Namespace) -> int:
 
 
 def cmd_freeze(args: argparse.Namespace) -> int:
-    """Create a frozen snapshot of the current benchmark photo set (minimal stub).
-
-    Freezes all photos in the index. Full completeness filtering is added in task-019.
-    """
+    """Create a frozen snapshot of the current benchmark photo set."""
     import re
     from benchmarking.sets import freeze
+    from benchmarking.completeness import get_all_completeness
 
     name = args.name
     description = args.description or ""
@@ -637,14 +639,46 @@ def cmd_freeze(args: argparse.Namespace) -> int:
         return 1
 
     # Flatten list-of-paths to single path per hash
-    flat_index = {h: paths[0] for h, paths in index.items()}
-    hashes = sorted(flat_index.keys())
+    flat_index = {h: (paths[0] if isinstance(paths, list) else paths)
+                  for h, paths in index.items()}
+
+    if args.all:
+        hashes = sorted(flat_index.keys())
+    else:
+        rows = get_all_completeness()
+        complete = [r for r in rows if r.is_complete or r.is_known_negative]
+        incomplete = [r for r in rows if not r.is_complete and not r.is_known_negative]
+
+        if incomplete and not args.include_incomplete:
+            print(f"Warning: {len(incomplete)} photos are not fully labeled:")
+            for r in incomplete[:10]:
+                dims = []
+                if not r.bib_labeled:
+                    dims.append("bib")
+                if not r.face_labeled:
+                    dims.append("face")
+                if not r.links_labeled:
+                    dims.append("links")
+                print(f"  {r.content_hash[:8]}  missing: {', '.join(dims)}")
+            if len(incomplete) > 10:
+                print(f"  ... and {len(incomplete) - 10} more")
+            print("Use --include-incomplete to freeze anyway.")
+            return 1
+
+        if args.include_incomplete:
+            hashes = sorted(r.content_hash for r in rows)
+        else:
+            hashes = sorted(r.content_hash for r in complete)
+
+        if not hashes:
+            print("No labeled photos to freeze. Use --all to include all photos.")
+            return 1
 
     try:
         snapshot = freeze(
             name=name,
             hashes=hashes,
-            index=flat_index,
+            index={h: flat_index[h] for h in hashes if h in flat_index},
             description=description,
         )
     except ValueError as e:
@@ -772,13 +806,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="Skip confirmation prompt"
     )
 
-    # freeze command (minimal stub; completeness filtering added in task-019)
+    # freeze command
     freeze_parser = subparsers.add_parser(
         "freeze", help="Freeze current photo set as a named snapshot"
     )
     freeze_parser.add_argument("--name", required=True, help="Name for the snapshot")
     freeze_parser.add_argument("--description", default="", help="Optional description")
-    # Note: --all and --include-incomplete are added by task-019
+    freeze_parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Freeze every photo in the index regardless of labeling status",
+    )
+    freeze_parser.add_argument(
+        "--include-incomplete",
+        action="store_true",
+        help="Include photos that are not fully labeled in all dimensions",
+    )
 
     # frozen-list command
     subparsers.add_parser("frozen-list", help="List all frozen snapshots")

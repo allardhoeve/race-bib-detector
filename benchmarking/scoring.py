@@ -13,7 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
-from .ground_truth import BibBox, FaceBox, _BIB_BOX_UNSCORED
+from .ground_truth import BibBox, BibFaceLink, FaceBox, _BIB_BOX_UNSCORED
 
 # Type alias for a box as (x, y, w, h) tuple
 Box = tuple[float, float, float, float]
@@ -244,6 +244,61 @@ class FaceScorecard:
         }
 
 
+@dataclass
+class LinkScorecard:
+    """Bib-face link association scorecard.
+
+    A TP requires: predicted bib box matches GT bib box (IoU >= threshold),
+    predicted face box matches GT face box (IoU >= threshold), AND the GT
+    link between those boxes exists.
+
+    Attributes:
+        link_tp: Correctly predicted links.
+        link_fp: Predicted links with no matching GT link.
+        link_fn: GT links with no matching predicted link.
+        gt_link_count: Total GT links (for reference even when pipeline
+                       provides no predictions).
+    """
+
+    link_tp: int
+    link_fp: int
+    link_fn: int
+    gt_link_count: int
+
+    @property
+    def link_precision(self) -> float:
+        return _safe_div(self.link_tp, self.link_tp + self.link_fp)
+
+    @property
+    def link_recall(self) -> float:
+        return _safe_div(self.link_tp, self.link_tp + self.link_fn)
+
+    @property
+    def link_f1(self) -> float:
+        p, r = self.link_precision, self.link_recall
+        return _safe_div(2 * p * r, p + r)
+
+    def to_dict(self) -> dict:
+        return {
+            "link_tp": self.link_tp,
+            "link_fp": self.link_fp,
+            "link_fn": self.link_fn,
+            "link_f1": self.link_f1,
+            "link_precision": self.link_precision,
+            "link_recall": self.link_recall,
+            "gt_link_count": self.gt_link_count,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> LinkScorecard:
+        return cls(
+            link_tp=data["link_tp"],
+            link_fp=data["link_fp"],
+            link_fn=data["link_fn"],
+            gt_link_count=data["gt_link_count"],
+        )
+
+
 # =============================================================================
 # End-to-end scoring helpers
 # =============================================================================
@@ -356,6 +411,82 @@ def score_faces(
     )
 
 
+def score_links(
+    predicted_pairs: Sequence[tuple[BibBox, FaceBox]],
+    gt_bib_boxes: Sequence[BibBox],
+    gt_face_boxes: Sequence[FaceBox],
+    gt_links: Sequence[BibFaceLink],
+    bib_iou_threshold: float = 0.5,
+    face_iou_threshold: float = 0.5,
+) -> LinkScorecard:
+    """Score predicted bib-face links against ground truth links.
+
+    Each predicted pair is a (bib_box, face_box) tuple from the pipeline.
+    A pair is a TP only if:
+      - its bib_box matches a GT bib box at >= bib_iou_threshold,
+      - its face_box matches a GT face box at >= face_iou_threshold, AND
+      - the GT link (gt_bib_index, gt_face_index) between those boxes exists.
+
+    Args:
+        predicted_pairs: (bib_box, face_box) pairs from the detection pipeline.
+        gt_bib_boxes: GT bib boxes for this photo, in index order matching
+                      BibFaceLink.bib_index.
+        gt_face_boxes: GT face boxes for this photo, in index order matching
+                       BibFaceLink.face_index.
+        gt_links: GT links for this photo.
+        bib_iou_threshold: Min IoU to consider a bib box matched.
+        face_iou_threshold: Min IoU to consider a face box matched.
+
+    Returns:
+        LinkScorecard with TP/FP/FN counts and gt_link_count.
+    """
+    gt_link_count = len(gt_links)
+
+    if not predicted_pairs:
+        return LinkScorecard(
+            link_tp=0, link_fp=0, link_fn=gt_link_count,
+            gt_link_count=gt_link_count,
+        )
+
+    if not gt_links:
+        return LinkScorecard(
+            link_tp=0, link_fp=len(predicted_pairs), link_fn=0,
+            gt_link_count=0,
+        )
+
+    # Step 1: match predicted bib boxes to GT bib boxes
+    pred_bib_tuples = [_bibbox_to_tuple(p[0]) for p in predicted_pairs]
+    gt_bib_tuples = [_bibbox_to_tuple(b) for b in gt_bib_boxes]
+    bib_match = match_boxes(pred_bib_tuples, gt_bib_tuples, bib_iou_threshold)
+    pred_to_gt_bib: dict[int, int] = {pi: gi for pi, gi in bib_match.tp}
+
+    # Step 2: match predicted face boxes to GT face boxes
+    pred_face_tuples = [_facebox_to_tuple(p[1]) for p in predicted_pairs]
+    gt_face_tuples = [_facebox_to_tuple(b) for b in gt_face_boxes]
+    face_match = match_boxes(pred_face_tuples, gt_face_tuples, face_iou_threshold)
+    pred_to_gt_face: dict[int, int] = {pi: gi for pi, gi in face_match.tp}
+
+    # Step 3: build GT link set for O(1) lookup
+    gt_link_set = {(lnk.bib_index, lnk.face_index) for lnk in gt_links}
+
+    # Step 4: for each predicted pair, check if both boxes matched and link exists
+    matched_gt_links: set[tuple[int, int]] = set()
+    tp = fp = 0
+    for pi in range(len(predicted_pairs)):
+        gt_bib_idx = pred_to_gt_bib.get(pi)
+        gt_face_idx = pred_to_gt_face.get(pi)
+        if gt_bib_idx is not None and gt_face_idx is not None:
+            pair = (gt_bib_idx, gt_face_idx)
+            if pair in gt_link_set:
+                tp += 1
+                matched_gt_links.add(pair)
+                continue
+        fp += 1
+
+    fn = len(gt_link_set - matched_gt_links)
+    return LinkScorecard(link_tp=tp, link_fp=fp, link_fn=fn, gt_link_count=gt_link_count)
+
+
 # =============================================================================
 # Scorecard formatting
 # =============================================================================
@@ -364,12 +495,14 @@ def score_faces(
 def format_scorecard(
     bib: BibScorecard | None = None,
     face: FaceScorecard | None = None,
+    link: LinkScorecard | None = None,
 ) -> str:
     """Format scorecard(s) as human-readable text for terminal output.
 
     Args:
         bib: Optional bib scorecard.
         face: Optional face scorecard.
+        link: Optional link scorecard.
 
     Returns:
         Multi-line string suitable for printing.
@@ -392,5 +525,18 @@ def format_scorecard(
         lines.append(f"  Recall:    {face.detection_recall:.1%}")
         lines.append(f"  F1:        {face.detection_f1:.1%}")
         lines.append(f"  TP: {face.detection_tp}  FP: {face.detection_fp}  FN: {face.detection_fn}")
+
+    if link is not None:
+        if lines:
+            lines.append("")
+        lines.append("Bib-Face Links")
+        lines.append(f"  GT links:  {link.gt_link_count}")
+        if link.gt_link_count > 0 or link.link_fp > 0:
+            lines.append(f"  TP: {link.link_tp}  FP: {link.link_fp}  FN: {link.link_fn}")
+            lines.append(f"  Precision: {link.link_precision:.1%}")
+            lines.append(f"  Recall:    {link.link_recall:.1%}")
+            lines.append(f"  F1:        {link.link_f1:.1%}")
+        else:
+            lines.append("  (no GT links yet)")
 
     return "\n".join(lines)

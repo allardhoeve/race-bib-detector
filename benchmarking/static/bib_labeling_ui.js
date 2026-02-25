@@ -107,23 +107,6 @@ async function save() {
     }
 }
 
-function navigate(direction) {
-    const prevUrl = PAGE_DATA.prevUrl;
-    const nextUrl = PAGE_DATA.nextUrl;
-    const url = direction === 'prev' ? prevUrl : nextUrl;
-    if (url) window.location.href = url;
-}
-
-function navigateUnlabeled() {
-    const url = PAGE_DATA.nextUnlabeledUrl;
-    if (url) window.location.href = url;
-}
-
-function applyFilter() {
-    const newFilter = document.getElementById('filter').value;
-    window.location.href = PAGE_DATA.labelsIndexUrl + '?filter=' + newFilter;
-}
-
 function toggleTag(tagName) {
     const checkbox = document.getElementById('tag_' + tagName);
     if (checkbox) checkbox.checked = !checkbox.checked;

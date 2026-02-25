@@ -140,6 +140,122 @@ def save_label():
     return jsonify({'status': 'ok'})
 
 
+@bib_bp.route('/links/')
+def links_index():
+    """Show first photo for link labeling."""
+    index = load_photo_index()
+    hashes = sorted(index.keys())
+    if not hashes:
+        return render_template('empty.html')
+    return redirect(url_for('bib.link_photo', content_hash=hashes[0][:8]))
+
+
+@bib_bp.route('/links/<content_hash>')
+def link_photo(content_hash):
+    """Link labeling page: associate bib boxes with face boxes."""
+    from benchmarking.ground_truth import (
+        load_bib_ground_truth, load_face_ground_truth, load_link_ground_truth,
+    )
+    index = load_photo_index()
+    full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
+    if not full_hash:
+        return "Photo not found", 404
+
+    photo_paths = index[full_hash]
+    photo_path = photo_paths[0] if isinstance(photo_paths, list) else photo_paths
+
+    bib_gt = load_bib_ground_truth()
+    face_gt = load_face_ground_truth()
+    link_gt = load_link_ground_truth()
+
+    bib_label = bib_gt.get_photo(full_hash)
+    face_label = face_gt.get_photo(full_hash)
+    link_label = link_gt.get_links(full_hash)
+    is_processed = full_hash in link_gt.photos
+
+    bib_boxes = [b.to_dict() for b in bib_label.boxes] if bib_label else []
+    face_boxes = [b.to_dict() for b in face_label.boxes] if face_label else []
+    links = [lnk.to_pair() for lnk in link_label]
+
+    all_hashes = sorted(index.keys())
+    try:
+        idx = all_hashes.index(full_hash)
+    except ValueError:
+        return "Photo not in index", 404
+
+    total = len(all_hashes)
+    prev_url = url_for('bib.link_photo', content_hash=all_hashes[idx - 1][:8]) if idx > 0 else None
+    next_url = url_for('bib.link_photo', content_hash=all_hashes[idx + 1][:8]) if idx < total - 1 else None
+
+    next_unlabeled_url = None
+    for h in all_hashes[idx + 1:]:
+        if h not in link_gt.photos:
+            next_unlabeled_url = url_for('bib.link_photo', content_hash=h[:8])
+            break
+
+    return render_template(
+        'link_labeling.html',
+        content_hash=full_hash,
+        photo_path=photo_path,
+        bib_boxes=bib_boxes,
+        face_boxes=face_boxes,
+        links=links,
+        is_processed=is_processed,
+        current=idx + 1,
+        total=total,
+        prev_url=prev_url,
+        next_url=next_url,
+        next_unlabeled_url=next_unlabeled_url,
+    )
+
+
+@bib_bp.route('/api/bib_face_links/<content_hash>', methods=['GET'])
+def get_bib_face_links(content_hash):
+    """Return the bib-face links for a photo.
+
+    Response: {"links": [[bib_index, face_index], ...]}
+    """
+    from benchmarking.ground_truth import load_link_ground_truth
+    index = load_photo_index()
+    full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
+    if not full_hash:
+        return jsonify({"error": "Not found"}), 404
+    link_gt = load_link_ground_truth()
+    links = link_gt.get_links(full_hash)
+    return jsonify({"links": [lnk.to_pair() for lnk in links]})
+
+
+@bib_bp.route('/api/bib_face_links/<content_hash>', methods=['PUT'])
+def save_bib_face_links(content_hash):
+    """Save the bib-face links for a photo. Replaces all existing links.
+
+    Request body: {"links": [[bib_index, face_index], ...]}
+    Response: {"status": "ok", "links": [[bib_index, face_index], ...]}
+    """
+    from benchmarking.ground_truth import (
+        BibFaceLink, load_link_ground_truth, save_link_ground_truth,
+    )
+    index = load_photo_index()
+    full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
+    if not full_hash:
+        return jsonify({"error": "Not found"}), 404
+
+    data = request.get_json()
+    if data is None:
+        return jsonify({"error": "Invalid JSON"}), 400
+
+    raw_links = data.get("links", [])
+    try:
+        links = [BibFaceLink.from_pair(pair) for pair in raw_links]
+    except (TypeError, IndexError, ValueError) as e:
+        return jsonify({"error": f"Invalid link format: {e}"}), 400
+
+    link_gt = load_link_ground_truth()
+    link_gt.set_links(full_hash, links)
+    save_link_ground_truth(link_gt)
+    return jsonify({"status": "ok", "links": [lnk.to_pair() for lnk in links]})
+
+
 @bib_bp.route('/api/bib_boxes/<content_hash>')
 def get_bib_boxes(content_hash):
     """Get bib boxes, suggestions, tags, split, and labeled status."""

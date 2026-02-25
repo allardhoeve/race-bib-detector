@@ -2,9 +2,10 @@
 
 import json
 
-from flask import Blueprint, render_template, request, abort, send_file
+from flask import Blueprint, jsonify, render_template, request, abort, send_file
 
 from benchmarking.label_utils import filter_results
+from benchmarking.photo_index import load_photo_index
 from benchmarking.runner import list_runs, get_run, RESULTS_DIR
 
 benchmark_bp = Blueprint('benchmark', __name__)
@@ -76,6 +77,49 @@ def benchmark_inspect(run_id):
         pipeline_summary=pipeline_summary,
         passes_summary=passes_summary,
     )
+
+
+@benchmark_bp.route('/staging/')
+def staging():
+    from benchmarking.completeness import get_all_completeness
+    rows = get_all_completeness()
+    index = load_photo_index()
+    return render_template(
+        "staging.html",
+        rows=rows,
+        index=index,
+    )
+
+
+@benchmark_bp.route('/api/freeze', methods=['POST'])
+def api_freeze():
+    from benchmarking.sets import freeze
+    data = request.get_json(force=True)
+    name = data.get("name", "").strip()
+    description = data.get("description", "")
+    hashes = data.get("hashes", [])
+
+    if not name:
+        return jsonify({"error": "name is required"}), 400
+    if not hashes:
+        return jsonify({"error": "hashes list is empty"}), 400
+
+    index = load_photo_index()
+    # Flatten list-of-paths to single path per hash
+    flat_index = {h: (paths[0] if isinstance(paths, list) else paths)
+                  for h, paths in index.items() if h in hashes}
+
+    try:
+        snapshot = freeze(
+            name=name,
+            hashes=sorted(flat_index.keys()),
+            index=flat_index,
+            description=description,
+        )
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 409
+
+    return jsonify(snapshot.metadata.to_dict()), 200
 
 
 @benchmark_bp.route('/artifact/<run_id>/<hash_prefix>/<image_type>')

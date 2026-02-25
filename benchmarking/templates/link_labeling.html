@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Link Labeling - {{ current }} / {{ total }}{% endblock %}
+{% block extra_styles %}
+        .form-panel {
+            width: 300px;
+            padding: 20px;
+            background: #16213e;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .form-section h3 {
+            margin-bottom: 8px;
+            color: #0f9b0f;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        .image-panel {
+            position: relative;
+            padding: 0;
+        }
+        .canvas-container {
+            position: absolute;
+            inset: 0;
+        }
+        .canvas-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .canvas-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #888;
+            padding: 4px 0;
+        }
+        .stat-value { color: #eee; font-family: monospace; }
+        .instructions {
+            font-size: 13px;
+            color: #aaa;
+            line-height: 1.6;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 4px;
+            border-left: 3px solid #0f3460;
+        }
+        .status {
+            text-align: center;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .status.success { background: #0f3460; color: #0f9b0f; }
+        .status.error { background: #3d0a0a; color: #ff6b6b; }
+        .no-links-btn {
+            padding: 10px;
+            border: 2px solid #0f3460;
+            background: #1a1a2e;
+            color: #eee;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            width: 100%;
+        }
+        .no-links-btn:hover { border-color: #1a4a7a; }
+        .no-links-btn.processed { border-color: #0f9b0f; color: #0f9b0f; }
+        .hash-display {
+            font-family: monospace;
+            font-size: 11px;
+            color: #666;
+        }
+{% endblock %}
+{% block body %}
+    <div class="header">
+        <div class="nav-info">
+            <a href="{{ url_for('bib.label_photo', content_hash=content_hash[:8]) }}" class="nav-link">← Bib Labels</a>
+            <a href="{{ url_for('face.face_label_photo', content_hash=content_hash[:8]) }}" class="nav-link">Face Labels →</a>
+            <button class="nav-btn" id="prevBtn"
+                    {{ 'disabled' if not prev_url else '' }}
+                    onclick="if('{{ prev_url }}') location.href='{{ prev_url or '' }}'">← Prev</button>
+            <span class="position">{{ current }} / {{ total }}</span>
+            <button class="nav-btn" id="nextBtn"
+                    {{ 'disabled' if not next_url else '' }}
+                    onclick="if('{{ next_url }}') location.href='{{ next_url or '' }}'">Next →</button>
+            {% if next_unlabeled_url %}
+            <button class="nav-btn" onclick="navigateUnlabeled()">Next unlabeled →→</button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="image-panel">
+            <div class="canvas-container">
+                <img id="photo" src="{{ url_for('serve_photo', content_hash=content_hash) }}" alt="Photo">
+                <canvas id="canvas"></canvas>
+            </div>
+        </div>
+
+        <div class="form-panel">
+            <div class="form-section">
+                <h3>Stats</h3>
+                <div class="stat-row">
+                    <span>Bib boxes</span>
+                    <span class="stat-value" id="bibCount">{{ bib_boxes|length }}</span>
+                </div>
+                <div class="stat-row">
+                    <span>Face boxes</span>
+                    <span class="stat-value" id="faceCount">{{ face_boxes|length }}</span>
+                </div>
+                <div class="stat-row">
+                    <span>Links</span>
+                    <span class="stat-value" id="linkCount">{{ links|length }} link{{ '' if links|length == 1 else 's' }}</span>
+                </div>
+                <div class="stat-row">
+                    <span>Processed</span>
+                    <span class="stat-value" id="processedStatus">
+                        {{ 'Yes' if is_processed else '—' }}
+                    </span>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Instructions</h3>
+                <div class="instructions">
+                    Click a <strong style="color: rgba(255,140,0,0.9);">bib box</strong> to select it
+                    (turns <strong style="color: yellow;">yellow</strong>), then click a
+                    <strong style="color: rgba(60,120,255,0.85);">face box</strong> to link them.
+                    Click the same pair again to unlink.
+                    Links save automatically.
+                    <br><br>
+                    ← → navigate &nbsp;|&nbsp; N no links
+                </div>
+            </div>
+
+            <div class="form-section">
+                <button id="noLinksBtn"
+                        class="no-links-btn {{ 'processed' if is_processed else '' }}">
+                    {{ 'No Links ✓' if is_processed else 'Mark as No Links' }}
+                </button>
+            </div>
+
+            <div id="status" class="status" style="display: none;"></div>
+
+            <div class="hash-display">{{ content_hash[:8] }}...</div>
+        </div>
+    </div>
+
+    <script id="page-data" type="application/json">
+    {
+        "content_hash": {{ content_hash|tojson }},
+        "bib_boxes":    {{ bib_boxes|tojson }},
+        "face_boxes":   {{ face_boxes|tojson }},
+        "links":        {{ links|tojson }},
+        "is_processed": {{ is_processed|tojson }},
+        "prevUrl":           {{ prev_url|tojson }},
+        "nextUrl":           {{ next_url|tojson }},
+        "nextUnlabeledUrl":  {{ next_unlabeled_url|tojson }}
+    }
+    </script>
+    <script src="{{ url_for('static', filename='labeling.js') }}"></script>
+    <script src="{{ url_for('static', filename='link_labeling_ui.js') }}"></script>
+{% endblock %}

@@ -682,3 +682,18 @@ function showStatus(message, isError) {
     status.style.display = 'block';
     setTimeout(() => { status.style.display = 'none'; }, 2000);
 }
+
+function navigate(direction) {
+    const url = direction === 'prev' ? PAGE_DATA.prevUrl : PAGE_DATA.nextUrl;
+    if (url) window.location.href = url;
+}
+
+function navigateUnlabeled() {
+    const url = PAGE_DATA.nextUnlabeledUrl;
+    if (url) window.location.href = url;
+}
+
+function applyFilter() {
+    const newFilter = document.getElementById('filter').value;
+    window.location.href = PAGE_DATA.labelsIndexUrl + '?filter=' + newFilter;
+}

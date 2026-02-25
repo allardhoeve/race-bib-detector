@@ -52,8 +52,33 @@ def create_app() -> Flask:
     # -------------------------------------------------------------------------
     @app.route('/')
     def index():
-        """Landing page for label UIs."""
-        return render_template('labels_home.html')
+        """Landing page — numbered labeling workflow with per-step progress."""
+        from benchmarking.ground_truth import load_bib_ground_truth, load_face_ground_truth
+        from benchmarking.label_utils import is_face_labeled
+
+        photo_index = load_photo_index()
+        total = len(photo_index)
+
+        bib_gt = load_bib_ground_truth()
+        face_gt = load_face_ground_truth()
+
+        bib_labeled = sum(1 for lbl in bib_gt.photos.values() if lbl.labeled)
+        face_labeled = sum(1 for lbl in face_gt.photos.values() if is_face_labeled(lbl))
+
+        try:
+            from benchmarking.ground_truth import load_link_ground_truth
+            link_gt = load_link_ground_truth()
+            links_labeled = len(link_gt.photos)
+        except (ImportError, AttributeError):
+            links_labeled = None  # template renders as "N/A"
+
+        return render_template(
+            'labels_home.html',
+            total=total,
+            bib_labeled=bib_labeled,
+            face_labeled=face_labeled,
+            links_labeled=links_labeled,
+        )
 
     # -------------------------------------------------------------------------
     # Shared Routes

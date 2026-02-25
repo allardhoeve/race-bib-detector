@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% block title %}Staging &amp; Freeze{% endblock %}
+{% block extra_styles %}
+        .content {
+            flex: 1;
+            padding: 30px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+        h1 { color: #0f9b0f; font-size: 24px; }
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+        }
+        .tab-btn {
+            padding: 6px 14px;
+            background: #16213e;
+            border: 1px solid #0f3460;
+            color: #bbb;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .tab-btn.active {
+            background: #0f3460;
+            color: #fff;
+            border-color: #0f9b0f;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        th {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 1px solid #0f3460;
+            color: #888;
+            font-weight: 600;
+        }
+        td {
+            padding: 6px 10px;
+            border-bottom: 1px solid #1a1a3e;
+            vertical-align: middle;
+        }
+        tr:hover td { background: #16213e; }
+        .check { color: #0f9b0f; }
+        .cross { color: #d9534f; }
+        .dash { color: #555; }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .badge-ready    { background: #0f9b0f; color: #fff; }
+        .badge-incomplete { background: #d9534f; color: #fff; }
+        .badge-negative { background: #555; color: #ccc; }
+        .freeze-form {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .freeze-form h2 { font-size: 16px; color: #0f9b0f; }
+        .freeze-form label { font-size: 13px; color: #bbb; }
+        .freeze-form input[type=text],
+        .freeze-form textarea {
+            width: 100%;
+            padding: 7px 10px;
+            background: #1a1a2e;
+            border: 1px solid #0f3460;
+            color: #eee;
+            border-radius: 4px;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        .freeze-form textarea { resize: vertical; height: 60px; }
+        .freeze-btn {
+            align-self: flex-start;
+            padding: 8px 18px;
+            background: #0f9b0f;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .freeze-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        #freeze-result {
+            font-size: 13px;
+            padding: 8px 12px;
+            border-radius: 4px;
+            display: none;
+        }
+        #freeze-result.ok  { background: #0b3d0b; color: #4caf50; }
+        #freeze-result.err { background: #3d0b0b; color: #f44336; }
+        .sel-col { width: 30px; }
+        .hash-col { font-family: monospace; font-size: 11px; color: #888; }
+{% endblock %}
+{% block body %}
+    <div class="header">
+        <div class="nav-info">
+            <a class="nav-link" href="/">← Back</a>
+            <span style="color: #0f9b0f; font-weight: bold;">Staging &amp; Freeze</span>
+        </div>
+        <span id="sel-count" style="color:#888;font-size:13px;">0 selected</span>
+    </div>
+
+    <div class="content">
+        <h1>Photo completeness</h1>
+
+        <div class="filter-tabs">
+            <button class="tab-btn active" data-filter="all">All ({{ rows|length }})</button>
+            <button class="tab-btn" data-filter="ready">Ready ({{ rows|selectattr('is_complete')|list|length }})</button>
+            <button class="tab-btn" data-filter="incomplete">Incomplete ({{ rows|selectattr('is_complete', 'equalto', False)|selectattr('is_known_negative', 'equalto', False)|list|length }})</button>
+            <button class="tab-btn" data-filter="negative">Known-negative ({{ rows|selectattr('is_known_negative')|list|length }})</button>
+        </div>
+
+        <table id="completeness-table">
+            <thead>
+                <tr>
+                    <th class="sel-col"><input type="checkbox" id="select-all" title="Select all visible"></th>
+                    <th>Hash</th>
+                    <th>Bib</th>
+                    <th>Face</th>
+                    <th>Links</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for r in rows %}
+                {% if r.is_complete and not r.is_known_negative %}
+                    {% set row_filter = "ready" %}
+                    {% set badge_class = "badge-ready" %}
+                    {% set badge_label = "Ready" %}
+                {% elif r.is_known_negative %}
+                    {% set row_filter = "negative" %}
+                    {% set badge_class = "badge-negative" %}
+                    {% set badge_label = "Known-negative" %}
+                {% else %}
+                    {% set row_filter = "incomplete" %}
+                    {% set badge_class = "badge-incomplete" %}
+                    {% set badge_label = "Incomplete" %}
+                {% endif %}
+                <tr data-filter="{{ row_filter }}" data-hash="{{ r.content_hash }}">
+                    <td class="sel-col">
+                        <input type="checkbox" class="row-select" value="{{ r.content_hash }}">
+                    </td>
+                    <td class="hash-col">{{ r.content_hash[:12] }}</td>
+                    <td>
+                        {% if r.bib_labeled %}
+                            <a href="/labels/{{ r.content_hash }}/" class="check" title="Bib labeled">&#10003;</a>
+                        {% else %}
+                            <a href="/labels/{{ r.content_hash }}/" class="cross" title="Bib not labeled">&#10007;</a>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.face_labeled %}
+                            <a href="/faces/labels/{{ r.content_hash }}/" class="check" title="Face labeled">&#10003;</a>
+                        {% else %}
+                            <a href="/faces/labels/{{ r.content_hash }}/" class="cross" title="Face not labeled">&#10007;</a>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.bib_box_count == 0 or r.face_box_count == 0 %}
+                            <span class="dash" title="N/A — no boxes to link">—</span>
+                        {% elif r.links_labeled %}
+                            <a href="/labels/{{ r.content_hash }}/" class="check" title="Links labeled">&#10003;</a>
+                        {% else %}
+                            <a href="/labels/{{ r.content_hash }}/" class="cross" title="Links not labeled">&#10007;</a>
+                        {% endif %}
+                    </td>
+                    <td><span class="badge {{ badge_class }}">{{ badge_label }}</span></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6" style="color:#555;padding:20px;">No labeled photos yet.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="freeze-form" id="freeze-form">
+            <h2>Freeze selected photos</h2>
+            <div>
+                <label>Snapshot name (alphanumeric, hyphens, underscores)
+                    <input type="text" id="freeze-name" placeholder="e.g. sprint-1" pattern="[a-zA-Z0-9_\-]+" required>
+                </label>
+            </div>
+            <div>
+                <label>Description (optional)
+                    <textarea id="freeze-desc" placeholder="Short note about this snapshot…"></textarea>
+                </label>
+            </div>
+            <button class="freeze-btn" id="freeze-btn" disabled>Freeze selected</button>
+            <div id="freeze-result"></div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        const tabs = document.querySelectorAll('.tab-btn');
+        const rows = document.querySelectorAll('#completeness-table tbody tr[data-filter]');
+        const selAll = document.getElementById('select-all');
+        const selCount = document.getElementById('sel-count');
+        const freezeBtn = document.getElementById('freeze-btn');
+        const resultEl = document.getElementById('freeze-result');
+        let currentFilter = 'all';
+
+        function applyFilter(filter) {
+            currentFilter = filter;
+            rows.forEach(row => {
+                const show = filter === 'all' || row.dataset.filter === filter;
+                row.style.display = show ? '' : 'none';
+                if (!show) {
+                    const cb = row.querySelector('.row-select');
+                    if (cb) cb.checked = false;
+                }
+            });
+            updateSelCount();
+        }
+
+        function updateSelCount() {
+            const checked = document.querySelectorAll('.row-select:checked').length;
+            selCount.textContent = checked + ' selected';
+            freezeBtn.disabled = checked === 0;
+        }
+
+        tabs.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabs.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                applyFilter(btn.dataset.filter);
+            });
+        });
+
+        selAll.addEventListener('change', () => {
+            rows.forEach(row => {
+                if (row.style.display !== 'none') {
+                    const cb = row.querySelector('.row-select');
+                    if (cb) cb.checked = selAll.checked;
+                }
+            });
+            updateSelCount();
+        });
+
+        document.querySelectorAll('.row-select').forEach(cb => {
+            cb.addEventListener('change', updateSelCount);
+        });
+
+        freezeBtn.addEventListener('click', async () => {
+            const name = document.getElementById('freeze-name').value.trim();
+            const desc = document.getElementById('freeze-desc').value.trim();
+            const hashes = Array.from(document.querySelectorAll('.row-select:checked'))
+                .map(cb => cb.value);
+
+            if (!name) { alert('Please enter a snapshot name.'); return; }
+            if (!/^[a-zA-Z0-9_-]+$/.test(name)) {
+                alert('Name must be alphanumeric with hyphens/underscores.');
+                return;
+            }
+
+            freezeBtn.disabled = true;
+            resultEl.style.display = 'none';
+
+            try {
+                const resp = await fetch('/api/freeze', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({name, description: desc, hashes}),
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    resultEl.className = 'ok';
+                    resultEl.textContent =
+                        `Snapshot "${data.name}" created with ${data.photo_count} photos (${data.created_at.slice(0,10)}).`;
+                } else {
+                    resultEl.className = 'err';
+                    resultEl.textContent = 'Error: ' + (data.error || resp.statusText);
+                }
+            } catch (e) {
+                resultEl.className = 'err';
+                resultEl.textContent = 'Network error: ' + e.message;
+            }
+
+            resultEl.style.display = 'block';
+            updateSelCount();
+        });
+    })();
+    </script>
+{% endblock %}

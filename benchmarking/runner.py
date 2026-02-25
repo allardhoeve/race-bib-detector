@@ -36,7 +36,7 @@ from warnings_utils import suppress_torch_mps_pin_memory_warning
 
 from .ground_truth import load_bib_ground_truth, BibBox, BibPhotoLabel
 from .photo_index import load_photo_index, get_path_for_hash
-from .scoring import score_bibs, BibScorecard
+from .scoring import score_bibs, BibScorecard, FaceScorecard, LinkScorecard
 
 logger = logging.getLogger(__name__)
 
@@ -313,6 +313,8 @@ class BenchmarkRun:
     metrics: BenchmarkMetrics
     photo_results: list[PhotoResult]
     bib_scorecard: BibScorecard | None = None
+    face_scorecard: FaceScorecard | None = None
+    link_scorecard: LinkScorecard | None = None
 
     def to_dict(self) -> dict:
         d = {
@@ -322,6 +324,10 @@ class BenchmarkRun:
         }
         if self.bib_scorecard is not None:
             d["bib_scorecard"] = self.bib_scorecard.to_dict()
+        if self.face_scorecard is not None:
+            d["face_scorecard"] = self.face_scorecard.to_dict()
+        if self.link_scorecard is not None:
+            d["link_scorecard"] = self.link_scorecard.to_dict()
         return d
 
     @classmethod
@@ -336,11 +342,27 @@ class BenchmarkRun:
                 ocr_correct=sc["ocr_correct"],
                 ocr_total=sc["ocr_total"],
             )
+
+        face_scorecard = None
+        if "face_scorecard" in data:
+            sc = data["face_scorecard"]
+            face_scorecard = FaceScorecard(
+                detection_tp=sc["detection_tp"],
+                detection_fp=sc["detection_fp"],
+                detection_fn=sc["detection_fn"],
+            )
+
+        link_scorecard = None
+        if "link_scorecard" in data:
+            link_scorecard = LinkScorecard.from_dict(data["link_scorecard"])
+
         return cls(
             metadata=RunMetadata.from_dict(data["metadata"]),
             metrics=BenchmarkMetrics.from_dict(data["metrics"]),
             photo_results=[PhotoResult.from_dict(r) for r in data["photo_results"]],
             bib_scorecard=bib_scorecard,
+            face_scorecard=face_scorecard,
+            link_scorecard=link_scorecard,
         )
 
     def save(self, path: Path) -> None:
@@ -661,11 +683,27 @@ def run_benchmark(
         note=note,
     )
 
+    # Stub link scorecard: pipeline does not yet provide link predictions.
+    # Count GT links for reporting; TP/FP = 0 until pipeline is extended.
+    from .ground_truth import load_link_ground_truth
+    link_gt = load_link_ground_truth()
+    total_gt_links = sum(
+        len(link_gt.get_links(r.content_hash))
+        for r in photo_results
+    )
+    link_scorecard = LinkScorecard(
+        link_tp=0,
+        link_fp=0,
+        link_fn=total_gt_links,
+        gt_link_count=total_gt_links,
+    )
+
     benchmark_run = BenchmarkRun(
         metadata=metadata,
         metrics=metrics,
         photo_results=photo_results,
         bib_scorecard=bib_scorecard,
+        link_scorecard=link_scorecard,
     )
 
     # Always save results
