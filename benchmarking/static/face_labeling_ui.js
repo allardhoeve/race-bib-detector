@@ -1,24 +1,14 @@
 let currentSplit = PAGE_DATA.split;
 const contentHash = PAGE_DATA.contentHash;
 
-function setSplit(split) {
-    currentSplit = split;
-    document.querySelectorAll('.split-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.textContent.toLowerCase() === split);
-    });
-}
-
 function getSelectedFaceTags() {
     return Array.from(document.querySelectorAll('input[name="face_tags"]:checked'))
                 .map(cb => cb.value);
 }
 
-function showStatus(message, isError) {
-    const status = document.getElementById('status');
-    status.textContent = message;
-    status.className = 'status ' + (isError ? 'error' : 'success');
-    status.style.display = 'block';
-    setTimeout(() => { status.style.display = 'none'; }, 2000);
+function onSplitClick(split) {
+    currentSplit = split;
+    setSplit(split);
 }
 
 // --- Identity autocomplete ---

@@ -664,3 +664,21 @@ var LabelingUI = (function () {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { LabelingCore: LabelingCore };
 }
+
+// =============================================================================
+// Shared page helpers (used by bib_labeling_ui.js and face_labeling_ui.js)
+// =============================================================================
+
+function setSplit(split) {
+    document.querySelectorAll('.split-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.toLowerCase() === split);
+    });
+}
+
+function showStatus(message, isError) {
+    const status = document.getElementById('status');
+    status.textContent = message;
+    status.className = 'status ' + (isError ? 'error' : 'success');
+    status.style.display = 'block';
+    setTimeout(() => { status.style.display = 'none'; }, 2000);
+}
