@@ -1,92 +1,95 @@
-# Task 005c: Extract helpers and static-serving cleanup
+# Task 005c: Static serving cleanup
 
-Part 3 of 3 — see also [005a](../done/task-005a-extract-templates-and-js.md), [005b](task-005b-blueprint-route-split.md).
-Depends on 005b being complete.
+Part 3 of 3 — 005a and 005b are both done (in `todo/done/`).
+
+## Current state
+
+- `benchmarking/label_utils.py` exists with all helper functions — **section 1 is done**.
+- Route files (`routes_bib.py`, `routes_face.py`, `routes_benchmark.py`) already import from `label_utils`.
+- `web_app.py` is 132 lines — just the app factory + shared routes.
+- `serve_static` custom route still exists; templates still reference `url_for('serve_static', ...)`.
+- `_json_default` does not exist in the codebase — section 3 is moot.
 
 ## Goal
 
-Final cleanup: move utility functions out of `web_app.py` into a small module,
-and switch from the custom `/static/` route to Flask's built-in static serving.
+Replace the custom `serve_static` route with Flask's built-in static serving.
+Pure cleanup — no behavior changes, no new features.
 
-## 1. Extract helpers to `benchmarking/label_utils.py`
+## Changes
 
-Move these module-level functions out of `web_app.py`:
+### 1. Add `static_folder` to Flask constructor (`web_app.py` line 40)
 
-| Function | Used by |
-|----------|---------|
-| `get_filtered_hashes(filter_type)` | `routes_bib.py` |
-| `get_filtered_face_hashes(filter_type)` | `routes_face.py` |
-| `is_face_labeled(label)` | `get_filtered_face_hashes`, `routes_face.py` |
-| `find_hash_by_prefix(prefix, hashes)` | all route modules |
-| `filter_results(results, filter_type)` | `routes_benchmark.py` |
-
-These have no Flask dependencies — they operate on ground truth data only.
-Import them from `benchmarking.label_utils` in each route module.
-
-## 2. Switch to Flask built-in static serving
-
-Currently there's a custom route:
 ```python
-@app.route('/static/<path:filename>')
-def serve_static(filename):
-    static_dir = Path(__file__).parent / 'static'
-    return send_from_directory(static_dir, filename)
-```
-
-Replace with Flask's built-in `static_folder` parameter (already set in 005b):
-```python
+# Before
 app = Flask(
     __name__,
+    template_folder=str(Path(__file__).parent / 'templates'),
+)
+
+# After
+app = Flask(
+    __name__,
+    template_folder=str(Path(__file__).parent / 'templates'),
     static_folder=str(Path(__file__).parent / 'static'),
 )
 ```
 
-Then:
-- Delete the `serve_static` route and `serve_from_directory` import.
-- Delete the `test_labeling` route (serve via static or a simple redirect).
-- Update any `url_for('serve_static', filename=...)` → `url_for('static', filename=...)`.
-- Verify static assets load correctly (labeling.js, bib_labeling_ui.js,
-  face_labeling_ui.js, benchmark_inspect.js, test_labeling.html).
+### 2. Delete `serve_static` route (`web_app.py` lines 79–83)
 
-## 3. Clean up `_json_default`
-
-Line 1876: `_json_default` helper. Check if it's still used after the
-refactoring. If yes, move to `label_utils.py`. If not, delete.
-
-## Final state
-
-After all three tasks, the file layout should be:
-
+```python
+# Delete this entire route:
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """Serve static assets (JS, CSS, HTML)."""
+    static_dir = Path(__file__).parent / 'static'
+    return send_from_directory(static_dir, filename)
 ```
-benchmarking/
-  web_app.py           (~80 lines — app factory, common routes, main)
-  routes_bib.py        (~120 lines)
-  routes_face.py       (~250 lines)
-  routes_benchmark.py  (~100 lines)
-  label_utils.py       (~80 lines)
-  templates/
-    base.html
-    empty.html
-    labels_home.html
-    labeling.html
-    face_labeling.html
-    benchmark_list.html
-    benchmark_inspect.html
-  static/
-    labeling.js              (existing — LabelingCore)
-    bib_labeling_ui.js       (new — bib LabelingUI)
-    face_labeling_ui.js      (new — face LabelingUI)
-    benchmark_inspect.js     (new — benchmark inspect UI)
-    test_labeling.html       (existing)
+
+### 3. Replace `test_labeling` route with redirect (`web_app.py` lines 85–89)
+
+```python
+# Before
+@app.route('/test/labeling')
+def test_labeling():
+    """Serve the browser integration test page."""
+    static_dir = Path(__file__).parent / 'static'
+    return send_from_directory(static_dir, 'test_labeling.html')
+
+# After
+@app.route('/test/labeling')
+def test_labeling():
+    """Redirect to the browser integration test page."""
+    return redirect(url_for('static', filename='test_labeling.html'))
 ```
+
+### 4. Remove `send_from_directory` from imports (`web_app.py` line 20)
+
+```python
+# Before
+from flask import Flask, render_template, send_file, send_from_directory, redirect, url_for
+
+# After
+from flask import Flask, render_template, send_file, redirect, url_for
+```
+
+### 5. Update templates — 5 occurrences of `url_for('serve_static', ...)`
+
+| File | Line | Before | After |
+|------|------|--------|-------|
+| `templates/labeling.html` | 236 | `url_for('serve_static', filename='labeling.js')` | `url_for('static', filename='labeling.js')` |
+| `templates/labeling.html` | 248 | `url_for('serve_static', filename='bib_labeling_ui.js')` | `url_for('static', filename='bib_labeling_ui.js')` |
+| `templates/face_labeling.html` | 298 | `url_for('serve_static', filename='labeling.js')` | `url_for('static', filename='labeling.js')` |
+| `templates/face_labeling.html` | 310 | `url_for('serve_static', filename='face_labeling_ui.js')` | `url_for('static', filename='face_labeling_ui.js')` |
+| `templates/benchmark_inspect.html` | 231 | `url_for('serve_static', filename='benchmark_inspect.js')` | `url_for('static', filename='benchmark_inspect.js')` |
 
 ## Test strategy
 
-- Run `pytest tests/test_web_app.py` after each change.
+- Run `pytest tests/test_web_app.py` — no tests reference `serve_static`, but run to verify nothing broke.
 - Run full `pytest` at the end.
-- Manually verify static assets load in browser.
+- Manually load `/labels/`, `/faces/labels/`, `/benchmark/` in browser — verify JS loads correctly.
+- Navigate to `/test/labeling` — verify redirect works.
 
 ## Scope boundaries
 
-- **In scope**: helper extraction, static serving cleanup, dead code removal.
-- **Out of scope**: new features, CSS changes, API changes.
+- **In scope**: static serving switch, `send_from_directory` cleanup.
+- **Out of scope**: new features, CSS changes, API changes, route renames.

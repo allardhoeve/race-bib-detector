@@ -435,7 +435,7 @@ class TestFaceIdentitySuggestions:
 
         # Monkeypatch the embedding index cache to have an empty index
         monkeypatch.setattr(
-            "benchmarking.web_app.build_embedding_index",
+            "benchmarking.routes_face.build_embedding_index",
             lambda *a, **kw: EmbeddingIndex(
                 embeddings=np.empty((0, 3), dtype=np.float32),
             ),
@@ -492,7 +492,7 @@ def crop_client(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "benchmarking.photo_index.get_photo_index_path", lambda: index_path
     )
-    monkeypatch.setattr("benchmarking.web_app.PHOTOS_DIR", photos_dir)
+    monkeypatch.setattr("benchmarking.routes_face.PHOTOS_DIR", photos_dir)
 
     from benchmarking.web_app import create_app
 

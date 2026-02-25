@@ -1,0 +1,91 @@
+"""Shared helper functions for bib and face labeling routes.
+
+These functions have no Flask dependencies and operate on ground truth data only.
+"""
+
+from benchmarking.ground_truth import (
+    FacePhotoLabel,
+    load_bib_ground_truth,
+    load_face_ground_truth,
+)
+from benchmarking.photo_index import load_photo_index
+
+
+def get_filtered_hashes(filter_type: str) -> list[str]:
+    """Get photo hashes based on bib label filter."""
+    index = load_photo_index()
+    all_hashes = set(index.keys())
+
+    if filter_type == 'all':
+        return sorted(all_hashes)
+
+    gt = load_bib_ground_truth()
+    labeled_hashes = {
+        content_hash
+        for content_hash, label in gt.photos.items()
+        if label.labeled
+    }
+
+    if filter_type == 'unlabeled':
+        return sorted(all_hashes - labeled_hashes)
+    elif filter_type == 'labeled':
+        return sorted(all_hashes & labeled_hashes)
+    else:
+        return sorted(all_hashes)
+
+
+def is_face_labeled(label: FacePhotoLabel) -> bool:
+    """Check if a photo has face labeling data."""
+    return bool(label.boxes) or bool(label.tags)
+
+
+def get_filtered_face_hashes(filter_type: str) -> list[str]:
+    """Get photo hashes based on face label filter."""
+    index = load_photo_index()
+    all_hashes = set(index.keys())
+
+    if filter_type == 'all':
+        return sorted(all_hashes)
+
+    gt = load_face_ground_truth()
+    labeled_hashes = {
+        content_hash
+        for content_hash, label in gt.photos.items()
+        if is_face_labeled(label)
+    }
+
+    if filter_type == 'unlabeled':
+        return sorted(all_hashes - labeled_hashes)
+    elif filter_type == 'labeled':
+        return sorted(all_hashes & labeled_hashes)
+    else:
+        return sorted(all_hashes)
+
+
+def find_hash_by_prefix(prefix: str, hashes) -> str | None:
+    """Find full hash from prefix."""
+    if isinstance(hashes, set):
+        hashes = list(hashes)
+
+    matches = [h for h in hashes if h.startswith(prefix)]
+    if len(matches) == 1:
+        return matches[0]
+    elif len(matches) > 1:
+        for h in matches:
+            if h == prefix:
+                return h
+        return matches[0]
+    return None
+
+
+def filter_results(results, filter_type: str):
+    """Filter photo results by status."""
+    if filter_type == 'all':
+        return results
+    elif filter_type == 'pass':
+        return [r for r in results if r.status == 'PASS']
+    elif filter_type == 'partial':
+        return [r for r in results if r.status == 'PARTIAL']
+    elif filter_type == 'miss':
+        return [r for r in results if r.status == 'MISS']
+    return results

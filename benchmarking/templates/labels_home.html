@@ -56,17 +56,17 @@
             <div class="card">
                 <h2>Bib Labels</h2>
                 <p>Label bib numbers and bib-related tags for benchmark scoring.</p>
-                <a href="{{ url_for('labels_index') }}">Start Bib Labeling →</a>
+                <a href="{{ url_for('bib.labels_index') }}">Start Bib Labeling →</a>
             </div>
             <div class="card">
                 <h2>Face Labels</h2>
                 <p>Label face counts and face-specific tags for face detection checks.</p>
-                <a href="{{ url_for('face_labels_index') }}">Start Face Labeling →</a>
+                <a href="{{ url_for('face.face_labels_index') }}">Start Face Labeling →</a>
             </div>
             <div class="card">
                 <h2>Benchmarks</h2>
                 <p>Inspect benchmark runs and compare pipeline passes.</p>
-                <a href="{{ url_for('benchmark_list') }}">View Benchmarks →</a>
+                <a href="{{ url_for('benchmark.benchmark_list') }}">View Benchmarks →</a>
             </div>
         </div>
     </div>

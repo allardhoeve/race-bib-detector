@@ -148,8 +148,8 @@
 {% block body %}
     <div class="header">
         <div class="nav-info">
-            <a href="{{ url_for('benchmark_list') }}" class="nav-link">← Benchmarks</a>
-            <a href="{{ url_for('face_labels_index') }}" class="nav-link">Face Labels →</a>
+            <a href="{{ url_for('benchmark.benchmark_list') }}" class="nav-link">← Benchmarks</a>
+            <a href="{{ url_for('face.face_labels_index') }}" class="nav-link">Face Labels →</a>
             <button class="nav-btn" onclick="navigate('prev')" {{ 'disabled' if not has_prev else '' }}>← Prev</button>
             <span class="position">{{ current }} / {{ total }}</span>
             <button class="nav-btn" onclick="navigate('next')" {{ 'disabled' if not has_next else '' }}>Next →</button>
@@ -222,7 +222,7 @@
             <div class="hash-display">
                 {{ content_hash[:8] }}...
                 {% if latest_run_id %}
-                <a href="{{ url_for('benchmark_inspect', run_id=latest_run_id, hash=content_hash[:8]) }}"
+                <a href="{{ url_for('benchmark.benchmark_inspect', run_id=latest_run_id, hash=content_hash[:8]) }}"
                    style="color: #0f9b0f; margin-left: 10px;">View in Inspector →</a>
                 {% endif %}
             </div>
@@ -238,11 +238,11 @@
       window.PAGE_DATA = {
         split:            '{{ split }}',
         contentHash:      '{{ content_hash }}',
-        saveUrl:          '{{ url_for("save_label") }}',
+        saveUrl:          '{{ url_for("bib.save_label") }}',
         prevUrl:          {{ prev_url|tojson }},
         nextUrl:          {{ next_url|tojson }},
         nextUnlabeledUrl: {{ next_unlabeled_url|tojson }},
-        labelsIndexUrl:   '{{ url_for("labels_index") }}'
+        labelsIndexUrl:   '{{ url_for("bib.labels_index") }}'
       };
     </script>
     <script src="{{ url_for('serve_static', filename='bib_labeling_ui.js') }}"></script>
