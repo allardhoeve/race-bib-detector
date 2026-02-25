@@ -376,6 +376,63 @@ class FaceGroundTruth:
 
 
 # =============================================================================
+# Bib-face link schema
+# =============================================================================
+
+
+@dataclass
+class BibFaceLink:
+    """A directed association between a bib box and a face box in the same photo.
+
+    Indices reference positions in ``BibPhotoLabel.boxes`` and
+    ``FacePhotoLabel.boxes`` for the same content hash.
+
+    Note: links become stale if boxes are reordered or deleted after linking.
+    No automatic repair is done — re-label if the link list looks wrong.
+    """
+
+    bib_index: int    # index into BibPhotoLabel.boxes
+    face_index: int   # index into FacePhotoLabel.boxes
+
+    def to_pair(self) -> list[int]:
+        return [self.bib_index, self.face_index]
+
+    @classmethod
+    def from_pair(cls, pair: list[int]) -> BibFaceLink:
+        return cls(bib_index=pair[0], face_index=pair[1])
+
+
+@dataclass
+class LinkGroundTruth:
+    """Container for all bib-face link ground truth associations."""
+
+    version: int = SCHEMA_VERSION
+    photos: dict[str, list[BibFaceLink]] = field(default_factory=dict)
+
+    def get_links(self, content_hash: str) -> list[BibFaceLink]:
+        return self.photos.get(content_hash, [])
+
+    def set_links(self, content_hash: str, links: list[BibFaceLink]) -> None:
+        self.photos[content_hash] = links
+
+    def to_dict(self) -> dict:
+        return {
+            "version": self.version,
+            "photos": {
+                h: [lnk.to_pair() for lnk in links]
+                for h, links in self.photos.items()
+            },
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> LinkGroundTruth:
+        gt = cls(version=data.get("version", SCHEMA_VERSION))
+        for content_hash, pairs in data.get("photos", {}).items():
+            gt.photos[content_hash] = [BibFaceLink.from_pair(p) for p in pairs]
+        return gt
+
+
+# =============================================================================
 # File paths & load/save
 # =============================================================================
 
@@ -419,6 +476,27 @@ def save_face_ground_truth(
 ) -> None:
     if path is None:
         path = get_face_ground_truth_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump(gt.to_dict(), f, indent=2)
+
+
+def get_link_ground_truth_path() -> Path:
+    return Path(__file__).parent / "bib_face_links.json"
+
+
+def load_link_ground_truth(path: Path | None = None) -> LinkGroundTruth:
+    if path is None:
+        path = get_link_ground_truth_path()
+    if not path.exists():
+        return LinkGroundTruth()
+    with open(path, "r") as f:
+        return LinkGroundTruth.from_dict(json.load(f))
+
+
+def save_link_ground_truth(gt: LinkGroundTruth, path: Path | None = None) -> None:
+    if path is None:
+        path = get_link_ground_truth_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w") as f:
         json.dump(gt.to_dict(), f, indent=2)
