@@ -5,7 +5,9 @@ Step 1 from `todo_benchmark.md`. Independent of all other pending tasks.
 ## Goal
 
 Add the concepts of a **staging set** (the mutable working set of benchmark photos) and
-**frozen sets** (named snapshots for reproducible evaluation). Implement `bnr benchmark freeze`.
+**frozen sets** (named snapshots for reproducible evaluation). Implement `sets.py` (the data
+layer), the `frozen-list` CLI command, and a **minimal stub** for `bnr benchmark freeze`.
+Full completeness filtering for `freeze` is added in task-019.
 
 ## Background
 
@@ -131,20 +133,21 @@ def freeze(
 
 ## CLI changes: `benchmarking/cli.py`
 
-### New command: `benchmark freeze`
+### New command: `benchmark freeze` (minimal stub)
 
-Add a subparser and handler for `bnr benchmark freeze --name <name>`.
+Add a subparser and handler for `bnr benchmark freeze --name <name>`. This stub freezes
+all photos in the index without completeness filtering. Task-019 replaces this body with
+the full implementation (completeness-aware, `--all`, `--include-incomplete`).
 
 ```python
 def cmd_freeze(args: argparse.Namespace) -> int:
     """Create a frozen snapshot of the current benchmark photo set."""
-    from benchmarking.sets import freeze, BenchmarkSnapshot
+    import re
+    from benchmarking.sets import freeze
 
     name = args.name
     description = args.description or ""
 
-    # Validate name (alphanumeric, hyphens, underscores only)
-    import re
     if not re.match(r'^[a-zA-Z0-9_-]+$', name):
         print(f"Error: name must be alphanumeric with hyphens/underscores: {name!r}")
         return 1
@@ -154,16 +157,7 @@ def cmd_freeze(args: argparse.Namespace) -> int:
         print("Error: no photos in index. Run 'bnr benchmark scan' first.")
         return 1
 
-    # Only freeze labeled photos (or all, with --all flag)
-    if args.all:
-        hashes = sorted(index.keys())
-    else:
-        gt = load_bib_ground_truth()
-        hashes = sorted(h for h in index if gt.get_photo(h) and gt.get_photo(h).labeled)
-        if not hashes:
-            print("No labeled photos to freeze. Use --all to freeze unlabeled photos too.")
-            return 1
-
+    hashes = sorted(index.keys())
     try:
         snapshot = freeze(
             name=name,
@@ -205,7 +199,7 @@ def cmd_frozen_list(args: argparse.Namespace) -> int:
 freeze_parser = subparsers.add_parser("freeze", help="Freeze current photo set as a named snapshot")
 freeze_parser.add_argument("--name", required=True, help="Name for the snapshot")
 freeze_parser.add_argument("--description", default="", help="Optional description")
-freeze_parser.add_argument("--all", action="store_true", help="Include unlabeled photos")
+# Note: --all and --include-incomplete are added by task-019
 
 subparsers.add_parser("frozen-list", help="List all frozen snapshots")
 ```
@@ -246,5 +240,7 @@ touches the filesystem.
 
 ## Scope boundaries
 
-- **In scope**: `sets.py` data layer, `freeze`/`frozen-list` CLI commands.
-- **Out of scope**: using frozen sets in `run_benchmark()` (that's a later step), web UI for frozen sets, runner integration.
+- **In scope**: `sets.py` data layer, `frozen-list` CLI command, minimal `freeze` CLI stub
+  (`--name`, `--description` only; freezes all photos in index without filtering).
+- **Out of scope**: completeness filtering in `cmd_freeze()` (task-019 replaces the stub),
+  `--all` / `--include-incomplete` flags (task-019), web UI for frozen sets, runner integration.

@@ -3,6 +3,10 @@
 Depends on task-006 (`sets.py`, `freeze()`), task-007 (`LinkGroundTruth`),
 task-008 (link API), task-009 (link UI). Independent of tasks 011–018.
 
+Task-006 leaves `cmd_freeze()` as a minimal stub (freezes all photos, no filtering).
+This task **replaces that stub** with the completeness-aware implementation and adds
+the `--all` and `--include-incomplete` subparser flags.
+
 ## Goal
 
 Introduce a `PhotoCompleteness` model that tracks whether each photo has been
@@ -203,10 +207,10 @@ the operator can fix the gap in one click.
 
 ## Changes: `benchmarking/cli.py`
 
-### Updated: `cmd_freeze()`
+### Updated: `cmd_freeze()` (replaces task-006 stub)
 
-Replace the existing bib-only labeled check (task-006's implementation) with a call
-to `photo_completeness()`:
+Replace task-006's minimal stub (which froze all photos without filtering) with a call
+to `get_all_completeness()` and honour the new `--all` / `--include-incomplete` flags:
 
 ```python
 def cmd_freeze(args: argparse.Namespace) -> int:
@@ -276,9 +280,14 @@ def cmd_freeze(args: argparse.Namespace) -> int:
 
 ### Updated: subparser for `freeze`
 
-Add `--include-incomplete` flag alongside the existing args:
+Add `--all` and `--include-incomplete` to the subparser created in task-006:
 
 ```python
+freeze_parser.add_argument(
+    "--all",
+    action="store_true",
+    help="Freeze every photo in the index regardless of labeling status",
+)
 freeze_parser.add_argument(
     "--include-incomplete",
     action="store_true",
@@ -328,7 +337,8 @@ Add to `tests/test_web_app.py`:
 ## Scope boundaries
 
 - **In scope**: `completeness.py` module; `GET /staging/` route and template;
-  `POST /api/freeze` endpoint; updated `cmd_freeze()` with `--include-incomplete`;
+  `POST /api/freeze` endpoint; replacement of task-006's `cmd_freeze()` stub with
+  completeness-aware logic; adding `--all` and `--include-incomplete` subparser flags;
   staging card in `labels_home.html`.
 - **Out of scope**: using frozen sets in `run_benchmark()` (separate task); showing
   per-snapshot run history; editing or deleting frozen snapshots.
