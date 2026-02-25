@@ -233,7 +233,7 @@
         </div>
     </div>
 
-    <script src="{{ url_for('serve_static', filename='labeling.js') }}"></script>
+    <script src="{{ url_for('static', filename='labeling.js') }}"></script>
     <script>
       window.PAGE_DATA = {
         split:            '{{ split }}',
@@ -245,5 +245,5 @@
         labelsIndexUrl:   '{{ url_for("bib.labels_index") }}'
       };
     </script>
-    <script src="{{ url_for('serve_static', filename='bib_labeling_ui.js') }}"></script>
+    <script src="{{ url_for('static', filename='bib_labeling_ui.js') }}"></script>
 {% endblock %}

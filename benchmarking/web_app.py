@@ -17,7 +17,7 @@ from pathlib import Path
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from flask import Flask, render_template, send_file, send_from_directory, redirect, url_for
+from flask import Flask, render_template, send_file, redirect, url_for
 
 from benchmarking.photo_index import load_photo_index, get_path_for_hash
 from benchmarking.routes_bib import bib_bp
@@ -40,6 +40,7 @@ def create_app() -> Flask:
     app = Flask(
         __name__,
         template_folder=str(Path(__file__).parent / 'templates'),
+        static_folder=str(Path(__file__).parent / 'static'),
     )
 
     app.register_blueprint(bib_bp)
@@ -74,19 +75,12 @@ def create_app() -> Flask:
         return send_file(path)
 
     # -------------------------------------------------------------------------
-    # Static files & test route
+    # Test route
     # -------------------------------------------------------------------------
-    @app.route('/static/<path:filename>')
-    def serve_static(filename):
-        """Serve static assets (JS, CSS, HTML)."""
-        static_dir = Path(__file__).parent / 'static'
-        return send_from_directory(static_dir, filename)
-
     @app.route('/test/labeling')
     def test_labeling():
-        """Serve the browser integration test page."""
-        static_dir = Path(__file__).parent / 'static'
-        return send_from_directory(static_dir, 'test_labeling.html')
+        """Redirect to the browser integration test page."""
+        return redirect(url_for('static', filename='test_labeling.html'))
 
     return app
 
