@@ -11,7 +11,10 @@ Ghost labeling (step 3) hooks in here once implemented.
 
 from __future__ import annotations
 
+import logging
 import shutil
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -170,8 +173,9 @@ def prepare_benchmark(
                 photo_index=new_index,
                 store_path=suggestion_store_path,
             )
-        except ImportError:
-            # ML dependencies not installed — skip ghost labeling
+        except (ImportError, RuntimeError) as exc:
+            # ML dependencies not installed or model files not configured
+            logger.debug("Ghost labeling skipped: %s", exc)
             pass
 
     return result
