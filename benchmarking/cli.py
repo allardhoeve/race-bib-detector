@@ -616,6 +616,62 @@ def cmd_set_baseline(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_freeze(args: argparse.Namespace) -> int:
+    """Create a frozen snapshot of the current benchmark photo set (minimal stub).
+
+    Freezes all photos in the index. Full completeness filtering is added in task-019.
+    """
+    import re
+    from benchmarking.sets import freeze
+
+    name = args.name
+    description = args.description or ""
+
+    if not re.match(r"^[a-zA-Z0-9_-]+$", name):
+        print(f"Error: name must be alphanumeric with hyphens/underscores: {name!r}")
+        return 1
+
+    index = load_photo_index()
+    if not index:
+        print("Error: no photos in index. Run 'bnr benchmark scan' first.")
+        return 1
+
+    # Flatten list-of-paths to single path per hash
+    flat_index = {h: paths[0] for h, paths in index.items()}
+    hashes = sorted(flat_index.keys())
+
+    try:
+        snapshot = freeze(
+            name=name,
+            hashes=hashes,
+            index=flat_index,
+            description=description,
+        )
+    except ValueError as e:
+        print(f"Error: {e}")
+        return 1
+
+    print(f"Snapshot '{name}' created:")
+    print(f"  Photos: {snapshot.metadata.photo_count}")
+    print(f"  Path:   {snapshot.path}")
+    return 0
+
+
+def cmd_frozen_list(args: argparse.Namespace) -> int:
+    """List all frozen benchmark snapshots."""
+    from benchmarking.sets import list_snapshots
+
+    snapshots = list_snapshots()
+    if not snapshots:
+        print("No snapshots yet. Use 'bnr benchmark freeze --name <name>'.")
+        return 0
+    print(f"{'Name':<30} {'Photos':>8} {'Created':<12} Description")
+    print("-" * 70)
+    for m in snapshots:
+        print(f"{m.name:<30} {m.photo_count:>8} {m.created_at[:10]:<12} {m.description}")
+    return 0
+
+
 # Alias for bnr.py backward compat
 cmd_update_baseline = cmd_set_baseline
 
@@ -716,6 +772,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="Skip confirmation prompt"
     )
 
+    # freeze command (minimal stub; completeness filtering added in task-019)
+    freeze_parser = subparsers.add_parser(
+        "freeze", help="Freeze current photo set as a named snapshot"
+    )
+    freeze_parser.add_argument("--name", required=True, help="Name for the snapshot")
+    freeze_parser.add_argument("--description", default="", help="Optional description")
+    # Note: --all and --include-incomplete are added by task-019
+
+    # frozen-list command
+    subparsers.add_parser("frozen-list", help="List all frozen snapshots")
+
     # stats command
     subparsers.add_parser("stats", help="Show statistics")
 
@@ -766,6 +833,8 @@ def main(argv: list[str] | None = None) -> int:
         "benchmark-list": cmd_benchmark_list,
         "benchmark-inspect": cmd_benchmark_inspect,
         "benchmark-clean": cmd_benchmark_clean,
+        "freeze": cmd_freeze,
+        "frozen-list": cmd_frozen_list,
         "stats": cmd_stats,
         "unlabeled": cmd_unlabeled,
         "show": cmd_show,
