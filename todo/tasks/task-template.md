@@ -11,6 +11,25 @@ Step N from `todo_benchmark.md`. Depends on task-NNN. Independent of task-NNN.
 
 <!-- Why this is needed. Reference relevant design docs, decisions, or constraints. -->
 
+## Context
+
+<!-- Write a short section on the context of the change. Link as much as possible to existing
+     documentation instead of writing long prose. //-->
+
+<!-- To avoid redoing work and coming to the same or other conclusions, write here short 
+     conclusions on previous research that was done. //-->
+
+<!-- Example: "In task 007 and task 008 we tackle other parts of this task (009). The tasks
+     pertain to the UI and the DB, this task pertains only to something other." //-->
+
+<!-- Example: "In previous research we've shown that connecting such and such module from
+     pip is not a good fit, because of reasons A, B, and C. //-->
+
+
+## Constraints
+
+<!-- Write down here any constraints on the task. Remove if not necessary. //-->
+
 ## Design decisions (resolved)
 
 <!-- Remove this section if not applicable -->
