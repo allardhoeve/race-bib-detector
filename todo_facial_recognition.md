@@ -131,6 +131,44 @@ Date: 2026-02-06
 - [x] Click-through to evidence photo and face snippets (with boxes).
 
 ### Group 6: Benchmarking + Tuning
-- [ ] JSON export of embeddings/artifacts for experiments.
-- [ ] Threshold tuning workflow (similarity labels + autolink thresholds).
-- [ ] Optional evaluation report for cluster quality.
+
+**Phase 0 — Freeze & baseline (no code changes)**
+- [ ] `bnr benchmark freeze --name v1-labeled` — create immutable snapshot of labeled set.
+- [ ] `bnr benchmark -s full --note "baseline before tuning"` — establish current metrics.
+- [ ] `bnr benchmark set-baseline` — record as regression baseline.
+
+**Phase 1 — Wire face detection into runner** (task-027)
+- [ ] Load `face_ground_truth.json` in `run_benchmark()`.
+- [ ] Instantiate face backend via `get_face_backend()` (pattern: ghost.py lines 320–376).
+- [ ] Extend `_run_detection_loop()` to run `detect_face_candidates()` per photo.
+- [ ] Accumulate `FaceScorecard` (TP/FP/FN) using `score_faces()` from scoring.py.
+- [ ] Assign `face_scorecard` to `BenchmarkRun` and print in CLI output.
+
+**Phase 2 — Wire autolink predictions into runner** (tasks 030–031)
+- [ ] Implement `faces/autolink.py` — rule-based predictor: 1 face + 1 high-confidence bib → link;
+      inherit bib from strongly-linked cluster when multiple faces present.
+- [ ] Extend `run_benchmark()` to call autolink predictor per photo and pass predicted pairs to
+      `score_links()`, replacing the stub `LinkScorecard(link_tp=0, ...)` with real values.
+
+**Phase 3 — Parameter tuning** (tasks 028, 029)
+- [ ] Add `get_face_backend_with_overrides(**kwargs)` to `faces/backend.py`.
+- [ ] Create `benchmarking/tuner.py` with `run_face_sweep()`.
+- [ ] Add `bnr benchmark tune --config YAML` CLI subcommand; prints ranked table.
+- [ ] Add `benchmarking/tune_configs/face_default.yaml` and `bib_default.yaml`.
+- [ ] (Later) OCR candidate caching for fast bib sweeps — task-029.
+
+**Phase 4 — Cluster quality evaluation** (deferred)
+- [ ] Optional: evaluation report for cluster purity / silhouette score.
+- [ ] Optional: JSON export of embeddings for offline experiments.
+
+## Tasks
+
+| Task | Title | Depends on |
+|------|-------|------------|
+| task-027 | Wire face detection into benchmark runner | — |
+| task-028 | Add face backend override factory | — |
+| task-029 | Face parameter sweep (bnr benchmark tune) | 027, 028 |
+| task-030 | Implement face-bib autolink predictor | — |
+| task-031 | Wire autolink into benchmark runner | 027, 030 |
+
+See `todo/tasks/task-027-*.md` through `task-031-*.md` for details.
