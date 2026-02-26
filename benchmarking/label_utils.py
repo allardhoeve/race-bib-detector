@@ -13,27 +13,23 @@ from benchmarking.ground_truth import (
 from benchmarking.photo_index import load_photo_index
 
 
+def _filtered_hashes(filter_type: str, all_hashes: set[str], labeled: set[str]) -> list[str]:
+    if filter_type == 'unlabeled':
+        return sorted(all_hashes - labeled)
+    elif filter_type == 'labeled':
+        return sorted(all_hashes & labeled)
+    return sorted(all_hashes)
+
+
 def get_filtered_hashes(filter_type: str) -> list[str]:
     """Get photo hashes based on bib label filter."""
     index = load_photo_index()
     all_hashes = set(index.keys())
-
     if filter_type == 'all':
         return sorted(all_hashes)
-
     gt = load_bib_ground_truth()
-    labeled_hashes = {
-        content_hash
-        for content_hash, label in gt.photos.items()
-        if label.labeled
-    }
-
-    if filter_type == 'unlabeled':
-        return sorted(all_hashes - labeled_hashes)
-    elif filter_type == 'labeled':
-        return sorted(all_hashes & labeled_hashes)
-    else:
-        return sorted(all_hashes)
+    labeled = {h for h, lbl in gt.photos.items() if lbl.labeled}
+    return _filtered_hashes(filter_type, all_hashes, labeled)
 
 
 def is_face_labeled(label: FacePhotoLabel) -> bool:
@@ -45,23 +41,11 @@ def get_filtered_face_hashes(filter_type: str) -> list[str]:
     """Get photo hashes based on face label filter."""
     index = load_photo_index()
     all_hashes = set(index.keys())
-
     if filter_type == 'all':
         return sorted(all_hashes)
-
     gt = load_face_ground_truth()
-    labeled_hashes = {
-        content_hash
-        for content_hash, label in gt.photos.items()
-        if is_face_labeled(label)
-    }
-
-    if filter_type == 'unlabeled':
-        return sorted(all_hashes - labeled_hashes)
-    elif filter_type == 'labeled':
-        return sorted(all_hashes & labeled_hashes)
-    else:
-        return sorted(all_hashes)
+    labeled = {h for h, lbl in gt.photos.items() if is_face_labeled(lbl)}
+    return _filtered_hashes(filter_type, all_hashes, labeled)
 
 
 def find_next_unlabeled_url(

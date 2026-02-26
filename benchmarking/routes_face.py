@@ -323,13 +323,13 @@ def face_crop(content_hash, box_index):
 
     from PIL import Image
 
-    img = Image.open(photo_path)
-    w, h = img.size
-    left = int(box.x * w)
-    upper = int(box.y * h)
-    right = int((box.x + box.w) * w)
-    lower = int((box.y + box.h) * h)
-    crop = img.crop((left, upper, right, lower))
+    with Image.open(photo_path) as img:
+        w, h = img.size
+        left = int(box.x * w)
+        upper = int(box.y * h)
+        right = int((box.x + box.w) * w)
+        lower = int((box.y + box.h) * h)
+        crop = img.crop((left, upper, right, lower))
 
     buf = io.BytesIO()
     crop.save(buf, format='JPEG', quality=85)
