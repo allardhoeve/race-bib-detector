@@ -48,8 +48,8 @@ def init_database(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
-def ensure_face_tables(conn: sqlite3.Connection) -> None:
-    """Ensure face + album tables exist for legacy databases."""
+def _create_face_tables(conn: sqlite3.Connection) -> None:
+    """Create face_detections, face_clusters, face_cluster_members, bib_assignments."""
     conn.executescript(
         """
         CREATE TABLE IF NOT EXISTS face_detections (
@@ -115,18 +115,20 @@ def ensure_face_tables(conn: sqlite3.Connection) -> None:
         """
     )
 
+
+def _ensure_album_columns(conn: sqlite3.Connection) -> None:
+    """Add album_id / similarity columns if missing (idempotent ALTER TABLE)."""
     if not _column_exists(conn, "photos", "album_id"):
         conn.execute("ALTER TABLE photos ADD COLUMN album_id TEXT")
-
     if not _column_exists(conn, "face_clusters", "album_id"):
         conn.execute("ALTER TABLE face_clusters ADD COLUMN album_id TEXT")
-    if not _column_exists(conn, "face_clusters", "avg_similarity"):
-        conn.execute("ALTER TABLE face_clusters ADD COLUMN avg_similarity REAL")
-    if not _column_exists(conn, "face_clusters", "min_similarity"):
-        conn.execute("ALTER TABLE face_clusters ADD COLUMN min_similarity REAL")
-    if not _column_exists(conn, "face_clusters", "max_similarity"):
-        conn.execute("ALTER TABLE face_clusters ADD COLUMN max_similarity REAL")
+    for col in ("avg_similarity", "min_similarity", "max_similarity"):
+        if not _column_exists(conn, "face_clusters", col):
+            conn.execute(f"ALTER TABLE face_clusters ADD COLUMN {col} REAL")
 
+
+def _create_albums_table(conn: sqlite3.Connection) -> None:
+    """Create albums table and its indexes."""
     conn.executescript(
         """
         CREATE TABLE IF NOT EXISTS albums (
@@ -142,6 +144,9 @@ def ensure_face_tables(conn: sqlite3.Connection) -> None:
         """
     )
 
+
+def _migrate_album_urls(conn: sqlite3.Connection) -> None:
+    """Migrate legacy album_url columns to album_id (one-time migration, idempotent)."""
     if _column_exists(conn, "photos", "album_url"):
         conn.execute(
             """
@@ -190,6 +195,13 @@ def ensure_face_tables(conn: sqlite3.Connection) -> None:
         "INSERT OR IGNORE INTO albums (album_id) SELECT DISTINCT album_id FROM photos WHERE album_id IS NOT NULL"
     )
 
+
+def ensure_face_tables(conn: sqlite3.Connection) -> None:
+    """Ensure face + album tables exist for legacy databases."""
+    _create_face_tables(conn)
+    _ensure_album_columns(conn)
+    _create_albums_table(conn)
+    _migrate_album_urls(conn)
     conn.commit()
 
 
