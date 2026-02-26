@@ -12,6 +12,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
 # Schema version (bumped from 2 to 3 for the bib/face split)
 SCHEMA_VERSION = 3
 
@@ -71,8 +73,7 @@ ALLOWED_FACE_TAGS = FACE_PHOTO_TAGS  # web_app.py uses this for photo-level chec
 # =============================================================================
 
 
-@dataclass
-class BibBox:
+class BibBox(BaseModel):
     """A single bib bounding box with number and scope.
 
     Coordinates are in normalised [0, 1] image space.
@@ -83,41 +84,33 @@ class BibBox:
     y: float
     w: float
     h: float
-    number: str
+    number: str = ""
     scope: str = "bib"
 
-    def __post_init__(self):
-        if self.scope not in BIB_BOX_SCOPES:
-            raise ValueError(f"Invalid bib box scope: {self.scope!r}")
+    model_config = ConfigDict(extra="ignore")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_tag_to_scope(cls, values: dict) -> dict:
+        """Backward compat: very old format used 'tag' instead of 'scope'."""
+        if isinstance(values, dict) and "scope" not in values and "tag" in values:
+            values = dict(values)
+            values["scope"] = values.pop("tag")
+        return values
+
+    @field_validator("scope")
+    @classmethod
+    def _validate_scope(cls, v: str) -> str:
+        if v not in BIB_BOX_SCOPES:
+            raise ValueError(f"Invalid bib box scope: {v!r}")
+        return v
 
     @property
     def has_coords(self) -> bool:
         return self.w > 0 and self.h > 0
 
-    def to_dict(self) -> dict:
-        return {
-            "x": self.x,
-            "y": self.y,
-            "w": self.w,
-            "h": self.h,
-            "number": self.number,
-            "scope": self.scope,
-        }
 
-    @classmethod
-    def from_dict(cls, data: dict) -> BibBox:
-        return cls(
-            x=data["x"],
-            y=data["y"],
-            w=data["w"],
-            h=data["h"],
-            number=data["number"],
-            scope=data.get("scope", data.get("tag", "bib")),
-        )
-
-
-@dataclass
-class BibPhotoLabel:
+class BibPhotoLabel(BaseModel):
     """Ground truth bib data for a single photo.
 
     Attributes:
@@ -129,17 +122,27 @@ class BibPhotoLabel:
     """
 
     content_hash: str
-    boxes: list[BibBox] = field(default_factory=list)
-    tags: list[str] = field(default_factory=list)
-    split: Split = "full"
+    boxes: list[BibBox] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+    split: str = "full"
     labeled: bool = False
 
-    def __post_init__(self):
-        invalid = set(self.tags) - BIB_PHOTO_TAGS
+    model_config = ConfigDict(extra="ignore")
+
+    @field_validator("tags")
+    @classmethod
+    def _validate_tags(cls, v: list[str]) -> list[str]:
+        invalid = set(v) - BIB_PHOTO_TAGS
         if invalid:
             raise ValueError(f"Invalid bib photo tags: {invalid}")
-        if self.split not in ALLOWED_SPLITS:
-            raise ValueError(f"Invalid split: {self.split!r}")
+        return v
+
+    @field_validator("split")
+    @classmethod
+    def _validate_split(cls, v: str) -> str:
+        if v not in ALLOWED_SPLITS:
+            raise ValueError(f"Invalid split: {v!r}")
+        return v
 
     @property
     def bib_numbers_int(self) -> list[int]:
@@ -162,24 +165,6 @@ class BibPhotoLabel:
     @property
     def bibs(self) -> list[int]:
         return self.bib_numbers_int
-
-    def to_dict(self) -> dict:
-        return {
-            "boxes": [b.to_dict() for b in self.boxes],
-            "tags": self.tags,
-            "split": self.split,
-            "labeled": self.labeled,
-        }
-
-    @classmethod
-    def from_dict(cls, content_hash: str, data: dict) -> BibPhotoLabel:
-        return cls(
-            content_hash=content_hash,
-            boxes=[BibBox.from_dict(b) for b in data.get("boxes", [])],
-            tags=data.get("tags", []),
-            split=data.get("split", "full"),
-            labeled=data.get("labeled", False),
-        )
 
 
 @dataclass
@@ -221,7 +206,8 @@ class BibGroundTruth:
         return {
             "version": self.version,
             "photos": {
-                h: label.to_dict() for h, label in self.photos.items()
+                h: label.model_dump(exclude={"content_hash"})
+                for h, label in self.photos.items()
             },
         }
 
@@ -229,8 +215,8 @@ class BibGroundTruth:
     def from_dict(cls, data: dict) -> BibGroundTruth:
         gt = cls(version=data.get("version", SCHEMA_VERSION))
         for content_hash, photo_data in data.get("photos", {}).items():
-            gt.photos[content_hash] = BibPhotoLabel.from_dict(
-                content_hash, photo_data
+            gt.photos[content_hash] = BibPhotoLabel.model_validate(
+                {"content_hash": content_hash, **photo_data}
             )
         return gt
 
@@ -240,99 +226,77 @@ class BibGroundTruth:
 # =============================================================================
 
 
-@dataclass
-class FaceBox:
+class FaceBox(BaseModel):
     """A single face bounding box with scope and optional identity.
 
     Coordinates are in normalised [0, 1] image space.
+    Coords are None for legacy boxes that pre-date coordinate recording.
     """
 
-    x: float
-    y: float
-    w: float
-    h: float
+    x: float | None = None
+    y: float | None = None
+    w: float | None = None
+    h: float | None = None
     scope: str = "keep"
     identity: str | None = None
-    tags: list[str] = field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
 
-    def __post_init__(self):
-        if self.scope not in FACE_SCOPE_TAGS:
-            raise ValueError(f"Invalid face scope: {self.scope!r}")
-        invalid = set(self.tags) - FACE_BOX_TAGS
+    model_config = ConfigDict(extra="ignore")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_scope_compat(cls, values: dict) -> dict:
+        """Remap legacy scope names before validation."""
+        if isinstance(values, dict) and "scope" in values:
+            values = dict(values)
+            values["scope"] = _FACE_SCOPE_COMPAT.get(values["scope"], values["scope"])
+        return values
+
+    @field_validator("scope")
+    @classmethod
+    def _validate_scope(cls, v: str) -> str:
+        if v not in FACE_SCOPE_TAGS:
+            raise ValueError(f"Invalid face scope: {v!r}")
+        return v
+
+    @field_validator("tags")
+    @classmethod
+    def _validate_tags(cls, v: list[str]) -> list[str]:
+        invalid = set(v) - FACE_BOX_TAGS
         if invalid:
             raise ValueError(f"Invalid face box tags: {invalid}")
+        return v
 
     @property
     def has_coords(self) -> bool:
-        return self.w > 0 and self.h > 0
-
-    def to_dict(self) -> dict:
-        d: dict = {
-            "x": self.x,
-            "y": self.y,
-            "w": self.w,
-            "h": self.h,
-            "scope": self.scope,
-        }
-        if self.identity is not None:
-            d["identity"] = self.identity
-        if self.tags:
-            d["tags"] = self.tags
-        return d
-
-    @classmethod
-    def from_dict(cls, data: dict) -> FaceBox:
-        scope = data.get("scope", "keep")
-        scope = _FACE_SCOPE_COMPAT.get(scope, scope)
-        return cls(
-            x=data["x"],
-            y=data["y"],
-            w=data["w"],
-            h=data["h"],
-            scope=scope,
-            identity=data.get("identity"),
-            tags=data.get("tags", []),
-        )
+        return self.w is not None and self.w > 0
 
 
-@dataclass
-class FacePhotoLabel:
+class FacePhotoLabel(BaseModel):
     """Ground truth face data for a single photo.
 
     ``face_count`` is derived from the number of ``keep``-scoped boxes.
     """
 
     content_hash: str
-    boxes: list[FaceBox] = field(default_factory=list)
-    tags: list[str] = field(default_factory=list)
+    boxes: list[FaceBox] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
 
-    def __post_init__(self):
-        invalid = set(self.tags) - _FACE_PHOTO_TAGS_COMPAT
+    model_config = ConfigDict(extra="ignore")
+
+    @field_validator("tags", mode="before")
+    @classmethod
+    def _migrate_and_validate_tags(cls, v: list[str]) -> list[str]:
+        # Migrate legacy photo tag name
+        v = ["no_faces" if t == "face_no_faces" else t for t in v]
+        invalid = set(v) - _FACE_PHOTO_TAGS_COMPAT
         if invalid:
             raise ValueError(f"Invalid face photo tags: {invalid}")
+        return v
 
     @property
     def face_count(self) -> int:
         return sum(1 for b in self.boxes if b.scope == "keep")
-
-    def to_dict(self) -> dict:
-        return {
-            "boxes": [b.to_dict() for b in self.boxes],
-            "tags": self.tags,
-        }
-
-    @classmethod
-    def from_dict(cls, content_hash: str, data: dict) -> FacePhotoLabel:
-        # Migrate legacy photo tag name
-        tags = [
-            "no_faces" if t == "face_no_faces" else t
-            for t in data.get("tags", [])
-        ]
-        return cls(
-            content_hash=content_hash,
-            boxes=[FaceBox.from_dict(b) for b in data.get("boxes", [])],
-            tags=tags,
-        )
 
 
 @dataclass
@@ -361,7 +325,8 @@ class FaceGroundTruth:
         return {
             "version": self.version,
             "photos": {
-                h: label.to_dict() for h, label in self.photos.items()
+                h: label.model_dump(exclude={"content_hash"})
+                for h, label in self.photos.items()
             },
         }
 
@@ -369,8 +334,8 @@ class FaceGroundTruth:
     def from_dict(cls, data: dict) -> FaceGroundTruth:
         gt = cls(version=data.get("version", SCHEMA_VERSION))
         for content_hash, photo_data in data.get("photos", {}).items():
-            gt.photos[content_hash] = FacePhotoLabel.from_dict(
-                content_hash, photo_data
+            gt.photos[content_hash] = FacePhotoLabel.model_validate(
+                {"content_hash": content_hash, **photo_data}
             )
         return gt
 
@@ -380,8 +345,7 @@ class FaceGroundTruth:
 # =============================================================================
 
 
-@dataclass
-class BibFaceLink:
+class BibFaceLink(BaseModel):
     """A directed association between a bib box and a face box in the same photo.
 
     Indices reference positions in ``BibPhotoLabel.boxes`` and

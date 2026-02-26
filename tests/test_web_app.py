@@ -257,8 +257,8 @@ class TestFaceBoxApi:
         )
         resp = app_client.get(f"/api/faces/{HASH_A}")
         data = resp.get_json()
-        # Box should have no "tags" key when empty (FaceBox.to_dict omits it)
-        assert "tags" not in data["boxes"][0]
+        # Box tags should be empty (model_dump always includes the key)
+        assert data["boxes"][0].get("tags", []) == []
 
     def test_get_face_boxes_with_suggestions(self, app_client):
         store = SuggestionStore()

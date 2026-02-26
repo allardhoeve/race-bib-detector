@@ -76,7 +76,7 @@ def get_face_label(content_hash: str) -> dict | None:
     if label:
         return {
             'full_hash': full_hash,
-            'boxes': [b.to_dict() for b in label.boxes],
+            'boxes': [b.model_dump() for b in label.boxes],
             'suggestions': suggestions,
             'tags': label.tags,
         }
@@ -95,7 +95,7 @@ def save_face_label(content_hash: str, boxes_data: list[dict] | None,
     Raises ValueError or TypeError on invalid data.
     """
     face_gt = load_face_ground_truth()
-    boxes = [FaceBox.from_dict(b) for b in boxes_data] if boxes_data else []
+    boxes = [FaceBox.model_validate(b) for b in boxes_data] if boxes_data else []
     label = FacePhotoLabel(content_hash=content_hash, boxes=boxes, tags=tags)
     face_gt.add_photo(label)
     save_face_ground_truth(face_gt)

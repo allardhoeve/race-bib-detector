@@ -35,7 +35,7 @@ def get_bib_label(content_hash: str) -> dict | None:
     if label:
         return {
             'full_hash': full_hash,
-            'boxes': [b.to_dict() for b in label.boxes],
+            'boxes': [b.model_dump() for b in label.boxes],
             'suggestions': suggestions,
             'tags': label.tags,
             'split': label.split,
@@ -60,7 +60,7 @@ def save_bib_label(content_hash: str, boxes_data: list[dict] | None,
     """
     bib_gt = load_bib_ground_truth()
     if boxes_data is not None:
-        boxes = [BibBox.from_dict(b) for b in boxes_data]
+        boxes = [BibBox.model_validate(b) for b in boxes_data]
     elif bibs_legacy is not None:
         boxes = [BibBox(x=0, y=0, w=0, h=0, number=str(b), scope="bib")
                  for b in bibs_legacy]
