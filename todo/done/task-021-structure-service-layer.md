@@ -672,15 +672,16 @@ def save_bib_face_links(content_hash):
 Register the new `identities_bp` blueprint alongside the existing ones:
 
 ```python
-from benchmarking.routes_identities import identities_bp
+from benchmarking.routes.identities import identities_bp
+
 
 def create_app() -> Flask:
-    ...
-    app.register_blueprint(bib_bp)
-    app.register_blueprint(face_bp)
-    app.register_blueprint(identities_bp)
-    app.register_blueprint(benchmark_bp)
-    ...
+  ...
+  app.register_blueprint(bib_bp)
+  app.register_blueprint(face_bp)
+  app.register_blueprint(identities_bp)
+  app.register_blueprint(benchmark_bp)
+  ...
 ```
 
 ## Migration order

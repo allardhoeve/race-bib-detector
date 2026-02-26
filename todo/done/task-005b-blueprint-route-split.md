@@ -33,9 +33,10 @@ Currently a local variable inside `create_app()` (line 2240), used only by
 
 ```python
 # web_app.py
-from benchmarking.routes_bib import bib_bp
-from benchmarking.routes_face import face_bp
-from benchmarking.routes_benchmark import benchmark_bp
+from benchmarking.routes.bib import bib_bp
+from benchmarking.routes.face import face_bp
+from benchmarking.routes.benchmark import benchmark_bp
+
 
 def create_app() -> Flask:
     app = Flask(

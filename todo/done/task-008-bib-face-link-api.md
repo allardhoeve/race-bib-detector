@@ -15,7 +15,7 @@ links are created during bib labeling. No new Blueprint needed.
 ## Current API pattern (reference)
 
 ```python
-# Existing in routes_bib.py — follow this pattern exactly:
+# Existing in bib.py — follow this pattern exactly:
 @bib_bp.route('/api/bib_boxes/<content_hash>', methods=['GET'])
 def get_bib_boxes(content_hash):
     index = load_photo_index()

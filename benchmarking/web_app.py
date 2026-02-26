@@ -20,10 +20,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from flask import Flask, render_template, send_file, redirect, url_for
 
 from benchmarking.photo_index import load_photo_index, get_path_for_hash
-from benchmarking.routes_bib import bib_bp
-from benchmarking.routes_benchmark import benchmark_bp
-from benchmarking.routes_face import face_bp
-from benchmarking.routes_identities import identities_bp
+from benchmarking.routes.bib import bib_bp
+from benchmarking.routes.benchmark import benchmark_bp
+from benchmarking.routes.face import face_bp
+from benchmarking.routes.identities import identities_bp
 from logging_utils import add_logging_args, configure_logging
 
 logger = logging.getLogger(__name__)
