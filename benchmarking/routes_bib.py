@@ -187,8 +187,8 @@ def association_photo(content_hash):
     link_label = link_gt.get_links(full_hash)
     is_processed = full_hash in link_gt.photos
 
-    bib_boxes = [b.to_dict() for b in bib_label.boxes] if bib_label else []
-    face_boxes = [b.to_dict() for b in face_label.boxes] if face_label else []
+    bib_boxes = [b.model_dump() for b in bib_label.boxes] if bib_label else []
+    face_boxes = [b.model_dump() for b in face_label.boxes] if face_label else []
     links = [lnk.to_pair() for lnk in link_label]
 
     all_hashes = sorted(index.keys())
