@@ -5,16 +5,13 @@ import random
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for
 
 from benchmarking.ground_truth import (
-    BibBox,
-    BibPhotoLabel,
     load_bib_ground_truth,
-    save_bib_ground_truth,
     ALLOWED_TAGS,
 )
-from benchmarking.ghost import load_suggestion_store
 from benchmarking.label_utils import get_filtered_hashes, find_hash_by_prefix, find_next_unlabeled_url
 from benchmarking.photo_index import load_photo_index
 from benchmarking.runner import list_runs
+from benchmarking.services import bib_service, association_service
 from config import ITERATION_SPLIT_PROBABILITY
 
 bib_bp = Blueprint('bib', __name__)
@@ -132,24 +129,15 @@ def save_bib_label(content_hash):
         return jsonify({'error': 'Photo not found'}), 404
 
     try:
-        bib_gt = load_bib_ground_truth()
-        if 'boxes' in data:
-            boxes = [BibBox.from_dict(b) for b in data['boxes']]
-        else:
-            bibs = data.get('bibs', [])
-            boxes = [BibBox(x=0, y=0, w=0, h=0, number=str(b), scope="bib") for b in bibs]
-        label = BibPhotoLabel(
+        bib_service.save_bib_label(
             content_hash=full_hash,
-            boxes=boxes,
+            boxes_data=data.get('boxes'),
+            bibs_legacy=data.get('bibs'),
             tags=tags,
             split=split,
-            labeled=True,
         )
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
-
-    bib_gt.add_photo(label)
-    save_bib_ground_truth(bib_gt)
 
     return jsonify({'status': 'ok'})
 
@@ -253,14 +241,10 @@ def get_associations(content_hash):
 
     Response: {"links": [[bib_index, face_index], ...]}
     """
-    from benchmarking.ground_truth import load_link_ground_truth
-    index = load_photo_index()
-    full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
-    if not full_hash:
+    links = association_service.get_associations(content_hash)
+    if links is None:
         return jsonify({"error": "Not found"}), 404
-    link_gt = load_link_ground_truth()
-    links = link_gt.get_links(full_hash)
-    return jsonify({"links": [lnk.to_pair() for lnk in links]})
+    return jsonify({"links": links})
 
 
 @bib_bp.route('/api/associations/<content_hash>', methods=['PUT'])
@@ -270,28 +254,18 @@ def save_associations(content_hash):
     Request body: {"links": [[bib_index, face_index], ...]}
     Response: {"status": "ok", "links": [[bib_index, face_index], ...]}
     """
-    from benchmarking.ground_truth import (
-        BibFaceLink, load_link_ground_truth, save_link_ground_truth,
-    )
-    index = load_photo_index()
-    full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
-    if not full_hash:
-        return jsonify({"error": "Not found"}), 404
-
     data = request.get_json()
     if data is None:
         return jsonify({"error": "Invalid JSON"}), 400
 
-    raw_links = data.get("links", [])
     try:
-        links = [BibFaceLink.from_pair(pair) for pair in raw_links]
+        saved = association_service.set_associations(content_hash, data.get("links", []))
     except (TypeError, IndexError, ValueError) as e:
         return jsonify({"error": f"Invalid link format: {e}"}), 400
 
-    link_gt = load_link_ground_truth()
-    link_gt.set_links(full_hash, links)
-    save_link_ground_truth(link_gt)
-    return jsonify({"status": "ok", "links": [lnk.to_pair() for lnk in links]})
+    if saved is None:
+        return jsonify({"error": "Not found"}), 404
+    return jsonify({"status": "ok", "links": saved})
 
 
 @bib_bp.route('/api/bib_boxes/<content_hash>')
@@ -303,31 +277,9 @@ def get_bib_boxes_redirect(content_hash):
 @bib_bp.route('/api/bibs/<content_hash>', methods=['GET'])
 def get_bib_boxes(content_hash):
     """Get bib boxes, suggestions, tags, split, and labeled status."""
-    index = load_photo_index()
-    full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
-    if not full_hash:
+    result = bib_service.get_bib_label(content_hash)
+    if result is None:
         return jsonify({'error': 'Photo not found'}), 404
-
-    bib_gt = load_bib_ground_truth()
-    label = bib_gt.get_photo(full_hash)
-
-    store = load_suggestion_store()
-    photo_sugg = store.get(full_hash)
-    suggestions = [s.to_dict() for s in photo_sugg.bibs] if photo_sugg else []
-
-    if label:
-        return jsonify({
-            'boxes': [b.to_dict() for b in label.boxes],
-            'suggestions': suggestions,
-            'tags': label.tags,
-            'split': label.split,
-            'labeled': label.labeled,
-        })
-    else:
-        return jsonify({
-            'boxes': [],
-            'suggestions': suggestions,
-            'tags': [],
-            'split': 'full',
-            'labeled': False,
-        })
+    result = dict(result)
+    result.pop('full_hash', None)
+    return jsonify(result)

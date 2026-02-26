@@ -23,6 +23,7 @@ from benchmarking.photo_index import load_photo_index, get_path_for_hash
 from benchmarking.routes_bib import bib_bp
 from benchmarking.routes_benchmark import benchmark_bp
 from benchmarking.routes_face import face_bp
+from benchmarking.routes_identities import identities_bp
 from logging_utils import add_logging_args, configure_logging
 
 logger = logging.getLogger(__name__)
@@ -45,6 +46,7 @@ def create_app() -> Flask:
 
     app.register_blueprint(bib_bp)
     app.register_blueprint(face_bp)
+    app.register_blueprint(identities_bp)
     app.register_blueprint(benchmark_bp)
 
     # -------------------------------------------------------------------------
