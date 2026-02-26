@@ -4,6 +4,7 @@ import io
 
 import pytest
 from PIL import Image
+from starlette.testclient import TestClient
 
 
 from benchmarking.ghost import (
@@ -23,7 +24,7 @@ HASH_UNKNOWN = "f" * 64
 
 @pytest.fixture
 def app_client(tmp_path, monkeypatch):
-    """Create a Flask test client with all paths monkeypatched to tmp_path."""
+    """Create a test client with all paths monkeypatched to tmp_path."""
     bib_gt_path = tmp_path / "bib_ground_truth.json"
     face_gt_path = tmp_path / "face_ground_truth.json"
     suggestions_path = tmp_path / "suggestions.json"
@@ -50,12 +51,10 @@ def app_client(tmp_path, monkeypatch):
         "benchmarking.photo_index.get_photo_index_path", lambda: index_path
     )
 
-    from benchmarking.web_app import create_app
+    from benchmarking.app import create_app
 
     app = create_app()
-    app.config["TESTING"] = True
-    client = app.test_client()
-    return client
+    return TestClient(app, follow_redirects=False)
 
 
 # =============================================================================
@@ -68,7 +67,7 @@ class TestBibBoxApi:
         """GET bib boxes for a photo with no GT returns empty boxes."""
         resp = app_client.get(f"/api/bibs/{HASH_A}")
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert data["boxes"] == []
         assert "tags" in data
 
@@ -89,7 +88,7 @@ class TestBibBoxApi:
         assert save_resp.status_code == 200
 
         resp = app_client.get(f"/api/bibs/{HASH_A}")
-        data = resp.get_json()
+        data = resp.json()
         assert len(data["boxes"]) == 2
         assert data["boxes"][0]["number"] == "42"
         assert data["boxes"][0]["x"] == pytest.approx(0.1)
@@ -109,7 +108,7 @@ class TestBibBoxApi:
         assert resp.status_code == 200
 
         get_resp = app_client.get(f"/api/bibs/{HASH_A}")
-        data = get_resp.get_json()
+        data = get_resp.json()
         assert len(data["boxes"]) == 2
         numbers = {b["number"] for b in data["boxes"]}
         assert numbers == {"123", "456"}
@@ -130,7 +129,7 @@ class TestBibBoxApi:
         save_suggestion_store(store)
 
         resp = app_client.get(f"/api/bibs/{HASH_A}")
-        data = resp.get_json()
+        data = resp.json()
         assert len(data["suggestions"]) == 1
         assert data["suggestions"][0]["number"] == "99"
         assert data["suggestions"][0]["confidence"] == pytest.approx(0.9)
@@ -161,7 +160,7 @@ class TestBibBoxApi:
             },
         )
         resp = app_client.get(f"/api/bibs/{HASH_A}")
-        data = resp.get_json()
+        data = resp.json()
         assert data["split"] == "iteration"
         assert "no_bib" in data["tags"]
 
@@ -185,7 +184,7 @@ class TestFaceBoxApi:
     def test_get_face_boxes_empty(self, app_client):
         resp = app_client.get(f"/api/faces/{HASH_A}")
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert data["boxes"] == []
 
     def test_save_and_load_face_boxes(self, app_client):
@@ -200,7 +199,7 @@ class TestFaceBoxApi:
         assert save_resp.status_code == 200
 
         resp = app_client.get(f"/api/faces/{HASH_A}")
-        data = resp.get_json()
+        data = resp.json()
         assert len(data["boxes"]) == 2
         assert data["boxes"][0]["scope"] == "keep"
         assert data["boxes"][0]["identity"] == "Alice"
@@ -215,7 +214,7 @@ class TestFaceBoxApi:
         assert resp.status_code == 200
 
         get_resp = app_client.get(f"/api/faces/{HASH_A}")
-        data = get_resp.get_json()
+        data = get_resp.json()
         assert "face_tiny_faces" in data["tags"]
 
     def test_save_and_load_face_boxes_with_tags(self, app_client):
@@ -231,7 +230,7 @@ class TestFaceBoxApi:
         assert save_resp.status_code == 200
 
         resp = app_client.get(f"/api/faces/{HASH_A}")
-        data = resp.get_json()
+        data = resp.json()
         assert len(data["boxes"]) == 2
         assert data["boxes"][0]["tags"] == ["tiny", "blurry"]
         assert data["boxes"][1]["tags"] == ["profile"]
@@ -256,7 +255,7 @@ class TestFaceBoxApi:
             json={"boxes": boxes, "face_tags": []},
         )
         resp = app_client.get(f"/api/faces/{HASH_A}")
-        data = resp.get_json()
+        data = resp.json()
         # Box tags should be empty (model_dump always includes the key)
         assert data["boxes"][0].get("tags", []) == []
 
@@ -271,7 +270,7 @@ class TestFaceBoxApi:
         save_suggestion_store(store)
 
         resp = app_client.get(f"/api/faces/{HASH_A}")
-        data = resp.get_json()
+        data = resp.json()
         assert len(data["suggestions"]) == 1
         assert data["suggestions"][0]["confidence"] == pytest.approx(0.85)
 
@@ -309,21 +308,21 @@ class TestIdentitiesApi:
     def test_get_identities_empty(self, app_client):
         resp = app_client.get("/api/identities")
         assert resp.status_code == 200
-        assert resp.get_json()["identities"] == []
+        assert resp.json()["identities"] == []
 
     def test_add_identity(self, app_client):
         resp = app_client.post(
             "/api/identities", json={"name": "Bob"}
         )
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert "Bob" in data["identities"]
 
     def test_add_duplicate_idempotent(self, app_client):
         app_client.post("/api/identities", json={"name": "Alice"})
         app_client.post("/api/identities", json={"name": "Alice"})
         resp = app_client.get("/api/identities")
-        data = resp.get_json()
+        data = resp.json()
         assert data["identities"].count("Alice") == 1
 
     def test_identities_sorted(self, app_client):
@@ -331,7 +330,7 @@ class TestIdentitiesApi:
         app_client.post("/api/identities", json={"name": "Alice"})
         app_client.post("/api/identities", json={"name": "Bob"})
         resp = app_client.get("/api/identities")
-        data = resp.get_json()
+        data = resp.json()
         assert data["identities"] == ["Alice", "Bob", "Charlie"]
 
 
@@ -380,17 +379,17 @@ class TestRenameIdentityApi:
             "/api/identities/anon-1", json={"new_name": "Alice"}
         )
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert data["updated_count"] == 2  # one in HASH_A, one in HASH_B
 
         # Verify boxes are updated
         resp_a = app_client.get(f"/api/faces/{HASH_A}")
-        boxes_a = resp_a.get_json()["boxes"]
+        boxes_a = resp_a.json()["boxes"]
         assert boxes_a[0]["identity"] == "Alice"
         assert boxes_a[1]["identity"] == "Bob"  # unchanged
 
         resp_b = app_client.get(f"/api/faces/{HASH_B}")
-        boxes_b = resp_b.get_json()["boxes"]
+        boxes_b = resp_b.json()["boxes"]
         assert boxes_b[0]["identity"] == "Alice"
 
     def test_rename_updates_identities_list(self, app_client):
@@ -402,7 +401,7 @@ class TestRenameIdentityApi:
             "/api/identities/anon-1", json={"new_name": "Alice"}
         )
         assert resp.status_code == 200
-        ids = resp.get_json()["identities"]
+        ids = resp.json()["identities"]
         assert "Alice" in ids
         assert "anon-1" not in ids
         assert "Bob" in ids
@@ -415,7 +414,7 @@ class TestRenameIdentityApi:
             "/api/identities/anon-5", json={"new_name": "Carol"}
         )
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert data["updated_count"] == 0
         assert "Carol" in data["identities"]
         assert "anon-5" not in data["identities"]
@@ -462,7 +461,7 @@ class TestFaceIdentitySuggestions:
             "?box_x=0.1&box_y=0.2&box_w=0.3&box_h=0.4"
         )
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert data["suggestions"] == []
 
 
@@ -510,11 +509,10 @@ def crop_client(tmp_path, monkeypatch):
     )
     monkeypatch.setattr("benchmarking.services.face_service.PHOTOS_DIR", photos_dir)
 
-    from benchmarking.web_app import create_app
+    from benchmarking.app import create_app
 
     app = create_app()
-    app.config["TESTING"] = True
-    return app.test_client()
+    return TestClient(app, follow_redirects=False)
 
 
 class TestFaceCropApi:
@@ -563,10 +561,10 @@ class TestFaceCropApi:
         )
         resp = crop_client.get(f"/api/faces/{HASH_A}/crop/0")
         assert resp.status_code == 200
-        assert resp.content_type == "image/jpeg"
+        assert resp.headers['content-type'] == "image/jpeg"
 
         # Verify it's a valid JPEG we can open
-        img = Image.open(io.BytesIO(resp.data))
+        img = Image.open(io.BytesIO(resp.content))
         assert img.format == "JPEG"
         assert img.width > 0 and img.height > 0
 
@@ -603,7 +601,7 @@ class TestHomeRoute:
 
         resp = app_client.get("/")
         assert resp.status_code == 200
-        body = resp.data.decode()
+        body = resp.text
         # Index has 2 photos (HASH_A, HASH_B); 1 labeled in each dimension
         assert "1 / 2" in body
 
@@ -615,7 +613,7 @@ class TestHomeRoute:
         monkeypatch.setattr("benchmarking.ground_truth.load_link_ground_truth", _raise)
         resp = app_client.get("/")
         assert resp.status_code == 200
-        assert b"N/A" in resp.data
+        assert "N/A" in resp.text
 
 
 # =============================================================================
@@ -657,10 +655,9 @@ def freeze_client(tmp_path, monkeypatch):
     )
     monkeypatch.setattr("benchmarking.sets.FROZEN_DIR", frozen_dir)
 
-    from benchmarking.web_app import create_app
+    from benchmarking.app import create_app
     app = create_app()
-    app.config["TESTING"] = True
-    return app.test_client()
+    return TestClient(app, follow_redirects=False)
 
 
 class TestStagingRoute:
@@ -684,7 +681,7 @@ class TestApiFreezeEndpoint:
             json={"name": "test-snap", "hashes": [HASH_A], "description": "test"},
         )
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert data["name"] == "test-snap"
         assert data["photo_count"] == 1
         assert "created_at" in data

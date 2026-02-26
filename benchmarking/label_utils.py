@@ -52,16 +52,14 @@ def find_next_unlabeled_url(
     full_hash: str,
     all_hashes_sorted: list[str],
     is_labeled_fn: Callable[[str], bool],
-    endpoint: str,
-    filter_type: str,
+    url_fn: Callable[[str], str | None],
 ) -> str | None:
-    """Return url_for the next unlabeled photo after full_hash, or None."""
-    from flask import url_for
+    """Return URL for the next unlabeled photo after full_hash, or None."""
     try:
         all_idx = all_hashes_sorted.index(full_hash)
         for h in all_hashes_sorted[all_idx + 1:]:
             if not is_labeled_fn(h):
-                return url_for(endpoint, content_hash=h[:8], filter=filter_type)
+                return url_fn(h[:8])
     except ValueError:
         pass
     return None

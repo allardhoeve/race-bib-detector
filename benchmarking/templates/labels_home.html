@@ -66,7 +66,7 @@
         <div class="nav-info">
             <span style="color: #0f9b0f; font-weight: bold;">Benchmark Labeling</span>
         </div>
-        <a class="nav-link" href="{{ url_for('benchmark.benchmark_list') }}">View Benchmarks →</a>
+        <a class="nav-link" href="{{ request.url_for('benchmark_list') }}">View Benchmarks →</a>
     </div>
 
     <div class="content">
@@ -77,14 +77,14 @@
                 <h2>Bib Labels</h2>
                 <p>Draw boxes around bib numbers and assign scopes.</p>
                 <span class="progress">{{ bib_labeled }} / {{ total }} labeled</span>
-                <a href="{{ url_for('bib.bibs_index') }}">Start Bib Labeling →</a>
+                <a href="{{ request.url_for('bibs_index') }}">Start Bib Labeling →</a>
             </div>
             <div class="card">
                 <span class="step-label">Step 2</span>
                 <h2>Face Labels</h2>
                 <p>Draw boxes around faces and assign identities.</p>
                 <span class="progress">{{ face_labeled }} / {{ total }} labeled</span>
-                <a href="{{ url_for('face.faces_index') }}">Start Face Labeling →</a>
+                <a href="{{ request.url_for('faces_index') }}">Start Face Labeling →</a>
             </div>
             <div class="card">
                 <span class="step-label">Step 3</span>
@@ -97,14 +97,14 @@
                         {{ links_labeled }} / {{ total }} linked
                     {%- endif -%}
                 </span>
-                <a href="{{ url_for('bib.associations_index') }}">Start Linking →</a>
+                <a href="{{ request.url_for('associations_index') }}">Start Linking →</a>
             </div>
             <div class="card">
                 <span class="step-label">Step 4</span>
                 <h2>Staging &amp; Freeze</h2>
                 <p>Review completeness across all labeling dimensions and create a frozen
                    benchmark snapshot when all photos are ready.</p>
-                <a href="{{ url_for('benchmark.staging') }}" class="btn">Open Staging</a>
+                <a href="{{ request.url_for('staging') }}" class="btn">Open Staging</a>
             </div>
         </div>
     </div>

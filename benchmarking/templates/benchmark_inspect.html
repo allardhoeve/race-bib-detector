@@ -100,7 +100,7 @@
 {% block body %}
     <div class="header">
         <div class="nav-info">
-            <a href="{{ url_for('benchmark.benchmark_list') }}" class="nav-link">← Runs</a>
+            <a href="{{ request.url_for('benchmark_list') }}" class="nav-link">← Runs</a>
             <div class="run-selector">
                 <select class="run-select" id="runSelect" onchange="changeRun()">
                     {% for r in all_runs %}
@@ -221,12 +221,12 @@
         photoResults:        {{ photo_results_json | safe }},
         runId:               '{{ run.metadata.run_id }}',
         currentIdx:          {{ current_idx }},
-        editLinkBase:        '{{ url_for("bib.bibs_index") }}',
-        photoUrlTemplate:    '{{ url_for("serve_photo", content_hash="HASH") }}',
-        artifactUrlTemplate: '{{ url_for("benchmark.serve_artifact", run_id="RUN", hash_prefix="HASH", image_type="TYPE") }}',
-        inspectUrl:          '{{ url_for("benchmark.benchmark_inspect", run_id=run.metadata.run_id) }}',
-        benchmarkListUrl:    '{{ url_for("benchmark.benchmark_list") }}'
+        editLinkBase:        '{{ request.url_for("bibs_index") }}',
+        photoUrlTemplate:    '{{ request.url_for("serve_photo", content_hash="HASH") }}',
+        artifactUrlTemplate: '{{ request.url_for("serve_artifact", run_id="RUN", hash_prefix="HASH", image_type="TYPE") }}',
+        inspectUrl:          '{{ request.url_for("benchmark_inspect", run_id=run.metadata.run_id) }}',
+        benchmarkListUrl:    '{{ request.url_for("benchmark_list") }}'
       };
     </script>
-    <script src="{{ url_for('static', filename='benchmark_inspect.js') }}"></script>
+    <script src="{{ request.url_for('static', path='benchmark_inspect.js') }}"></script>
 {% endblock %}

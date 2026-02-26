@@ -1,6 +1,7 @@
 """Tests for the bib-face link API endpoints."""
 
 import pytest
+from starlette.testclient import TestClient
 
 from benchmarking.photo_index import save_photo_index
 
@@ -11,7 +12,7 @@ HASH_UNKNOWN = "f" * 64
 
 @pytest.fixture
 def link_client(tmp_path, monkeypatch):
-    """Flask test client with link GT path and photo index patched."""
+    """Test client with link GT path and photo index patched."""
     link_gt_path = tmp_path / "bib_face_links.json"
     bib_gt_path = tmp_path / "bib_ground_truth.json"
     face_gt_path = tmp_path / "face_ground_truth.json"
@@ -40,11 +41,10 @@ def link_client(tmp_path, monkeypatch):
         "benchmarking.photo_index.get_photo_index_path", lambda: index_path
     )
 
-    from benchmarking.web_app import create_app
+    from benchmarking.app import create_app
 
     app = create_app()
-    app.config["TESTING"] = True
-    return app.test_client()
+    return TestClient(app, follow_redirects=False)
 
 
 class TestLinkPhotoRoute:
@@ -52,7 +52,7 @@ class TestLinkPhotoRoute:
         """GET /associations/<hash> returns 200 and contains expected content."""
         resp = link_client.get(f"/associations/{HASH_A}")
         assert resp.status_code == 200
-        html = resp.data.decode()
+        html = resp.text
         assert "page-data" in html
         assert "link_labeling_ui.js" in html
 
@@ -73,7 +73,7 @@ class TestBibFaceLinkApi:
         """GET for a hash with no links returns empty list."""
         resp = link_client.get(f"/api/associations/{HASH_A}")
         assert resp.status_code == 200
-        assert resp.get_json() == {"links": []}
+        assert resp.json() == {"links": []}
 
     def test_put_and_get_links(self, link_client):
         """PUT links, then GET returns same list."""
@@ -82,13 +82,13 @@ class TestBibFaceLinkApi:
             json={"links": [[0, 1], [2, 0]]},
         )
         assert resp.status_code == 200
-        data = resp.get_json()
+        data = resp.json()
         assert data["status"] == "ok"
         assert data["links"] == [[0, 1], [2, 0]]
 
         get_resp = link_client.get(f"/api/associations/{HASH_A}")
         assert get_resp.status_code == 200
-        assert get_resp.get_json()["links"] == [[0, 1], [2, 0]]
+        assert get_resp.json()["links"] == [[0, 1], [2, 0]]
 
     def test_put_links_replaces_all(self, link_client):
         """Second PUT fully replaces first."""
@@ -101,7 +101,7 @@ class TestBibFaceLinkApi:
             json={"links": [[3, 4]]},
         )
         resp = link_client.get(f"/api/associations/{HASH_A}")
-        assert resp.get_json()["links"] == [[3, 4]]
+        assert resp.json()["links"] == [[3, 4]]
 
     def test_get_links_unknown_hash_404(self, link_client):
         """GET for unknown hash returns 404."""
@@ -120,8 +120,8 @@ class TestBibFaceLinkApi:
         """PUT with malformed JSON body returns 400."""
         resp = link_client.put(
             f"/api/associations/{HASH_A}",
-            data="not json",
-            content_type="application/json",
+            content=b"not json",
+            headers={"content-type": "application/json"},
         )
         assert resp.status_code == 400
 
@@ -136,7 +136,7 @@ class TestBibFaceLinkApi:
             json={"links": []},
         )
         resp = link_client.get(f"/api/associations/{HASH_A}")
-        assert resp.get_json()["links"] == []
+        assert resp.json()["links"] == []
 
     def test_old_bib_face_links_get_redirects_308(self, link_client):
         """GET /api/bib_face_links/<hash> returns 308 redirect."""

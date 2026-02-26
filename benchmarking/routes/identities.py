@@ -1,6 +1,6 @@
 """Identity management routes."""
 
-from flask import Blueprint, jsonify, request
+from fastapi import APIRouter, Body, HTTPException
 
 from benchmarking.services.identity_service import (
     list_identities,
@@ -8,42 +8,40 @@ from benchmarking.services.identity_service import (
     rename_identity_across_gt,
 )
 
-identities_bp = Blueprint('identities', __name__)
+identities_router = APIRouter()
 
 
-@identities_bp.route('/api/identities')
-def get_identities():
-    return jsonify({'identities': list_identities()})
+@identities_router.get('/api/identities')
+async def get_identities():
+    return {'identities': list_identities()}
 
 
-@identities_bp.route('/api/identities', methods=['POST'])
-def post_identity():
-    data = request.get_json()
-    name = (data.get('name') or '').strip()
+@identities_router.post('/api/identities')
+async def post_identity(body: dict = Body(default={})):
+    name = (body.get('name') or '').strip()
     if not name:
-        return jsonify({'error': 'Missing name'}), 400
+        raise HTTPException(status_code=400, detail='Missing name')
     ids = create_identity(name)
-    return jsonify({'identities': ids})
+    return {'identities': ids}
 
 
-@identities_bp.route('/api/rename_identity', methods=['POST'])
-def rename_identity_legacy():
+@identities_router.post('/api/rename_identity')
+async def rename_identity_legacy():
     """Legacy rename endpoint — gone. Use PATCH /api/identities/<name>."""
-    return jsonify({'error': 'Use PATCH /api/identities/<name>'}), 410
+    raise HTTPException(status_code=410, detail='Use PATCH /api/identities/<name>')
 
 
-@identities_bp.route('/api/identities/<name>', methods=['PATCH'])
-def patch_identity(name):
+@identities_router.patch('/api/identities/{name}')
+async def patch_identity(name: str, body: dict = Body(default={})):
     """Rename an identity across all face GT entries and the identities list."""
-    data = request.get_json() or {}
-    new_name = (data.get('new_name') or '').strip()
+    new_name = (body.get('new_name') or '').strip()
 
     if not new_name:
-        return jsonify({'error': 'Missing new_name'}), 400
+        raise HTTPException(status_code=400, detail='Missing new_name')
 
     try:
         updated_count, ids = rename_identity_across_gt(name, new_name)
     except ValueError as e:
-        return jsonify({'error': str(e)}), 400
+        raise HTTPException(status_code=400, detail=str(e))
 
-    return jsonify({'updated_count': updated_count, 'identities': ids})
+    return {'updated_count': updated_count, 'identities': ids}

@@ -195,9 +195,9 @@
 {% block body %}
     <div class="header">
         <div class="nav-info">
-            <a href="{{ url_for('benchmark.benchmark_list') }}" class="nav-link">← Benchmarks</a>
-            <a href="{{ url_for('bib.bibs_index') }}" class="nav-link">Bib Labels →</a>
-            <a href="{{ url_for('bib.association_photo', content_hash=content_hash[:8]) }}" class="nav-link">Links ⇄</a>
+            <a href="{{ request.url_for('benchmark_list') }}" class="nav-link">← Benchmarks</a>
+            <a href="{{ request.url_for('bibs_index') }}" class="nav-link">Bib Labels →</a>
+            <a href="{{ request.url_for('association_photo', content_hash=content_hash[:8]) }}" class="nav-link">Links ⇄</a>
             <button class="nav-btn" onclick="navigate('prev')" {{ 'disabled' if not has_prev else '' }}>← Prev</button>
             <span class="position">{{ current }} / {{ total }}</span>
             <button class="nav-btn" onclick="navigate('next')" {{ 'disabled' if not has_next else '' }}>Next →</button>
@@ -217,7 +217,7 @@
     <div class="main">
         <div class="image-panel">
             <div class="canvas-container">
-                <img id="photo" src="{{ url_for('serve_photo', content_hash=content_hash) }}" alt="Photo">
+                <img id="photo" src="{{ request.url_for('serve_photo', content_hash=content_hash) }}" alt="Photo">
                 <canvas id="canvas"></canvas>
             </div>
         </div>
@@ -284,7 +284,7 @@
             <div class="hash-display">
                 {{ content_hash[:8] }}...
                 {% if latest_run_id %}
-                <a href="{{ url_for('benchmark.benchmark_inspect', run_id=latest_run_id, hash=content_hash[:8]) }}"
+                <a href="{{ request.url_for('benchmark_inspect', run_id=latest_run_id) }}?hash={{ content_hash[:8] }}"
                    style="color: #0f9b0f; margin-left: 10px;">View in Inspector →</a>
                 {% endif %}
             </div>
@@ -296,17 +296,17 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='labeling.js') }}"></script>
+    <script src="{{ request.url_for('static', path='labeling.js') }}"></script>
     <script>
       window.PAGE_DATA = {
         split:            '{{ split }}',
         contentHash:      '{{ content_hash }}',
-        saveUrl:          '{{ url_for("face.save_face_label", content_hash=content_hash[:8]) }}',
+        saveUrl:          '{{ request.url_for("save_face_label", content_hash=content_hash[:8]) }}',
         prevUrl:          {{ prev_url|tojson }},
         nextUrl:          {{ next_url|tojson }},
         nextUnlabeledUrl: {{ next_unlabeled_url|tojson }},
-        labelsIndexUrl:   '{{ url_for("face.faces_index") }}'
+        labelsIndexUrl:   '{{ request.url_for("faces_index") }}'
       };
     </script>
-    <script src="{{ url_for('static', filename='face_labeling_ui.js') }}"></script>
+    <script src="{{ request.url_for('static', path='face_labeling_ui.js') }}"></script>
 {% endblock %}

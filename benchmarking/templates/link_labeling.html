@@ -83,8 +83,8 @@
 {% block body %}
     <div class="header">
         <div class="nav-info">
-            <a href="{{ url_for('bib.bib_photo', content_hash=content_hash[:8]) }}" class="nav-link">← Bib Labels</a>
-            <a href="{{ url_for('face.face_photo', content_hash=content_hash[:8]) }}" class="nav-link">Face Labels →</a>
+            <a href="{{ request.url_for('bib_photo', content_hash=content_hash[:8]) }}" class="nav-link">← Bib Labels</a>
+            <a href="{{ request.url_for('face_photo', content_hash=content_hash[:8]) }}" class="nav-link">Face Labels →</a>
             <button class="nav-btn" id="prevBtn"
                     {{ 'disabled' if not prev_url else '' }}
                     onclick="if('{{ prev_url }}') location.href='{{ prev_url or '' }}'">← Prev</button>
@@ -101,7 +101,7 @@
     <div class="main">
         <div class="image-panel">
             <div class="canvas-container">
-                <img id="photo" src="{{ url_for('serve_photo', content_hash=content_hash) }}" alt="Photo">
+                <img id="photo" src="{{ request.url_for('serve_photo', content_hash=content_hash) }}" alt="Photo">
                 <canvas id="canvas"></canvas>
             </div>
         </div>
@@ -167,6 +167,6 @@
         "nextUnlabeledUrl":  {{ next_unlabeled_url|tojson }}
     }
     </script>
-    <script src="{{ url_for('static', filename='labeling.js') }}"></script>
-    <script src="{{ url_for('static', filename='link_labeling_ui.js') }}"></script>
+    <script src="{{ request.url_for('static', path='labeling.js') }}"></script>
+    <script src="{{ request.url_for('static', path='link_labeling_ui.js') }}"></script>
 {% endblock %}
