@@ -221,7 +221,7 @@
         photoResults:        {{ photo_results_json | safe }},
         runId:               '{{ run.metadata.run_id }}',
         currentIdx:          {{ current_idx }},
-        editLinkBase:        '{{ url_for("bib.labels_index") }}',
+        editLinkBase:        '{{ url_for("bib.bibs_index") }}',
         photoUrlTemplate:    '{{ url_for("serve_photo", content_hash="HASH") }}',
         artifactUrlTemplate: '{{ url_for("benchmark.serve_artifact", run_id="RUN", hash_prefix="HASH", image_type="TYPE") }}',
         inspectUrl:          '{{ url_for("benchmark.benchmark_inspect", run_id=run.metadata.run_id) }}',

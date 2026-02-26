@@ -84,6 +84,11 @@ def create_app() -> Flask:
     # Shared Routes
     # -------------------------------------------------------------------------
     @app.route('/photo/<content_hash>')
+    def serve_photo_redirect(content_hash):
+        """301 shim for backward compatibility."""
+        return redirect(url_for('serve_photo', content_hash=content_hash), 301)
+
+    @app.route('/media/photos/<content_hash>')
     def serve_photo(content_hash):
         """Serve photo by content hash."""
         from benchmarking.label_utils import find_hash_by_prefix

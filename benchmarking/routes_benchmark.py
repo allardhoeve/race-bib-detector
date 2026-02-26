@@ -2,7 +2,7 @@
 
 import json
 
-from flask import Blueprint, jsonify, render_template, request, abort, send_file
+from flask import Blueprint, jsonify, render_template, request, abort, send_file, redirect, url_for
 
 from benchmarking.label_utils import filter_results
 from benchmarking.photo_index import load_photo_index
@@ -80,6 +80,12 @@ def benchmark_inspect(run_id):
 
 
 @benchmark_bp.route('/staging/')
+def staging_redirect():
+    """301 shim for backward compatibility."""
+    return redirect(url_for('benchmark.staging'), 301)
+
+
+@benchmark_bp.route('/benchmark/staging/')
 def staging():
     from benchmarking.completeness import get_all_completeness
     rows = get_all_completeness()
@@ -123,6 +129,13 @@ def api_freeze():
 
 
 @benchmark_bp.route('/artifact/<run_id>/<hash_prefix>/<image_type>')
+def serve_artifact_redirect(run_id, hash_prefix, image_type):
+    """301 shim for backward compatibility."""
+    return redirect(url_for('benchmark.serve_artifact', run_id=run_id,
+                            hash_prefix=hash_prefix, image_type=image_type), 301)
+
+
+@benchmark_bp.route('/media/artifacts/<run_id>/<hash_prefix>/<image_type>')
 def serve_artifact(run_id, hash_prefix, image_type):
     """Serve artifact image from run directory."""
     artifact_dir = RESULTS_DIR / run_id / "images" / hash_prefix

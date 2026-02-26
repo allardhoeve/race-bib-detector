@@ -77,14 +77,14 @@
                 <h2>Bib Labels</h2>
                 <p>Draw boxes around bib numbers and assign scopes.</p>
                 <span class="progress">{{ bib_labeled }} / {{ total }} labeled</span>
-                <a href="{{ url_for('bib.labels_index') }}">Start Bib Labeling →</a>
+                <a href="{{ url_for('bib.bibs_index') }}">Start Bib Labeling →</a>
             </div>
             <div class="card">
                 <span class="step-label">Step 2</span>
                 <h2>Face Labels</h2>
                 <p>Draw boxes around faces and assign identities.</p>
                 <span class="progress">{{ face_labeled }} / {{ total }} labeled</span>
-                <a href="{{ url_for('face.face_labels_index') }}">Start Face Labeling →</a>
+                <a href="{{ url_for('face.faces_index') }}">Start Face Labeling →</a>
             </div>
             <div class="card">
                 <span class="step-label">Step 3</span>
@@ -97,7 +97,7 @@
                         {{ links_labeled }} / {{ total }} linked
                     {%- endif -%}
                 </span>
-                <a href="/links/">Start Linking →</a>
+                <a href="{{ url_for('bib.associations_index') }}">Start Linking →</a>
             </div>
             <div class="card">
                 <span class="step-label">Step 4</span>

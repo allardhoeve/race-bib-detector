@@ -157,25 +157,25 @@
                     <td class="hash-col">{{ r.content_hash[:12] }}</td>
                     <td>
                         {% if r.bib_labeled %}
-                            <a href="/labels/{{ r.content_hash }}/" class="check" title="Bib labeled">&#10003;</a>
+                            <a href="{{ url_for('bib.bib_photo', content_hash=r.content_hash[:8]) }}" class="check" title="Bib labeled">&#10003;</a>
                         {% else %}
-                            <a href="/labels/{{ r.content_hash }}/" class="cross" title="Bib not labeled">&#10007;</a>
+                            <a href="{{ url_for('bib.bib_photo', content_hash=r.content_hash[:8]) }}" class="cross" title="Bib not labeled">&#10007;</a>
                         {% endif %}
                     </td>
                     <td>
                         {% if r.face_labeled %}
-                            <a href="/faces/labels/{{ r.content_hash }}/" class="check" title="Face labeled">&#10003;</a>
+                            <a href="{{ url_for('face.face_photo', content_hash=r.content_hash[:8]) }}" class="check" title="Face labeled">&#10003;</a>
                         {% else %}
-                            <a href="/faces/labels/{{ r.content_hash }}/" class="cross" title="Face not labeled">&#10007;</a>
+                            <a href="{{ url_for('face.face_photo', content_hash=r.content_hash[:8]) }}" class="cross" title="Face not labeled">&#10007;</a>
                         {% endif %}
                     </td>
                     <td>
                         {% if r.bib_box_count == 0 or r.face_box_count == 0 %}
                             <span class="dash" title="N/A — no boxes to link">—</span>
                         {% elif r.links_labeled %}
-                            <a href="/labels/{{ r.content_hash }}/" class="check" title="Links labeled">&#10003;</a>
+                            <a href="{{ url_for('bib.association_photo', content_hash=r.content_hash[:8]) }}" class="check" title="Links labeled">&#10003;</a>
                         {% else %}
-                            <a href="/labels/{{ r.content_hash }}/" class="cross" title="Links not labeled">&#10007;</a>
+                            <a href="{{ url_for('bib.association_photo', content_hash=r.content_hash[:8]) }}" class="cross" title="Links not labeled">&#10007;</a>
                         {% endif %}
                     </td>
                     <td><span class="badge {{ badge_class }}">{{ badge_label }}</span></td>
