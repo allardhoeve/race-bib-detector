@@ -5,6 +5,7 @@ import logging
 import random
 from pathlib import Path
 
+import cv2
 import numpy as np
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, abort, send_file
 
@@ -29,7 +30,37 @@ logger = logging.getLogger(__name__)
 
 PHOTOS_DIR = Path(__file__).parent.parent / "photos"
 
+# Module-level cache for the embedding index. Reset only on process restart.
+# Tests that need a fresh index should call `_embedding_index_cache.clear()`.
 _embedding_index_cache: dict[str, EmbeddingIndex] = {}
+
+
+def _get_embedding_index() -> EmbeddingIndex | None:
+    """Build or return cached embedding index. Returns None on failure."""
+    if 'index' not in _embedding_index_cache:
+        try:
+            from faces.embedder import get_face_embedder
+            embedder = get_face_embedder()
+            face_gt = load_face_ground_truth()
+            index = load_photo_index()
+            _embedding_index_cache['index'] = build_embedding_index(
+                face_gt, PHOTOS_DIR, index, embedder
+            )
+            logger.info("Built embedding index: %d faces", _embedding_index_cache['index'].size)
+        except Exception as e:
+            logger.exception("Failed to build embedding index: %s", e)
+            return None
+    return _embedding_index_cache['index']
+
+
+def _load_image_rgb(photo_path: Path):
+    """Load a photo file and return an RGB numpy array, or None on failure."""
+    image_data = photo_path.read_bytes()
+    arr = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
+    if arr is None:
+        return None
+    return cv2.cvtColor(arr, cv2.COLOR_BGR2RGB)
+
 
 face_bp = Blueprint('face', __name__)
 
@@ -244,53 +275,24 @@ def face_identity_suggestions(content_hash):
 
     k = request.args.get('k', 5, type=int)
 
-    # Build or retrieve cached embedding index
-    if 'index' not in _embedding_index_cache:
-        try:
-            from faces.embedder import get_face_embedder
-            embedder = get_face_embedder()
-            face_gt = load_face_ground_truth()
-            _embedding_index_cache['index'] = build_embedding_index(
-                face_gt, PHOTOS_DIR, index, embedder
-            )
-            logger.info(
-                "Built embedding index: %d faces",
-                _embedding_index_cache['index'].size,
-            )
-        except Exception as e:
-            logger.exception("Failed to build embedding index: %s", e)
-            return jsonify({'suggestions': []})
-
-    emb_index = _embedding_index_cache['index']
-    if emb_index.size == 0:
+    emb_index = _get_embedding_index()
+    if emb_index is None or emb_index.size == 0:
         return jsonify({'suggestions': []})
 
-    # Load photo and compute query embedding
     photo_path = get_path_for_hash(full_hash, PHOTOS_DIR, index)
     if not photo_path or not photo_path.exists():
         return jsonify({'error': 'Photo file not found'}), 404
 
-    import cv2 as _cv2
-    image_data = photo_path.read_bytes()
-    image_array = _cv2.imdecode(
-        np.frombuffer(image_data, np.uint8), _cv2.IMREAD_COLOR
-    )
-    if image_array is None:
+    image_rgb = _load_image_rgb(photo_path)
+    if image_rgb is None:
         return jsonify({'error': 'Failed to decode image'}), 500
-    image_rgb = _cv2.cvtColor(image_array, _cv2.COLOR_BGR2RGB)
-    h, w = image_rgb.shape[:2]
 
-    # Convert normalised coords to pixel bbox polygon
+    h, w = image_rgb.shape[:2]
     from geometry import rect_to_bbox
-    px = int(box_x * w)
-    py = int(box_y * h)
-    pw = int(box_w * w)
-    ph = int(box_h * h)
-    bbox = rect_to_bbox(px, py, pw, ph)
+    bbox = rect_to_bbox(int(box_x * w), int(box_y * h), int(box_w * w), int(box_h * h))
 
     from faces.embedder import get_face_embedder
-    embedder = get_face_embedder()
-    embeddings = embedder.embed(image_rgb, [bbox])
+    embeddings = get_face_embedder().embed(image_rgb, [bbox])
     if not embeddings:
         return jsonify({'suggestions': []})
 
