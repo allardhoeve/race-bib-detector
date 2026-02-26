@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 face_router = APIRouter()
 
 
-@face_router.get('/faces/labels/')
+@face_router.get('/faces/labels/', include_in_schema=False)
 async def face_labels_redirect(request: Request):
     """301 shim for backward compatibility."""
     url = str(request.url_for('faces_index'))
@@ -34,7 +34,7 @@ async def face_labels_redirect(request: Request):
     return RedirectResponse(url=url, status_code=301)
 
 
-@face_router.get('/faces/labels/{content_hash}')
+@face_router.get('/faces/labels/{content_hash}', include_in_schema=False)
 async def face_label_redirect(content_hash: str, request: Request):
     """301 shim for backward compatibility."""
     url = str(request.url_for('face_photo', content_hash=content_hash))
@@ -43,7 +43,7 @@ async def face_label_redirect(content_hash: str, request: Request):
     return RedirectResponse(url=url, status_code=301)
 
 
-@face_router.get('/faces/')
+@face_router.get('/faces/', include_in_schema=False)
 async def faces_index(request: Request, filter_type: str = Query(default='all', alias='filter')):
     """Show first photo for face labeling based on filter."""
     hashes = get_filtered_face_hashes(filter_type)
@@ -55,7 +55,7 @@ async def faces_index(request: Request, filter_type: str = Query(default='all', 
     return RedirectResponse(url=url, status_code=302)
 
 
-@face_router.get('/faces/{content_hash}')
+@face_router.get('/faces/{content_hash}', include_in_schema=False)
 async def face_photo(
     content_hash: str,
     request: Request,
@@ -130,7 +130,7 @@ async def face_photo(
     })
 
 
-@face_router.post('/api/face_labels')
+@face_router.post('/api/face_labels', include_in_schema=False)
 async def save_face_label_legacy():
     """Legacy endpoint — gone. Use PUT /api/faces/<hash>."""
     raise HTTPException(status_code=410, detail='Use PUT /api/faces/<hash>')
@@ -158,7 +158,7 @@ async def save_face_label(content_hash: str, body: dict = Body(...)):
     return {'status': 'ok'}
 
 
-@face_router.get('/api/face_boxes/{content_hash}')
+@face_router.get('/api/face_boxes/{content_hash}', include_in_schema=False)
 async def get_face_boxes_redirect(content_hash: str, request: Request):
     """308 shim for backward compatibility."""
     return RedirectResponse(
@@ -178,7 +178,7 @@ async def get_face_boxes(content_hash: str):
     return result
 
 
-@face_router.get('/api/face_identity_suggestions/{content_hash}')
+@face_router.get('/api/face_identity_suggestions/{content_hash}', include_in_schema=False)
 async def face_identity_suggestions_redirect(content_hash: str, request: Request):
     """308 shim for backward compatibility."""
     qs = ('?' + str(request.url.query)) if request.url.query else ''
@@ -212,7 +212,7 @@ async def face_identity_suggestions(
     return {'suggestions': result}
 
 
-@face_router.get('/api/face_crop/{content_hash}/{box_index}')
+@face_router.get('/api/face_crop/{content_hash}/{box_index}', include_in_schema=False)
 async def face_crop_redirect(content_hash: str, box_index: int, request: Request):
     """308 shim for backward compatibility."""
     return RedirectResponse(

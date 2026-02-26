@@ -13,14 +13,14 @@ from benchmarking.templates_env import TEMPLATES
 benchmark_router = APIRouter()
 
 
-@benchmark_router.get('/benchmark/')
+@benchmark_router.get('/benchmark/', include_in_schema=False)
 async def benchmark_list(request: Request):
     """List all benchmark runs."""
     runs = list_runs()
     return TEMPLATES.TemplateResponse(request, 'benchmark_list.html', {'runs': runs})
 
 
-@benchmark_router.get('/benchmark/staging/')
+@benchmark_router.get('/benchmark/staging/', include_in_schema=False)
 async def staging(request: Request):
     from benchmarking.completeness import get_all_completeness
     rows = get_all_completeness()
@@ -28,7 +28,7 @@ async def staging(request: Request):
     return TEMPLATES.TemplateResponse(request, 'staging.html', {'rows': rows, 'index': index})
 
 
-@benchmark_router.get('/benchmark/{run_id}/')
+@benchmark_router.get('/benchmark/{run_id}/', include_in_schema=False)
 async def benchmark_inspect(
     run_id: str,
     request: Request,
@@ -89,7 +89,7 @@ async def benchmark_inspect(
     })
 
 
-@benchmark_router.get('/staging/')
+@benchmark_router.get('/staging/', include_in_schema=False)
 async def staging_redirect(request: Request):
     """301 shim for backward compatibility."""
     return RedirectResponse(url=str(request.url_for('staging')), status_code=301)
@@ -124,7 +124,7 @@ async def api_freeze(body: dict = Body(default={})):
     return snapshot.metadata.to_dict()
 
 
-@benchmark_router.get('/artifact/{run_id}/{hash_prefix}/{image_type}')
+@benchmark_router.get('/artifact/{run_id}/{hash_prefix}/{image_type}', include_in_schema=False)
 async def serve_artifact_redirect(run_id: str, hash_prefix: str, image_type: str, request: Request):
     """301 shim for backward compatibility."""
     return RedirectResponse(
@@ -134,7 +134,7 @@ async def serve_artifact_redirect(run_id: str, hash_prefix: str, image_type: str
     )
 
 
-@benchmark_router.get('/media/artifacts/{run_id}/{hash_prefix}/{image_type}')
+@benchmark_router.get('/media/artifacts/{run_id}/{hash_prefix}/{image_type}', include_in_schema=False)
 async def serve_artifact(run_id: str, hash_prefix: str, image_type: str):
     """Serve artifact image from run directory."""
     artifact_dir = RESULTS_DIR / run_id / "images" / hash_prefix

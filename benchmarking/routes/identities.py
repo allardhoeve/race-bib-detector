@@ -25,7 +25,7 @@ async def post_identity(body: dict = Body(default={})):
     return {'identities': ids}
 
 
-@identities_router.post('/api/rename_identity')
+@identities_router.post('/api/rename_identity', include_in_schema=False)
 async def rename_identity_legacy():
     """Legacy rename endpoint — gone. Use PATCH /api/identities/<name>."""
     raise HTTPException(status_code=410, detail='Use PATCH /api/identities/<name>')

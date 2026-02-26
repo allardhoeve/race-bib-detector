@@ -19,7 +19,7 @@ from config import ITERATION_SPLIT_PROBABILITY
 bib_router = APIRouter()
 
 
-@bib_router.get('/labels/')
+@bib_router.get('/labels/', include_in_schema=False)
 async def labels_index_redirect(request: Request):
     """301 shim for backward compatibility."""
     url = str(request.url_for('bibs_index'))
@@ -28,7 +28,7 @@ async def labels_index_redirect(request: Request):
     return RedirectResponse(url=url, status_code=301)
 
 
-@bib_router.get('/bibs/')
+@bib_router.get('/bibs/', include_in_schema=False)
 async def bibs_index(request: Request, filter_type: str = Query(default='all', alias='filter')):
     """Show first photo based on filter."""
     hashes = get_filtered_hashes(filter_type)
@@ -40,7 +40,7 @@ async def bibs_index(request: Request, filter_type: str = Query(default='all', a
     return RedirectResponse(url=url, status_code=302)
 
 
-@bib_router.get('/labels/{content_hash}')
+@bib_router.get('/labels/{content_hash}', include_in_schema=False)
 async def labels_photo_redirect(content_hash: str, request: Request):
     """301 shim for backward compatibility."""
     url = str(request.url_for('bib_photo', content_hash=content_hash))
@@ -49,7 +49,7 @@ async def labels_photo_redirect(content_hash: str, request: Request):
     return RedirectResponse(url=url, status_code=301)
 
 
-@bib_router.get('/bibs/{content_hash}')
+@bib_router.get('/bibs/{content_hash}', include_in_schema=False)
 async def bib_photo(
     content_hash: str,
     request: Request,
@@ -121,7 +121,7 @@ async def bib_photo(
     })
 
 
-@bib_router.post('/api/labels')
+@bib_router.post('/api/labels', include_in_schema=False)
 async def save_label_legacy():
     """Legacy endpoint — gone. Use PUT /api/bibs/<hash>."""
     raise HTTPException(status_code=410, detail='Use PUT /api/bibs/<hash>')
@@ -152,13 +152,13 @@ async def save_bib_label(content_hash: str, body: dict = Body(...)):
     return {'status': 'ok'}
 
 
-@bib_router.get('/links/')
+@bib_router.get('/links/', include_in_schema=False)
 async def links_index_redirect(request: Request):
     """301 shim for backward compatibility."""
     return RedirectResponse(url=str(request.url_for('associations_index')), status_code=301)
 
 
-@bib_router.get('/associations/')
+@bib_router.get('/associations/', include_in_schema=False)
 async def associations_index(request: Request):
     """Show first photo for link labeling."""
     index = load_photo_index()
@@ -171,7 +171,7 @@ async def associations_index(request: Request):
     )
 
 
-@bib_router.get('/links/{content_hash}')
+@bib_router.get('/links/{content_hash}', include_in_schema=False)
 async def links_photo_redirect(content_hash: str, request: Request):
     """301 shim for backward compatibility."""
     return RedirectResponse(
@@ -180,7 +180,7 @@ async def links_photo_redirect(content_hash: str, request: Request):
     )
 
 
-@bib_router.get('/associations/{content_hash}')
+@bib_router.get('/associations/{content_hash}', include_in_schema=False)
 async def association_photo(content_hash: str, request: Request):
     """Link labeling page: associate bib boxes with face boxes."""
     from benchmarking.ground_truth import (
@@ -238,7 +238,7 @@ async def association_photo(content_hash: str, request: Request):
     })
 
 
-@bib_router.get('/api/bib_face_links/{content_hash}')
+@bib_router.get('/api/bib_face_links/{content_hash}', include_in_schema=False)
 async def get_bib_face_links_redirect(content_hash: str, request: Request):
     """308 shim for backward compatibility."""
     return RedirectResponse(
@@ -247,7 +247,7 @@ async def get_bib_face_links_redirect(content_hash: str, request: Request):
     )
 
 
-@bib_router.put('/api/bib_face_links/{content_hash}')
+@bib_router.put('/api/bib_face_links/{content_hash}', include_in_schema=False)
 async def save_bib_face_links_redirect(content_hash: str, request: Request):
     """308 shim for backward compatibility."""
     return RedirectResponse(
@@ -278,7 +278,7 @@ async def save_associations(content_hash: str, body: dict = Body(...)):
     return {'status': 'ok', 'links': saved}
 
 
-@bib_router.get('/api/bib_boxes/{content_hash}')
+@bib_router.get('/api/bib_boxes/{content_hash}', include_in_schema=False)
 async def get_bib_boxes_redirect(content_hash: str, request: Request):
     """308 shim for backward compatibility."""
     return RedirectResponse(
