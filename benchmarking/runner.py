@@ -502,63 +502,35 @@ def compute_metrics(photo_results: list[PhotoResult]) -> BenchmarkMetrics:
     )
 
 
-def run_benchmark(
-    split: str = "full",
-    verbose: bool = True,
-    note: str | None = None,
-) -> BenchmarkRun:
-    """Run benchmark on the specified split.
-
-    Args:
-        split: Which split to run ("iteration" or "full")
-        verbose: Whether to print progress
-
-    Returns:
-        BenchmarkRun with all results and metadata
-    """
-    start_time = time.time()
-
-    # Generate run ID and create results directory
-    run_id = generate_run_id()
+def _prepare_run_dirs(run_id: str) -> tuple[Path, Path]:
+    """Create and return (run_dir, images_dir) for a new benchmark run."""
     run_dir = RESULTS_DIR / run_id
     images_dir = run_dir / "images"
     run_dir.mkdir(parents=True, exist_ok=True)
     images_dir.mkdir(parents=True, exist_ok=True)
+    return run_dir, images_dir
 
-    # Load ground truth and photo index
-    gt = load_bib_ground_truth()
-    index = load_photo_index()
 
+def _validate_inputs(gt, index: dict, photos: list, split: str) -> None:
+    """Raise ValueError if GT, index, or photo list are empty."""
     if not gt.photos:
         raise ValueError("No ground truth data. Run labeling first.")
-
     if not index:
         raise ValueError("No photo index. Run 'python -m benchmarking.cli scan' first.")
-
-    # Get photos for this split
-    photos = gt.get_by_split(split)
     if not photos:
         raise ValueError(f"No photos in split '{split}'")
 
-    if verbose:
-        logger.info("Running benchmark on %s photos (split: %s)", len(photos), split)
-        logger.info("Run ID: %s", run_id)
 
-    # Initialize EasyOCR reader
-    if verbose:
-        logger.info("Initializing EasyOCR...")
-    suppress_torch_mps_pin_memory_warning()
-    reader = easyocr.Reader(["en"], gpu=torch.cuda.is_available())
-
-    # Run detection on each photo
+def _run_detection_loop(
+    reader,
+    photos: list,
+    index: dict,
+    images_dir: Path,
+    verbose: bool,
+) -> tuple[list[PhotoResult], BibScorecard]:
+    """Run detection on all photos; return results and aggregate IoU scorecard."""
     photo_results: list[PhotoResult] = []
-
-    # Accumulators for per-photo IoU scoring
-    iou_det_tp = 0
-    iou_det_fp = 0
-    iou_det_fn = 0
-    iou_ocr_correct = 0
-    iou_ocr_total = 0
+    iou_det_tp = iou_det_fp = iou_det_fn = iou_ocr_correct = iou_ocr_total = 0
 
     for i, label in enumerate(photos):
         path = get_path_for_hash(label.content_hash, PHOTOS_DIR, index)
@@ -566,24 +538,17 @@ def run_benchmark(
             if verbose:
                 logger.info(
                     "  [%s/%s] SKIP (file not found): %s...",
-                    i + 1,
-                    len(photos),
-                    label.content_hash[:8],
+                    i + 1, len(photos), label.content_hash[:8],
                 )
             continue
 
-        # Read image
         image_data = path.read_bytes()
-
-        # Create artifact directory for this photo
         photo_artifact_dir = str(images_dir / label.content_hash[:16])
 
-        # Run detection with timing and artifact saving
         detect_start = time.time()
         result = detect_bib_numbers(reader, image_data, artifact_dir=photo_artifact_dir)
         detect_time_ms = (time.time() - detect_start) * 1000
 
-        # Extract detected bib numbers as integers
         detected_bibs = []
         for det in result.detections:
             try:
@@ -591,13 +556,11 @@ def run_benchmark(
             except ValueError:
                 pass
 
-        # Compute result with artifact paths
         photo_result = compute_photo_result(label, detected_bibs, detect_time_ms)
         photo_result.artifact_paths = result.artifact_paths
         photo_result.preprocess_metadata = result.preprocess_metadata
         photo_results.append(photo_result)
 
-        # Per-photo IoU scoring: convert detection bboxes to normalised BibBoxes
         img_w, img_h = result.original_dimensions
         if img_w > 0 and img_h > 0:
             pred_boxes: list[BibBox] = []
@@ -619,19 +582,11 @@ def run_benchmark(
             status_icon = {"PASS": "✓", "PARTIAL": "◐", "MISS": "✗"}[photo_result.status]
             logger.info(
                 "  [%s/%s] %s %-7s exp=%s det=%s (%.0fms)",
-                i + 1,
-                len(photos),
-                status_icon,
-                photo_result.status,
-                photo_result.expected_bibs,
-                photo_result.detected_bibs,
-                detect_time_ms,
+                i + 1, len(photos), status_icon,
+                photo_result.status, photo_result.expected_bibs,
+                photo_result.detected_bibs, detect_time_ms,
             )
 
-    # Compute aggregate metrics
-    metrics = compute_metrics(photo_results)
-
-    # Aggregate IoU scorecard
     bib_scorecard = BibScorecard(
         detection_tp=iou_det_tp,
         detection_fp=iou_det_fp,
@@ -639,12 +594,19 @@ def run_benchmark(
         ocr_correct=iou_ocr_correct,
         ocr_total=iou_ocr_total,
     )
+    return photo_results, bib_scorecard
 
-    # Collect metadata
+
+def _build_run_metadata(
+    run_id: str,
+    split: str,
+    note: str | None,
+    start_time: float,
+) -> RunMetadata:
+    """Capture environment and pipeline configuration into RunMetadata."""
     git_commit, git_dirty = get_git_info()
     total_runtime = time.time() - start_time
 
-    # Capture pipeline configuration
     preprocess_config = PreprocessConfig()
     pipeline_config = PipelineConfig(
         target_width=preprocess_config.target_width,
@@ -667,7 +629,7 @@ def run_benchmark(
         fallback_iou_threshold=FACE_FALLBACK_IOU_THRESHOLD,
     )
 
-    metadata = RunMetadata(
+    return RunMetadata(
         run_id=run_id,
         timestamp=datetime.now().isoformat(),
         split=split,
@@ -682,6 +644,44 @@ def run_benchmark(
         face_pipeline_config=face_pipeline_config,
         note=note,
     )
+
+
+def run_benchmark(
+    split: str = "full",
+    verbose: bool = True,
+    note: str | None = None,
+) -> BenchmarkRun:
+    """Run benchmark on the specified split.
+
+    Args:
+        split: Which split to run ("iteration" or "full")
+        verbose: Whether to print progress
+
+    Returns:
+        BenchmarkRun with all results and metadata
+    """
+    start_time = time.time()
+
+    run_id = generate_run_id()
+    run_dir, images_dir = _prepare_run_dirs(run_id)
+
+    gt = load_bib_ground_truth()
+    index = load_photo_index()
+    photos = gt.get_by_split(split)
+    _validate_inputs(gt, index, photos, split)
+
+    if verbose:
+        logger.info("Running benchmark on %s photos (split: %s)", len(photos), split)
+        logger.info("Run ID: %s", run_id)
+
+    if verbose:
+        logger.info("Initializing EasyOCR...")
+    suppress_torch_mps_pin_memory_warning()
+    reader = easyocr.Reader(["en"], gpu=torch.cuda.is_available())
+
+    photo_results, bib_scorecard = _run_detection_loop(reader, photos, index, images_dir, verbose)
+    metrics = compute_metrics(photo_results)
+    metadata = _build_run_metadata(run_id, split, note, start_time)
 
     # Stub link scorecard: pipeline does not yet provide link predictions.
     # Count GT links for reporting; TP/FP = 0 until pipeline is extended.
@@ -706,7 +706,6 @@ def run_benchmark(
         link_scorecard=link_scorecard,
     )
 
-    # Always save results
     run_json_path = run_dir / "run.json"
     benchmark_run.save(run_json_path)
 
