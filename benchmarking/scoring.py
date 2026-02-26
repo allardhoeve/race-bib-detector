@@ -27,6 +27,9 @@ Box = tuple[float, float, float, float]
 def compute_iou(box_a: Box, box_b: Box) -> float:
     """Compute intersection-over-union between two (x, y, w, h) boxes.
 
+    Uses normalised (x, y, w, h) format as used throughout the benchmarking schema.
+    See also ``geometry.rect_iou`` for pixel-rect (x1, y1, x2, y2) format.
+
     Args:
         box_a: First box as (x, y, width, height).
         box_b: Second box as (x, y, width, height).
