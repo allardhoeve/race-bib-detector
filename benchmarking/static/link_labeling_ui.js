@@ -162,7 +162,7 @@
         links = [];
         updateLinkCounter();
         redraw();
-        fetch('/api/bib_face_links/' + contentHash, {
+        fetch('/api/associations/' + contentHash, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ links: [] }),
@@ -193,7 +193,7 @@
     }
 
     function saveLinks() {
-        fetch('/api/bib_face_links/' + contentHash, {
+        fetch('/api/associations/' + contentHash, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ links: links }),

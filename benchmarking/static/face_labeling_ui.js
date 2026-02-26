@@ -60,7 +60,7 @@ function fetchIdentitySuggestions(box) {
     const params = new URLSearchParams({
         box_x: box.x, box_y: box.y, box_w: box.w, box_h: box.h, k: 5
     });
-    fetch('/api/face_identity_suggestions/' + contentHash + '?' + params,
+    fetch('/api/faces/' + contentHash + '/suggestions?' + params,
           {signal: _suggestAbort.signal})
         .then(r => r.json())
         .then(data => {
@@ -73,7 +73,7 @@ function fetchIdentitySuggestions(box) {
                     const tooltip = document.createElement('span');
                     tooltip.className = 'crop-tooltip';
                     const img = document.createElement('img');
-                    img.src = '/api/face_crop/' + s.content_hash + '/' + s.box_index;
+                    img.src = '/api/faces/' + s.content_hash + '/crop/' + s.box_index;
                     img.alt = s.identity;
                     tooltip.appendChild(img);
                     chip.appendChild(tooltip);
@@ -203,7 +203,6 @@ async function save() {
     }
 
     const data = {
-        content_hash: contentHash,
         boxes: state.boxes.map(b => ({
             x: b.x, y: b.y, w: b.w, h: b.h,
             scope: b.scope || 'keep',
@@ -216,7 +215,7 @@ async function save() {
 
     try {
         const response = await fetch(PAGE_DATA.saveUrl, {
-            method: 'POST',
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
