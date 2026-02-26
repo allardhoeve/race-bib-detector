@@ -65,14 +65,20 @@ def _load_image_rgb(photo_path: Path):
 face_bp = Blueprint('face', __name__)
 
 
-@face_bp.route('/faces/')
-def faces_root():
-    """Redirect to face labels."""
-    return redirect(url_for('face.face_labels_index'))
-
-
 @face_bp.route('/faces/labels/')
-def face_labels_index():
+def face_labels_redirect():
+    """301 shim for backward compatibility."""
+    return redirect(url_for('face.faces_index', **request.args), 301)
+
+
+@face_bp.route('/faces/labels/<content_hash>')
+def face_label_redirect(content_hash):
+    """301 shim for backward compatibility."""
+    return redirect(url_for('face.face_photo', content_hash=content_hash, **request.args), 301)
+
+
+@face_bp.route('/faces/')
+def faces_index():
     """Show first photo for face labeling based on filter."""
     filter_type = request.args.get('filter', 'all')
     hashes = get_filtered_face_hashes(filter_type)
@@ -80,11 +86,11 @@ def face_labels_index():
     if not hashes:
         return render_template('empty.html')
 
-    return redirect(url_for('face.face_label_photo', content_hash=hashes[0][:8], filter=filter_type))
+    return redirect(url_for('face.face_photo', content_hash=hashes[0][:8], filter=filter_type))
 
 
-@face_bp.route('/faces/labels/<content_hash>')
-def face_label_photo(content_hash):
+@face_bp.route('/faces/<content_hash>')
+def face_photo(content_hash):
     """Label face count/tags for a specific photo."""
     filter_type = request.args.get('filter', 'all')
     hashes = get_filtered_face_hashes(filter_type)
@@ -115,8 +121,8 @@ def face_label_photo(content_hash):
     has_prev = idx > 0
     has_next = idx < total - 1
 
-    prev_url = url_for('face.face_label_photo', content_hash=hashes[idx - 1][:8], filter=filter_type) if has_prev else None
-    next_url = url_for('face.face_label_photo', content_hash=hashes[idx + 1][:8], filter=filter_type) if has_next else None
+    prev_url = url_for('face.face_photo', content_hash=hashes[idx - 1][:8], filter=filter_type) if has_prev else None
+    next_url = url_for('face.face_photo', content_hash=hashes[idx + 1][:8], filter=filter_type) if has_next else None
 
     # Find next unlabeled photo (in full sorted list, starting after current)
     all_hashes_sorted = sorted(load_photo_index().keys())
@@ -124,7 +130,7 @@ def face_label_photo(content_hash):
         fl = face_gt.get_photo(h)
         return bool(fl and is_face_labeled(fl))
     next_unlabeled_url = find_next_unlabeled_url(
-        full_hash, all_hashes_sorted, _face_is_labeled, 'face.face_label_photo', filter_type
+        full_hash, all_hashes_sorted, _face_is_labeled, 'face.face_photo', filter_type
     )
 
     runs = list_runs()

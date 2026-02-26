@@ -655,9 +655,15 @@ def freeze_client(tmp_path, monkeypatch):
 
 class TestStagingRoute:
     def test_staging_route_200(self, freeze_client):
-        """GET /staging/ returns 200."""
-        resp = freeze_client.get("/staging/")
+        """GET /benchmark/staging/ returns 200."""
+        resp = freeze_client.get("/benchmark/staging/")
         assert resp.status_code == 200
+
+    def test_old_staging_url_redirects_301(self, freeze_client):
+        """GET /staging/ redirects 301 to /benchmark/staging/."""
+        resp = freeze_client.get("/staging/")
+        assert resp.status_code == 301
+        assert "/benchmark/staging/" in resp.headers["Location"]
 
 
 class TestApiFreezeEndpoint:
@@ -700,3 +706,37 @@ class TestApiFreezeEndpoint:
             json={"name": "no-photos", "hashes": []},
         )
         assert resp.status_code == 400
+
+
+# =============================================================================
+# Task-019 URL redirect smoke tests
+# =============================================================================
+
+
+class TestTask019Redirects:
+    def test_old_labels_url_redirects_301(self, app_client):
+        """GET /labels/ returns 301 to /bibs/."""
+        resp = app_client.get("/labels/")
+        assert resp.status_code == 301
+        assert "/bibs/" in resp.headers["Location"]
+
+    def test_old_faces_labels_url_redirects_301(self, app_client):
+        """GET /faces/labels/ returns 301 to /faces/."""
+        resp = app_client.get("/faces/labels/")
+        assert resp.status_code == 301
+        assert "/faces/" in resp.headers["Location"]
+
+    def test_bibs_index_redirects(self, app_client):
+        """GET /bibs/ returns 302 redirect to first photo."""
+        resp = app_client.get("/bibs/")
+        assert resp.status_code in (200, 302)
+
+    def test_faces_index_redirects(self, app_client):
+        """GET /faces/ returns 302 redirect to first photo."""
+        resp = app_client.get("/faces/")
+        assert resp.status_code in (200, 302)
+
+    def test_associations_index_redirects(self, app_client):
+        """GET /associations/ returns 302 redirect to first photo."""
+        resp = app_client.get("/associations/")
+        assert resp.status_code in (200, 302)

@@ -49,17 +49,23 @@ def link_client(tmp_path, monkeypatch):
 
 class TestLinkPhotoRoute:
     def test_link_photo_route(self, link_client):
-        """GET /links/<hash> returns 200 and contains expected content."""
-        resp = link_client.get(f"/links/{HASH_A}")
+        """GET /associations/<hash> returns 200 and contains expected content."""
+        resp = link_client.get(f"/associations/{HASH_A}")
         assert resp.status_code == 200
         html = resp.data.decode()
         assert "page-data" in html
         assert "link_labeling_ui.js" in html
 
     def test_link_photo_unknown_hash_404(self, link_client):
-        """GET /links/<unknown> returns 404."""
-        resp = link_client.get(f"/links/{HASH_UNKNOWN}")
+        """GET /associations/<unknown> returns 404."""
+        resp = link_client.get(f"/associations/{HASH_UNKNOWN}")
         assert resp.status_code == 404
+
+    def test_old_links_photo_redirects_301(self, link_client):
+        """GET /links/<hash> returns 301 to /associations/<hash>."""
+        resp = link_client.get(f"/links/{HASH_A}")
+        assert resp.status_code == 301
+        assert f"/associations/{HASH_A}" in resp.headers["Location"]
 
 
 class TestBibFaceLinkApi:

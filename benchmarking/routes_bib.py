@@ -21,7 +21,13 @@ bib_bp = Blueprint('bib', __name__)
 
 
 @bib_bp.route('/labels/')
-def labels_index():
+def labels_index_redirect():
+    """301 shim for backward compatibility."""
+    return redirect(url_for('bib.bibs_index', **request.args), 301)
+
+
+@bib_bp.route('/bibs/')
+def bibs_index():
     """Show first photo based on filter."""
     filter_type = request.args.get('filter', 'all')
     hashes = get_filtered_hashes(filter_type)
@@ -29,11 +35,17 @@ def labels_index():
     if not hashes:
         return render_template('empty.html')
 
-    return redirect(url_for('bib.label_photo', content_hash=hashes[0][:8], filter=filter_type))
+    return redirect(url_for('bib.bib_photo', content_hash=hashes[0][:8], filter=filter_type))
 
 
 @bib_bp.route('/labels/<content_hash>')
-def label_photo(content_hash):
+def labels_photo_redirect(content_hash):
+    """301 shim for backward compatibility."""
+    return redirect(url_for('bib.bib_photo', content_hash=content_hash, **request.args), 301)
+
+
+@bib_bp.route('/bibs/<content_hash>')
+def bib_photo(content_hash):
     """Label a specific photo."""
     filter_type = request.args.get('filter', 'all')
     hashes = get_filtered_hashes(filter_type)
@@ -62,8 +74,8 @@ def label_photo(content_hash):
     has_prev = idx > 0
     has_next = idx < total - 1
 
-    prev_url = url_for('bib.label_photo', content_hash=hashes[idx - 1][:8], filter=filter_type) if has_prev else None
-    next_url = url_for('bib.label_photo', content_hash=hashes[idx + 1][:8], filter=filter_type) if has_next else None
+    prev_url = url_for('bib.bib_photo', content_hash=hashes[idx - 1][:8], filter=filter_type) if has_prev else None
+    next_url = url_for('bib.bib_photo', content_hash=hashes[idx + 1][:8], filter=filter_type) if has_next else None
 
     # Find next unlabeled photo (in full sorted list, starting after current)
     all_hashes_sorted = sorted(load_photo_index().keys())
@@ -71,7 +83,7 @@ def label_photo(content_hash):
         lbl = bib_gt.get_photo(h)
         return bool(lbl and lbl.labeled)
     next_unlabeled_url = find_next_unlabeled_url(
-        full_hash, all_hashes_sorted, _bib_is_labeled, 'bib.label_photo', filter_type
+        full_hash, all_hashes_sorted, _bib_is_labeled, 'bib.bib_photo', filter_type
     )
 
     # Get latest run ID for inspector link
@@ -137,17 +149,29 @@ def save_label():
 
 
 @bib_bp.route('/links/')
-def links_index():
+def links_index_redirect():
+    """301 shim for backward compatibility."""
+    return redirect(url_for('bib.associations_index'), 301)
+
+
+@bib_bp.route('/associations/')
+def associations_index():
     """Show first photo for link labeling."""
     index = load_photo_index()
     hashes = sorted(index.keys())
     if not hashes:
         return render_template('empty.html')
-    return redirect(url_for('bib.link_photo', content_hash=hashes[0][:8]))
+    return redirect(url_for('bib.association_photo', content_hash=hashes[0][:8]))
 
 
 @bib_bp.route('/links/<content_hash>')
-def link_photo(content_hash):
+def links_photo_redirect(content_hash):
+    """301 shim for backward compatibility."""
+    return redirect(url_for('bib.association_photo', content_hash=content_hash), 301)
+
+
+@bib_bp.route('/associations/<content_hash>')
+def association_photo(content_hash):
     """Link labeling page: associate bib boxes with face boxes."""
     from benchmarking.ground_truth import (
         load_bib_ground_truth, load_face_ground_truth, load_link_ground_truth,
@@ -180,13 +204,13 @@ def link_photo(content_hash):
         return "Photo not in index", 404
 
     total = len(all_hashes)
-    prev_url = url_for('bib.link_photo', content_hash=all_hashes[idx - 1][:8]) if idx > 0 else None
-    next_url = url_for('bib.link_photo', content_hash=all_hashes[idx + 1][:8]) if idx < total - 1 else None
+    prev_url = url_for('bib.association_photo', content_hash=all_hashes[idx - 1][:8]) if idx > 0 else None
+    next_url = url_for('bib.association_photo', content_hash=all_hashes[idx + 1][:8]) if idx < total - 1 else None
 
     next_unlabeled_url = None
     for h in all_hashes[idx + 1:]:
         if h not in link_gt.photos:
-            next_unlabeled_url = url_for('bib.link_photo', content_hash=h[:8])
+            next_unlabeled_url = url_for('bib.association_photo', content_hash=h[:8])
             break
 
     return render_template(
