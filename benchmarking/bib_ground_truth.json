@@ -2673,7 +2673,16 @@
       "labeled": true
     },
     "52e5178e3ea2488d99c537cdf282c6a6c2def78af11e676f91ae1813b62a286f": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.328051391862955,
+          "y": 0.846401028277635,
+          "w": 0.1366167023554604,
+          "h": 0.1359254498714653,
+          "number": "533",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "iteration",
       "labeled": true
