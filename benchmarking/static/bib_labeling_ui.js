@@ -78,7 +78,6 @@ document.querySelectorAll('input[name="boxScope"]').forEach(radio => {
 async function save() {
     const state = LabelingUI.getState();
     const data = {
-        content_hash: contentHash,
         boxes: state.boxes.map(b => ({
             x: b.x, y: b.y, w: b.w, h: b.h,
             number: b.number || '',
@@ -90,7 +89,7 @@ async function save() {
 
     try {
         const response = await fetch(PAGE_DATA.saveUrl, {
-            method: 'POST',
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });

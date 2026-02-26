@@ -577,8 +577,8 @@ var LabelingUI = (function () {
 
     function fetchBoxes() {
         var endpoint = state.mode === 'bib'
-            ? state.apiBase + '/api/bib_boxes/' + state.contentHash
-            : state.apiBase + '/api/face_boxes/' + state.contentHash;
+            ? state.apiBase + '/api/bibs/' + state.contentHash
+            : state.apiBase + '/api/faces/' + state.contentHash;
 
         return fetch(endpoint)
             .then(function (resp) {

@@ -66,7 +66,7 @@ def app_client(tmp_path, monkeypatch):
 class TestBibBoxApi:
     def test_get_bib_boxes_empty(self, app_client):
         """GET bib boxes for a photo with no GT returns empty boxes."""
-        resp = app_client.get(f"/api/bib_boxes/{HASH_A}")
+        resp = app_client.get(f"/api/bibs/{HASH_A}")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["boxes"] == []
@@ -78,10 +78,9 @@ class TestBibBoxApi:
             {"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4, "number": "42", "scope": "bib"},
             {"x": 0.5, "y": 0.6, "w": 0.1, "h": 0.1, "number": "7", "scope": "not_bib"},
         ]
-        save_resp = app_client.post(
-            "/api/labels",
+        save_resp = app_client.put(
+            f"/api/bibs/{HASH_A[:8]}",
             json={
-                "content_hash": HASH_A,
                 "boxes": boxes,
                 "tags": [],
                 "split": "full",
@@ -89,7 +88,7 @@ class TestBibBoxApi:
         )
         assert save_resp.status_code == 200
 
-        resp = app_client.get(f"/api/bib_boxes/{HASH_A}")
+        resp = app_client.get(f"/api/bibs/{HASH_A}")
         data = resp.get_json()
         assert len(data["boxes"]) == 2
         assert data["boxes"][0]["number"] == "42"
@@ -99,10 +98,9 @@ class TestBibBoxApi:
 
     def test_save_bibs_backward_compat(self, app_client):
         """Sending bibs as int list (no boxes) creates zero-area boxes."""
-        resp = app_client.post(
-            "/api/labels",
+        resp = app_client.put(
+            f"/api/bibs/{HASH_A[:8]}",
             json={
-                "content_hash": HASH_A,
                 "bibs": [123, 456],
                 "tags": [],
                 "split": "full",
@@ -110,7 +108,7 @@ class TestBibBoxApi:
         )
         assert resp.status_code == 200
 
-        get_resp = app_client.get(f"/api/bib_boxes/{HASH_A}")
+        get_resp = app_client.get(f"/api/bibs/{HASH_A}")
         data = get_resp.get_json()
         assert len(data["boxes"]) == 2
         numbers = {b["number"] for b in data["boxes"]}
@@ -131,21 +129,20 @@ class TestBibBoxApi:
         )
         save_suggestion_store(store)
 
-        resp = app_client.get(f"/api/bib_boxes/{HASH_A}")
+        resp = app_client.get(f"/api/bibs/{HASH_A}")
         data = resp.get_json()
         assert len(data["suggestions"]) == 1
         assert data["suggestions"][0]["number"] == "99"
         assert data["suggestions"][0]["confidence"] == pytest.approx(0.9)
 
     def test_get_bib_boxes_unknown_hash_404(self, app_client):
-        resp = app_client.get(f"/api/bib_boxes/{HASH_UNKNOWN}")
+        resp = app_client.get(f"/api/bibs/{HASH_UNKNOWN}")
         assert resp.status_code == 404
 
     def test_save_invalid_scope_400(self, app_client):
-        resp = app_client.post(
-            "/api/labels",
+        resp = app_client.put(
+            f"/api/bibs/{HASH_A[:8]}",
             json={
-                "content_hash": HASH_A,
                 "boxes": [{"x": 0, "y": 0, "w": 0.1, "h": 0.1, "number": "1", "scope": "invalid_scope"}],
                 "tags": [],
                 "split": "full",
@@ -155,19 +152,28 @@ class TestBibBoxApi:
 
     def test_bib_boxes_include_split(self, app_client):
         """GET bib boxes includes split info."""
-        app_client.post(
-            "/api/labels",
+        app_client.put(
+            f"/api/bibs/{HASH_A[:8]}",
             json={
-                "content_hash": HASH_A,
                 "boxes": [],
                 "tags": ["no_bib"],
                 "split": "iteration",
             },
         )
-        resp = app_client.get(f"/api/bib_boxes/{HASH_A}")
+        resp = app_client.get(f"/api/bibs/{HASH_A}")
         data = resp.get_json()
         assert data["split"] == "iteration"
         assert "no_bib" in data["tags"]
+
+    def test_old_bib_boxes_url_redirects_308(self, app_client):
+        """GET /api/bib_boxes/<hash> returns 308 redirect."""
+        resp = app_client.get(f"/api/bib_boxes/{HASH_A}")
+        assert resp.status_code == 308
+
+    def test_old_save_label_returns_410(self, app_client):
+        """POST /api/labels returns 410 Gone."""
+        resp = app_client.post("/api/labels", json={"content_hash": HASH_A, "boxes": []})
+        assert resp.status_code == 410
 
 
 # =============================================================================
@@ -177,7 +183,7 @@ class TestBibBoxApi:
 
 class TestFaceBoxApi:
     def test_get_face_boxes_empty(self, app_client):
-        resp = app_client.get(f"/api/face_boxes/{HASH_A}")
+        resp = app_client.get(f"/api/faces/{HASH_A}")
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["boxes"] == []
@@ -187,13 +193,13 @@ class TestFaceBoxApi:
             {"x": 0.1, "y": 0.2, "w": 0.15, "h": 0.2, "scope": "keep", "identity": "Alice"},
             {"x": 0.5, "y": 0.3, "w": 0.1, "h": 0.15, "scope": "exclude"},
         ]
-        save_resp = app_client.post(
-            "/api/face_labels",
-            json={"content_hash": HASH_A, "boxes": boxes, "face_tags": []},
+        save_resp = app_client.put(
+            f"/api/faces/{HASH_A[:8]}",
+            json={"boxes": boxes, "face_tags": []},
         )
         assert save_resp.status_code == 200
 
-        resp = app_client.get(f"/api/face_boxes/{HASH_A}")
+        resp = app_client.get(f"/api/faces/{HASH_A}")
         data = resp.get_json()
         assert len(data["boxes"]) == 2
         assert data["boxes"][0]["scope"] == "keep"
@@ -202,13 +208,13 @@ class TestFaceBoxApi:
 
     def test_save_face_backward_compat(self, app_client):
         """Sending face_count without boxes keeps current behavior (compat tags)."""
-        resp = app_client.post(
-            "/api/face_labels",
-            json={"content_hash": HASH_A, "face_count": 3, "face_tags": ["face_tiny_faces"]},
+        resp = app_client.put(
+            f"/api/faces/{HASH_A[:8]}",
+            json={"face_count": 3, "face_tags": ["face_tiny_faces"]},
         )
         assert resp.status_code == 200
 
-        get_resp = app_client.get(f"/api/face_boxes/{HASH_A}")
+        get_resp = app_client.get(f"/api/faces/{HASH_A}")
         data = get_resp.get_json()
         assert "face_tiny_faces" in data["tags"]
 
@@ -218,13 +224,13 @@ class TestFaceBoxApi:
             {"x": 0.1, "y": 0.2, "w": 0.15, "h": 0.2, "scope": "keep", "tags": ["tiny", "blurry"]},
             {"x": 0.5, "y": 0.3, "w": 0.1, "h": 0.15, "scope": "exclude", "tags": ["profile"]},
         ]
-        save_resp = app_client.post(
-            "/api/face_labels",
-            json={"content_hash": HASH_A, "boxes": boxes, "face_tags": ["no_faces"]},
+        save_resp = app_client.put(
+            f"/api/faces/{HASH_A[:8]}",
+            json={"boxes": boxes, "face_tags": ["no_faces"]},
         )
         assert save_resp.status_code == 200
 
-        resp = app_client.get(f"/api/face_boxes/{HASH_A}")
+        resp = app_client.get(f"/api/faces/{HASH_A}")
         data = resp.get_json()
         assert len(data["boxes"]) == 2
         assert data["boxes"][0]["tags"] == ["tiny", "blurry"]
@@ -233,10 +239,9 @@ class TestFaceBoxApi:
 
     def test_save_face_box_invalid_tag_400(self, app_client):
         """Invalid per-box tag returns 400."""
-        resp = app_client.post(
-            "/api/face_labels",
+        resp = app_client.put(
+            f"/api/faces/{HASH_A[:8]}",
             json={
-                "content_hash": HASH_A,
                 "boxes": [{"x": 0, "y": 0, "w": 0.1, "h": 0.1, "scope": "keep", "tags": ["invalid"]}],
                 "face_tags": [],
             },
@@ -246,11 +251,11 @@ class TestFaceBoxApi:
     def test_face_boxes_empty_tags_omitted(self, app_client):
         """Boxes with no tags don't include tags key in response."""
         boxes = [{"x": 0.1, "y": 0.2, "w": 0.15, "h": 0.2, "scope": "keep"}]
-        app_client.post(
-            "/api/face_labels",
-            json={"content_hash": HASH_A, "boxes": boxes, "face_tags": []},
+        app_client.put(
+            f"/api/faces/{HASH_A[:8]}",
+            json={"boxes": boxes, "face_tags": []},
         )
-        resp = app_client.get(f"/api/face_boxes/{HASH_A}")
+        resp = app_client.get(f"/api/faces/{HASH_A}")
         data = resp.get_json()
         # Box should have no "tags" key when empty (FaceBox.to_dict omits it)
         assert "tags" not in data["boxes"][0]
@@ -265,25 +270,34 @@ class TestFaceBoxApi:
         )
         save_suggestion_store(store)
 
-        resp = app_client.get(f"/api/face_boxes/{HASH_A}")
+        resp = app_client.get(f"/api/faces/{HASH_A}")
         data = resp.get_json()
         assert len(data["suggestions"]) == 1
         assert data["suggestions"][0]["confidence"] == pytest.approx(0.85)
 
     def test_get_face_boxes_unknown_hash_404(self, app_client):
-        resp = app_client.get(f"/api/face_boxes/{HASH_UNKNOWN}")
+        resp = app_client.get(f"/api/faces/{HASH_UNKNOWN}")
         assert resp.status_code == 404
 
     def test_save_invalid_scope_400(self, app_client):
-        resp = app_client.post(
-            "/api/face_labels",
+        resp = app_client.put(
+            f"/api/faces/{HASH_A[:8]}",
             json={
-                "content_hash": HASH_A,
                 "boxes": [{"x": 0, "y": 0, "w": 0.1, "h": 0.1, "scope": "bad_scope"}],
                 "face_tags": [],
             },
         )
         assert resp.status_code == 400
+
+    def test_old_face_boxes_url_redirects_308(self, app_client):
+        """GET /api/face_boxes/<hash> returns 308 redirect."""
+        resp = app_client.get(f"/api/face_boxes/{HASH_A}")
+        assert resp.status_code == 308
+
+    def test_old_save_face_label_returns_410(self, app_client):
+        """POST /api/face_labels returns 410 Gone."""
+        resp = app_client.post("/api/face_labels", json={"content_hash": HASH_A, "boxes": []})
+        assert resp.status_code == 410
 
 
 # =============================================================================
@@ -328,20 +342,17 @@ class TestIdentitiesApi:
 
 class TestRenameIdentityApi:
     def test_rename_missing_params_400(self, app_client):
-        """No body / missing fields returns 400."""
-        resp = app_client.post("/api/rename_identity", json={})
+        """Missing new_name returns 400."""
+        resp = app_client.patch("/api/identities/Alice", json={})
         assert resp.status_code == 400
 
-        resp = app_client.post("/api/rename_identity", json={"old_name": "Alice"})
-        assert resp.status_code == 400
-
-        resp = app_client.post("/api/rename_identity", json={"new_name": "Bob"})
+        resp = app_client.patch("/api/identities/Alice", json={"new_name": ""})
         assert resp.status_code == 400
 
     def test_rename_same_name_400(self, app_client):
         """old == new returns 400."""
-        resp = app_client.post(
-            "/api/rename_identity", json={"old_name": "Alice", "new_name": "Alice"}
+        resp = app_client.patch(
+            "/api/identities/Alice", json={"new_name": "Alice"}
         )
         assert resp.status_code == 400
 
@@ -352,34 +363,33 @@ class TestRenameIdentityApi:
             {"x": 0.1, "y": 0.2, "w": 0.15, "h": 0.2, "scope": "keep", "identity": "anon-1"},
             {"x": 0.5, "y": 0.3, "w": 0.1, "h": 0.15, "scope": "keep", "identity": "Bob"},
         ]
-        app_client.post(
-            "/api/face_labels",
-            json={"content_hash": HASH_A, "boxes": boxes, "face_tags": []},
+        app_client.put(
+            f"/api/faces/{HASH_A[:8]}",
+            json={"boxes": boxes, "face_tags": []},
         )
         # Also save for HASH_B with anon-1
-        app_client.post(
-            "/api/face_labels",
+        app_client.put(
+            f"/api/faces/{HASH_B[:8]}",
             json={
-                "content_hash": HASH_B,
                 "boxes": [{"x": 0.2, "y": 0.3, "w": 0.1, "h": 0.1, "scope": "keep", "identity": "anon-1"}],
                 "face_tags": [],
             },
         )
 
-        resp = app_client.post(
-            "/api/rename_identity", json={"old_name": "anon-1", "new_name": "Alice"}
+        resp = app_client.patch(
+            "/api/identities/anon-1", json={"new_name": "Alice"}
         )
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["updated_count"] == 2  # one in HASH_A, one in HASH_B
 
         # Verify boxes are updated
-        resp_a = app_client.get(f"/api/face_boxes/{HASH_A}")
+        resp_a = app_client.get(f"/api/faces/{HASH_A}")
         boxes_a = resp_a.get_json()["boxes"]
         assert boxes_a[0]["identity"] == "Alice"
         assert boxes_a[1]["identity"] == "Bob"  # unchanged
 
-        resp_b = app_client.get(f"/api/face_boxes/{HASH_B}")
+        resp_b = app_client.get(f"/api/faces/{HASH_B}")
         boxes_b = resp_b.get_json()["boxes"]
         assert boxes_b[0]["identity"] == "Alice"
 
@@ -388,8 +398,8 @@ class TestRenameIdentityApi:
         app_client.post("/api/identities", json={"name": "anon-1"})
         app_client.post("/api/identities", json={"name": "Bob"})
 
-        resp = app_client.post(
-            "/api/rename_identity", json={"old_name": "anon-1", "new_name": "Alice"}
+        resp = app_client.patch(
+            "/api/identities/anon-1", json={"new_name": "Alice"}
         )
         assert resp.status_code == 200
         ids = resp.get_json()["identities"]
@@ -401,14 +411,19 @@ class TestRenameIdentityApi:
         """Rename an identity that has no boxes returns updated_count=0."""
         app_client.post("/api/identities", json={"name": "anon-5"})
 
-        resp = app_client.post(
-            "/api/rename_identity", json={"old_name": "anon-5", "new_name": "Carol"}
+        resp = app_client.patch(
+            "/api/identities/anon-5", json={"new_name": "Carol"}
         )
         assert resp.status_code == 200
         data = resp.get_json()
         assert data["updated_count"] == 0
         assert "Carol" in data["identities"]
         assert "anon-5" not in data["identities"]
+
+    def test_old_rename_identity_returns_410(self, app_client):
+        """POST /api/rename_identity returns 410 Gone."""
+        resp = app_client.post("/api/rename_identity", json={"old_name": "A", "new_name": "B"})
+        assert resp.status_code == 410
 
 
 # =============================================================================
@@ -419,12 +434,12 @@ class TestRenameIdentityApi:
 class TestFaceIdentitySuggestions:
     def test_missing_params_400(self, app_client):
         """Missing box coordinates returns 400."""
-        resp = app_client.get(f"/api/face_identity_suggestions/{HASH_A}")
+        resp = app_client.get(f"/api/faces/{HASH_A}/suggestions")
         assert resp.status_code == 400
 
     def test_unknown_hash_404(self, app_client):
         resp = app_client.get(
-            f"/api/face_identity_suggestions/{HASH_UNKNOWN}"
+            f"/api/faces/{HASH_UNKNOWN}/suggestions"
             "?box_x=0.1&box_y=0.2&box_w=0.3&box_h=0.4"
         )
         assert resp.status_code == 404
@@ -443,7 +458,7 @@ class TestFaceIdentitySuggestions:
         )
 
         resp = app_client.get(
-            f"/api/face_identity_suggestions/{HASH_A}"
+            f"/api/faces/{HASH_A}/suggestions"
             "?box_x=0.1&box_y=0.2&box_w=0.3&box_h=0.4"
         )
         assert resp.status_code == 200
@@ -504,52 +519,49 @@ def crop_client(tmp_path, monkeypatch):
 
 class TestFaceCropApi:
     def test_unknown_hash_404(self, crop_client):
-        resp = crop_client.get(f"/api/face_crop/{HASH_UNKNOWN}/0")
+        resp = crop_client.get(f"/api/faces/{HASH_UNKNOWN}/crop/0")
         assert resp.status_code == 404
 
     def test_no_face_gt_404(self, crop_client):
         """Hash exists in index but has no face GT entry."""
-        resp = crop_client.get(f"/api/face_crop/{HASH_A}/0")
+        resp = crop_client.get(f"/api/faces/{HASH_A}/crop/0")
         assert resp.status_code == 404
 
     def test_box_index_out_of_range_404(self, crop_client):
         """Box index beyond available boxes."""
         # Save a face label with one box
-        crop_client.post(
-            "/api/face_labels",
+        crop_client.put(
+            f"/api/faces/{HASH_A[:8]}",
             json={
-                "content_hash": HASH_A,
                 "boxes": [{"x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "scope": "keep"}],
                 "face_tags": [],
             },
         )
-        resp = crop_client.get(f"/api/face_crop/{HASH_A}/5")
+        resp = crop_client.get(f"/api/faces/{HASH_A}/crop/5")
         assert resp.status_code == 404
 
     def test_zero_area_box_404(self, crop_client):
         """Box with zero-area coords returns 404."""
-        crop_client.post(
-            "/api/face_labels",
+        crop_client.put(
+            f"/api/faces/{HASH_A[:8]}",
             json={
-                "content_hash": HASH_A,
                 "boxes": [{"x": 0, "y": 0, "w": 0, "h": 0, "scope": "keep"}],
                 "face_tags": [],
             },
         )
-        resp = crop_client.get(f"/api/face_crop/{HASH_A}/0")
+        resp = crop_client.get(f"/api/faces/{HASH_A}/crop/0")
         assert resp.status_code == 404
 
     def test_success_returns_jpeg(self, crop_client):
         """Valid hash + box_index returns a cropped JPEG."""
-        crop_client.post(
-            "/api/face_labels",
+        crop_client.put(
+            f"/api/faces/{HASH_A[:8]}",
             json={
-                "content_hash": HASH_A,
                 "boxes": [{"x": 0.1, "y": 0.1, "w": 0.5, "h": 0.5, "scope": "keep"}],
                 "face_tags": [],
             },
         )
-        resp = crop_client.get(f"/api/face_crop/{HASH_A}/0")
+        resp = crop_client.get(f"/api/faces/{HASH_A}/crop/0")
         assert resp.status_code == 200
         assert resp.content_type == "image/jpeg"
 
@@ -573,19 +585,17 @@ class TestHomeRoute:
     def test_home_route_shows_progress(self, app_client):
         """Home page shows per-step labeled counts based on saved GT data."""
         # Save one bib label and one face label via the API
-        app_client.post(
-            "/api/labels",
+        app_client.put(
+            f"/api/bibs/{HASH_A[:8]}",
             json={
-                "content_hash": HASH_A,
                 "boxes": [{"x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "number": "42", "scope": "bib"}],
                 "tags": [],
                 "split": "full",
             },
         )
-        app_client.post(
-            "/api/face_labels",
+        app_client.put(
+            f"/api/faces/{HASH_A[:8]}",
             json={
-                "content_hash": HASH_A,
                 "boxes": [{"x": 0.1, "y": 0.1, "w": 0.2, "h": 0.2, "scope": "keep"}],
                 "face_tags": [],
             },

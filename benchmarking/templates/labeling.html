@@ -239,7 +239,7 @@
       window.PAGE_DATA = {
         split:            '{{ split }}',
         contentHash:      '{{ content_hash }}',
-        saveUrl:          '{{ url_for("bib.save_label") }}',
+        saveUrl:          '{{ url_for("bib.save_bib_label", content_hash=content_hash[:8]) }}',
         prevUrl:          {{ prev_url|tojson }},
         nextUrl:          {{ next_url|tojson }},
         nextUnlabeledUrl: {{ next_unlabeled_url|tojson }},

@@ -110,20 +110,26 @@ def bib_photo(content_hash):
 
 
 @bib_bp.route('/api/labels', methods=['POST'])
-def save_label():
-    """Save a photo label.
+def save_label_legacy():
+    """Legacy endpoint — gone. Use PUT /api/bibs/<hash>."""
+    return jsonify({'error': 'Use PUT /api/bibs/<hash>'}), 410
+
+
+@bib_bp.route('/api/bibs/<content_hash>', methods=['PUT'])
+def save_bib_label(content_hash):
+    """Save bib boxes + tags + split for a photo. Replaces all existing data.
 
     Accepts either ``boxes`` (list of {x,y,w,h,number,scope} dicts) or
     the legacy ``bibs`` (list of ints) for backward compatibility.
     """
     data = request.get_json()
-
-    content_hash = data.get('content_hash')
     tags = data.get('tags', [])
     split = data.get('split', 'full')
 
-    if not content_hash:
-        return jsonify({'error': 'Missing content_hash'}), 400
+    index = load_photo_index()
+    full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
+    if not full_hash:
+        return jsonify({'error': 'Photo not found'}), 404
 
     try:
         bib_gt = load_bib_ground_truth()
@@ -133,7 +139,7 @@ def save_label():
             bibs = data.get('bibs', [])
             boxes = [BibBox(x=0, y=0, w=0, h=0, number=str(b), scope="bib") for b in bibs]
         label = BibPhotoLabel(
-            content_hash=content_hash,
+            content_hash=full_hash,
             boxes=boxes,
             tags=tags,
             split=split,
@@ -230,7 +236,19 @@ def association_photo(content_hash):
 
 
 @bib_bp.route('/api/bib_face_links/<content_hash>', methods=['GET'])
-def get_bib_face_links(content_hash):
+def get_bib_face_links_redirect(content_hash):
+    """308 shim for backward compatibility."""
+    return redirect(url_for('bib.get_associations', content_hash=content_hash), 308)
+
+
+@bib_bp.route('/api/bib_face_links/<content_hash>', methods=['PUT'])
+def save_bib_face_links_redirect(content_hash):
+    """308 shim for backward compatibility."""
+    return redirect(url_for('bib.save_associations', content_hash=content_hash), 308)
+
+
+@bib_bp.route('/api/associations/<content_hash>', methods=['GET'])
+def get_associations(content_hash):
     """Return the bib-face links for a photo.
 
     Response: {"links": [[bib_index, face_index], ...]}
@@ -245,8 +263,8 @@ def get_bib_face_links(content_hash):
     return jsonify({"links": [lnk.to_pair() for lnk in links]})
 
 
-@bib_bp.route('/api/bib_face_links/<content_hash>', methods=['PUT'])
-def save_bib_face_links(content_hash):
+@bib_bp.route('/api/associations/<content_hash>', methods=['PUT'])
+def save_associations(content_hash):
     """Save the bib-face links for a photo. Replaces all existing links.
 
     Request body: {"links": [[bib_index, face_index], ...]}
@@ -277,6 +295,12 @@ def save_bib_face_links(content_hash):
 
 
 @bib_bp.route('/api/bib_boxes/<content_hash>')
+def get_bib_boxes_redirect(content_hash):
+    """308 shim for backward compatibility."""
+    return redirect(url_for('bib.get_bib_boxes', content_hash=content_hash), 308)
+
+
+@bib_bp.route('/api/bibs/<content_hash>', methods=['GET'])
 def get_bib_boxes(content_hash):
     """Get bib boxes, suggestions, tags, split, and labeled status."""
     index = load_photo_index()

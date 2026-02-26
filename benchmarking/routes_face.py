@@ -157,19 +157,25 @@ def face_photo(content_hash):
 
 
 @face_bp.route('/api/face_labels', methods=['POST'])
-def save_face_label():
-    """Save face boxes/tags for a photo label.
+def save_face_label_legacy():
+    """Legacy endpoint — gone. Use PUT /api/faces/<hash>."""
+    return jsonify({'error': 'Use PUT /api/faces/<hash>'}), 410
+
+
+@face_bp.route('/api/faces/<content_hash>', methods=['PUT'])
+def save_face_label(content_hash):
+    """Save face boxes/tags for a photo label. Replaces all existing data.
 
     Accepts ``boxes`` (list of {x,y,w,h,scope,identity} dicts) or
     falls back to empty boxes for backward compatibility.
     """
     data = request.get_json()
-
-    content_hash = data.get('content_hash')
     face_tags = data.get('face_tags', [])
 
-    if not content_hash:
-        return jsonify({'error': 'Missing content_hash'}), 400
+    index = load_photo_index()
+    full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
+    if not full_hash:
+        return jsonify({'error': 'Photo not found'}), 404
 
     try:
         face_gt = load_face_ground_truth()
@@ -178,7 +184,7 @@ def save_face_label():
         else:
             boxes = []
         label = FacePhotoLabel(
-            content_hash=content_hash,
+            content_hash=full_hash,
             boxes=boxes,
             tags=face_tags,
         )
@@ -192,6 +198,12 @@ def save_face_label():
 
 
 @face_bp.route('/api/face_boxes/<content_hash>')
+def get_face_boxes_redirect(content_hash):
+    """308 shim for backward compatibility."""
+    return redirect(url_for('face.get_face_boxes', content_hash=content_hash), 308)
+
+
+@face_bp.route('/api/faces/<content_hash>', methods=['GET'])
 def get_face_boxes(content_hash):
     """Get face boxes, suggestions, and tags."""
     index = load_photo_index()
@@ -236,10 +248,19 @@ def post_identity():
 
 
 @face_bp.route('/api/rename_identity', methods=['POST'])
-def rename_identity_api():
-    """Rename an identity across all face GT entries and the identities list."""
+def rename_identity_legacy():
+    """Legacy endpoint — gone. Use PATCH /api/identities/<name>."""
+    return jsonify({'error': 'Use PATCH /api/identities/<name>'}), 410
+
+
+@face_bp.route('/api/identities/<name>', methods=['PATCH'])
+def patch_identity(name):
+    """Rename an identity across all face GT entries and the identities list.
+
+    Body: {"new_name": "..."}
+    """
     data = request.get_json() or {}
-    old_name = (data.get('old_name') or '').strip()
+    old_name = name.strip()
     new_name = (data.get('new_name') or '').strip()
 
     if not old_name or not new_name:
@@ -264,6 +285,13 @@ def rename_identity_api():
 
 
 @face_bp.route('/api/face_identity_suggestions/<content_hash>')
+def face_identity_suggestions_redirect(content_hash):
+    """308 shim for backward compatibility."""
+    qs = ('?' + request.query_string.decode()) if request.query_string else ''
+    return redirect(url_for('face.face_identity_suggestions', content_hash=content_hash) + qs, 308)
+
+
+@face_bp.route('/api/faces/<content_hash>/suggestions')
 def face_identity_suggestions(content_hash):
     """Suggest identities for a face box using embedding similarity."""
     index = load_photo_index()
@@ -307,6 +335,12 @@ def face_identity_suggestions(content_hash):
 
 
 @face_bp.route('/api/face_crop/<content_hash>/<int:box_index>')
+def face_crop_redirect(content_hash, box_index):
+    """308 shim for backward compatibility."""
+    return redirect(url_for('face.face_crop', content_hash=content_hash, box_index=box_index), 308)
+
+
+@face_bp.route('/api/faces/<content_hash>/crop/<int:box_index>')
 def face_crop(content_hash, box_index):
     """Return a JPEG crop of a labeled face box."""
     index = load_photo_index()

@@ -71,14 +71,14 @@ class TestLinkPhotoRoute:
 class TestBibFaceLinkApi:
     def test_get_links_no_data(self, link_client):
         """GET for a hash with no links returns empty list."""
-        resp = link_client.get(f"/api/bib_face_links/{HASH_A}")
+        resp = link_client.get(f"/api/associations/{HASH_A}")
         assert resp.status_code == 200
         assert resp.get_json() == {"links": []}
 
     def test_put_and_get_links(self, link_client):
         """PUT links, then GET returns same list."""
         resp = link_client.put(
-            f"/api/bib_face_links/{HASH_A}",
+            f"/api/associations/{HASH_A}",
             json={"links": [[0, 1], [2, 0]]},
         )
         assert resp.status_code == 200
@@ -86,32 +86,32 @@ class TestBibFaceLinkApi:
         assert data["status"] == "ok"
         assert data["links"] == [[0, 1], [2, 0]]
 
-        get_resp = link_client.get(f"/api/bib_face_links/{HASH_A}")
+        get_resp = link_client.get(f"/api/associations/{HASH_A}")
         assert get_resp.status_code == 200
         assert get_resp.get_json()["links"] == [[0, 1], [2, 0]]
 
     def test_put_links_replaces_all(self, link_client):
         """Second PUT fully replaces first."""
         link_client.put(
-            f"/api/bib_face_links/{HASH_A}",
+            f"/api/associations/{HASH_A}",
             json={"links": [[0, 1], [1, 2]]},
         )
         link_client.put(
-            f"/api/bib_face_links/{HASH_A}",
+            f"/api/associations/{HASH_A}",
             json={"links": [[3, 4]]},
         )
-        resp = link_client.get(f"/api/bib_face_links/{HASH_A}")
+        resp = link_client.get(f"/api/associations/{HASH_A}")
         assert resp.get_json()["links"] == [[3, 4]]
 
     def test_get_links_unknown_hash_404(self, link_client):
         """GET for unknown hash returns 404."""
-        resp = link_client.get(f"/api/bib_face_links/{HASH_UNKNOWN}")
+        resp = link_client.get(f"/api/associations/{HASH_UNKNOWN}")
         assert resp.status_code == 404
 
     def test_put_links_unknown_hash_404(self, link_client):
         """PUT for unknown hash returns 404."""
         resp = link_client.put(
-            f"/api/bib_face_links/{HASH_UNKNOWN}",
+            f"/api/associations/{HASH_UNKNOWN}",
             json={"links": [[0, 1]]},
         )
         assert resp.status_code == 404
@@ -119,7 +119,7 @@ class TestBibFaceLinkApi:
     def test_put_links_invalid_json(self, link_client):
         """PUT with malformed JSON body returns 400."""
         resp = link_client.put(
-            f"/api/bib_face_links/{HASH_A}",
+            f"/api/associations/{HASH_A}",
             data="not json",
             content_type="application/json",
         )
@@ -128,12 +128,17 @@ class TestBibFaceLinkApi:
     def test_put_links_empty(self, link_client):
         """PUT empty list clears all links."""
         link_client.put(
-            f"/api/bib_face_links/{HASH_A}",
+            f"/api/associations/{HASH_A}",
             json={"links": [[0, 1]]},
         )
         link_client.put(
-            f"/api/bib_face_links/{HASH_A}",
+            f"/api/associations/{HASH_A}",
             json={"links": []},
         )
-        resp = link_client.get(f"/api/bib_face_links/{HASH_A}")
+        resp = link_client.get(f"/api/associations/{HASH_A}")
         assert resp.get_json()["links"] == []
+
+    def test_old_bib_face_links_get_redirects_308(self, link_client):
+        """GET /api/bib_face_links/<hash> returns 308 redirect."""
+        resp = link_client.get(f"/api/bib_face_links/{HASH_A}")
+        assert resp.status_code == 308
