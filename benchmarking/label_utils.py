@@ -3,6 +3,8 @@
 These functions have no Flask dependencies and operate on ground truth data only.
 """
 
+from typing import Callable
+
 from benchmarking.ground_truth import (
     FacePhotoLabel,
     load_bib_ground_truth,
@@ -60,6 +62,25 @@ def get_filtered_face_hashes(filter_type: str) -> list[str]:
         return sorted(all_hashes & labeled_hashes)
     else:
         return sorted(all_hashes)
+
+
+def find_next_unlabeled_url(
+    full_hash: str,
+    all_hashes_sorted: list[str],
+    is_labeled_fn: Callable[[str], bool],
+    endpoint: str,
+    filter_type: str,
+) -> str | None:
+    """Return url_for the next unlabeled photo after full_hash, or None."""
+    from flask import url_for
+    try:
+        all_idx = all_hashes_sorted.index(full_hash)
+        for h in all_hashes_sorted[all_idx + 1:]:
+            if not is_labeled_fn(h):
+                return url_for(endpoint, content_hash=h[:8], filter=filter_type)
+    except ValueError:
+        pass
+    return None
 
 
 def find_hash_by_prefix(prefix: str, hashes) -> str | None:

@@ -20,7 +20,7 @@ from benchmarking.ground_truth import (
     FACE_BOX_TAGS,
 )
 from benchmarking.identities import load_identities, add_identity, rename_identity
-from benchmarking.label_utils import get_filtered_face_hashes, find_hash_by_prefix, is_face_labeled
+from benchmarking.label_utils import get_filtered_face_hashes, find_hash_by_prefix, find_next_unlabeled_url, is_face_labeled
 from benchmarking.photo_index import load_photo_index, get_path_for_hash
 from benchmarking.runner import list_runs
 from config import ITERATION_SPLIT_PROBABILITY
@@ -89,16 +89,12 @@ def face_label_photo(content_hash):
 
     # Find next unlabeled photo (in full sorted list, starting after current)
     all_hashes_sorted = sorted(load_photo_index().keys())
-    next_unlabeled_url = None
-    try:
-        all_idx = all_hashes_sorted.index(full_hash)
-        for h in all_hashes_sorted[all_idx + 1:]:
-            fl = face_gt.get_photo(h)
-            if not fl or not is_face_labeled(fl):
-                next_unlabeled_url = url_for('face.face_label_photo', content_hash=h[:8], filter=filter_type)
-                break
-    except ValueError:
-        pass
+    def _face_is_labeled(h: str) -> bool:
+        fl = face_gt.get_photo(h)
+        return bool(fl and is_face_labeled(fl))
+    next_unlabeled_url = find_next_unlabeled_url(
+        full_hash, all_hashes_sorted, _face_is_labeled, 'face.face_label_photo', filter_type
+    )
 
     runs = list_runs()
     latest_run_id = runs[0]['run_id'] if runs else None

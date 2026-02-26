@@ -12,7 +12,7 @@ from benchmarking.ground_truth import (
     ALLOWED_TAGS,
 )
 from benchmarking.ghost import load_suggestion_store
-from benchmarking.label_utils import get_filtered_hashes, find_hash_by_prefix
+from benchmarking.label_utils import get_filtered_hashes, find_hash_by_prefix, find_next_unlabeled_url
 from benchmarking.photo_index import load_photo_index
 from benchmarking.runner import list_runs
 from config import ITERATION_SPLIT_PROBABILITY
@@ -67,16 +67,12 @@ def label_photo(content_hash):
 
     # Find next unlabeled photo (in full sorted list, starting after current)
     all_hashes_sorted = sorted(load_photo_index().keys())
-    next_unlabeled_url = None
-    try:
-        all_idx = all_hashes_sorted.index(full_hash)
-        for h in all_hashes_sorted[all_idx + 1:]:
-            lbl = bib_gt.get_photo(h)
-            if not lbl or not lbl.labeled:
-                next_unlabeled_url = url_for('bib.label_photo', content_hash=h[:8], filter=filter_type)
-                break
-    except ValueError:
-        pass
+    def _bib_is_labeled(h: str) -> bool:
+        lbl = bib_gt.get_photo(h)
+        return bool(lbl and lbl.labeled)
+    next_unlabeled_url = find_next_unlabeled_url(
+        full_hash, all_hashes_sorted, _bib_is_labeled, 'bib.label_photo', filter_type
+    )
 
     # Get latest run ID for inspector link
     runs = list_runs()
