@@ -5,6 +5,10 @@ __pycache__
 cache/*
 commit.txt
 benchmarking/results/
+benchmarking/bib_ground_truth.json
+benchmarking/face_ground_truth.json
+benchmarking/bib_face_links.json
+benchmarking/face_identities.json
 faces/models/opencv_dnn_ssd/deploy.prototxt
 faces/models/opencv_dnn_ssd/res10_300x300_ssd_iter_140000.caffemodel
 .playwright-mcp/
