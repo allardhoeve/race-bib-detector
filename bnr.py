@@ -92,6 +92,18 @@ def cmd_benchmark_stats(args: argparse.Namespace) -> int:
     return cmd_stats(args)
 
 
+def cmd_benchmark_freeze(args: argparse.Namespace) -> int:
+    """Create a frozen snapshot of the current benchmark photo set."""
+    from benchmarking.cli import cmd_freeze
+    return cmd_freeze(args)
+
+
+def cmd_benchmark_frozen_list(args: argparse.Namespace) -> int:
+    """List all frozen benchmark snapshots."""
+    from benchmarking.cli import cmd_frozen_list
+    return cmd_frozen_list(args)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="bnr",
@@ -221,6 +233,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="Show labeling statistics",
     )
     bench_stats.set_defaults(_cmd=cmd_benchmark_stats)
+
+    bench_freeze = benchmark_subparsers.add_parser(
+        "freeze",
+        help="Freeze current photo set as a named snapshot",
+    )
+    bench_freeze.add_argument("--name", required=True, help="Name for the snapshot")
+    bench_freeze.add_argument("--description", default="", help="Optional description")
+    bench_freeze.add_argument(
+        "--all",
+        action="store_true",
+        help="Freeze every photo in the index regardless of labeling status",
+    )
+    bench_freeze.add_argument(
+        "--include-incomplete",
+        action="store_true",
+        help="Include photos that are not fully labeled in all dimensions",
+    )
+    bench_freeze.set_defaults(_cmd=cmd_benchmark_freeze)
+
+    bench_frozen_list = benchmark_subparsers.add_parser(
+        "frozen-list",
+        help="List all frozen snapshots",
+    )
+    bench_frozen_list.set_defaults(_cmd=cmd_benchmark_frozen_list)
 
     add_album_subparser(subparsers)
     add_cache_subparser(subparsers)

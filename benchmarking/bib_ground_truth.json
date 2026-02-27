@@ -3659,7 +3659,16 @@
       "labeled": true
     },
     "78787f7a593c020c607be33c32cf3ccfc0d87936c089ff36bd1e2af8ec27bb5e": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.6150862532909854,
+          "y": 0.8185146443514645,
+          "w": 0.09904392707466636,
+          "h": 0.08472803347280344,
+          "number": "630",
+          "scope": "bib_clipped"
+        }
+      ],
       "tags": [
         "obscured_bib"
       ],
