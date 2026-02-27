@@ -29,6 +29,7 @@ from benchmarking.cli.commands.benchmark import (
     cmd_frozen_list,
     cmd_update_baseline,
 )
+from benchmarking.cli.commands.tune import cmd_tune
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -147,6 +148,37 @@ def build_parser() -> argparse.ArgumentParser:
     # frozen-list command
     subparsers.add_parser("frozen-list", help="List all frozen snapshots")
 
+    # tune command
+    tune_parser = subparsers.add_parser(
+        "tune", help="Sweep face detection parameters and print ranked results"
+    )
+    tune_parser.add_argument(
+        "--config",
+        metavar="YAML",
+        help="Path to tune config YAML (e.g. benchmarking/tune_configs/face_default.yaml)",
+    )
+    tune_parser.add_argument(
+        "--params",
+        nargs="+",
+        metavar="KEY=v1,v2",
+        help="Inline param grid (e.g. FACE_DNN_CONFIDENCE_MIN=0.2,0.3,0.4)",
+    )
+    tune_parser.add_argument(
+        "-s", "--split", choices=["iteration", "full"],
+        default=None,
+        help="Photo split to evaluate on (overrides config)",
+    )
+    tune_parser.add_argument(
+        "--metric",
+        choices=["face_f1", "face_recall", "face_precision"],
+        default=None,
+        help="Metric to rank by (overrides config)",
+    )
+    tune_parser.add_argument(
+        "-q", "--quiet", action="store_true",
+        help="Suppress per-combo progress output",
+    )
+
     # stats command
     subparsers.add_parser("stats", help="Show statistics")
 
@@ -203,6 +235,7 @@ def main(argv: list[str] | None = None) -> int:
         "unlabeled": cmd_unlabeled,
         "show": cmd_show,
         "label": cmd_label,
+        "tune": cmd_tune,
     }
 
     return commands[args.command](args)

@@ -94,7 +94,7 @@ class TestFaceScorecardPopulated:
         with patch("benchmarking.runner.detect_bib_numbers") as mock_det, \
              patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
             mock_det.return_value = _fake_bib_result()
-            _, bib_sc, face_sc = _run_detection_loop(
+            _, bib_sc, face_sc, _ = _run_detection_loop(
                 reader=None,
                 photos=[bib_label],
                 index=index,
@@ -123,7 +123,7 @@ class TestFaceScorecardPopulated:
         with patch("benchmarking.runner.detect_bib_numbers") as mock_det, \
              patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
             mock_det.return_value = _fake_bib_result()
-            _, bib_sc, face_sc = _run_detection_loop(
+            _, bib_sc, face_sc, _ = _run_detection_loop(
                 reader=None,
                 photos=[BibPhotoLabel(content_hash=content_hash)],
                 index=index,
@@ -147,7 +147,7 @@ class TestFaceBackendFailureGraceful:
         with patch("benchmarking.runner.detect_bib_numbers") as mock_det, \
              patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
             mock_det.return_value = _fake_bib_result()
-            _, bib_sc, face_sc = _run_detection_loop(
+            _, bib_sc, face_sc, _ = _run_detection_loop(
                 reader=None,
                 photos=[BibPhotoLabel(content_hash=content_hash)],
                 index=index,
