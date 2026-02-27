@@ -5,11 +5,16 @@ This module ties together all detection components: preprocessing, region
 detection, OCR, validation, and filtering.
 """
 
-import io
+from __future__ import annotations
 
-import easyocr
+import io
+from typing import TYPE_CHECKING
+
 import numpy as np
 from PIL import Image
+
+if TYPE_CHECKING:
+    import easyocr
 
 from config import (
     WHITE_REGION_CONFIDENCE_THRESHOLD,

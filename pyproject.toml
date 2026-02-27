@@ -1,3 +1,8 @@
+[project]
+name = "google-photos-startnumber-recognizer"
+version = "0.1.0"
+requires-python = ">=3.14"
+
 [tool.ruff]
 exclude = ["venv"]
 line-length = 120
@@ -11,6 +16,9 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v"
+markers = [
+  "slow: tests that load ML models (EasyOCR, FaceNet, etc.) — run with --slow",
+]
 filterwarnings = [
   "ignore:torch\\.ao\\.quantization is deprecated and will be removed in 2\\.10\\.:DeprecationWarning",
   "ignore:'pin_memory' argument is set as true but not supported on MPS now, device pinned memory won't be used\\.:UserWarning",

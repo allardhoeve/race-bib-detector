@@ -282,6 +282,7 @@ class TestOverlapFiltering:
         assert not detections_overlap(det1, det2, iou_threshold=0.3, overlap_threshold=0.5)
 
 
+@pytest.mark.slow
 class TestBibDetection:
     """Tests for bib number detection from images."""
 
@@ -460,6 +461,7 @@ class TestSnippetGeneration:
         assert hash1 == hash2
         assert len(hash1) == 8  # 8-character hash
 
+    @pytest.mark.slow
     def test_snippet_count_matches_detection_count(self, ocr_reader):
         """Test that snippet generation creates one snippet per detection."""
         import tempfile

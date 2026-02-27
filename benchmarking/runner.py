@@ -8,15 +8,14 @@ import platform
 import socket
 import subprocess
 import time
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
-import easyocr
 import cv2
 import numpy as np
-import torch
+
+from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
 
 from config import (
     BENCHMARK_REGRESSION_TOLERANCE,
@@ -57,8 +56,7 @@ Status = Literal["PASS", "PARTIAL", "MISS"]
 Judgement = Literal["IMPROVED", "REGRESSED", "NO_CHANGE"]
 
 
-@dataclass
-class PhotoResult:
+class PhotoResult(BaseModel):
     """Result of running detection on a single photo."""
     content_hash: str
     expected_bibs: list[int]
@@ -68,44 +66,12 @@ class PhotoResult:
     fn: int  # False negatives
     status: Status
     detection_time_ms: float
-    tags: list[str] = field(default_factory=list)
-    artifact_paths: dict[str, str] = field(default_factory=dict)
-    preprocess_metadata: dict[str, object] = field(default_factory=dict)
-
-    def to_dict(self) -> dict:
-        return {
-            "content_hash": self.content_hash,
-            "expected_bibs": self.expected_bibs,
-            "detected_bibs": self.detected_bibs,
-            "tp": self.tp,
-            "fp": self.fp,
-            "fn": self.fn,
-            "status": self.status,
-            "detection_time_ms": self.detection_time_ms,
-            "tags": self.tags,
-            "artifact_paths": self.artifact_paths,
-            "preprocess_metadata": self.preprocess_metadata,
-        }
-
-    @classmethod
-    def from_dict(cls, data: dict) -> PhotoResult:
-        return cls(
-            content_hash=data["content_hash"],
-            expected_bibs=data["expected_bibs"],
-            detected_bibs=data["detected_bibs"],
-            tp=data["tp"],
-            fp=data["fp"],
-            fn=data["fn"],
-            status=data["status"],
-            detection_time_ms=data.get("detection_time_ms", 0),
-            tags=data.get("tags", []),
-            artifact_paths=data.get("artifact_paths", {}),
-            preprocess_metadata=data.get("preprocess_metadata", {}),
-        )
+    tags: list[str] = Field(default_factory=list)
+    artifact_paths: dict[str, str] = Field(default_factory=dict)
+    preprocess_metadata: dict[str, Any] = Field(default_factory=dict)
 
 
-@dataclass
-class BenchmarkMetrics:
+class BenchmarkMetrics(BaseModel):
     """Aggregate metrics from a benchmark run."""
     total_photos: int
     total_tp: int
@@ -118,38 +84,8 @@ class BenchmarkMetrics:
     partial_count: int
     miss_count: int
 
-    def to_dict(self) -> dict:
-        return {
-            "total_photos": self.total_photos,
-            "total_tp": self.total_tp,
-            "total_fp": self.total_fp,
-            "total_fn": self.total_fn,
-            "precision": self.precision,
-            "recall": self.recall,
-            "f1": self.f1,
-            "pass_count": self.pass_count,
-            "partial_count": self.partial_count,
-            "miss_count": self.miss_count,
-        }
 
-    @classmethod
-    def from_dict(cls, data: dict) -> BenchmarkMetrics:
-        return cls(
-            total_photos=data["total_photos"],
-            total_tp=data["total_tp"],
-            total_fp=data["total_fp"],
-            total_fn=data["total_fn"],
-            precision=data["precision"],
-            recall=data["recall"],
-            f1=data["f1"],
-            pass_count=data["pass_count"],
-            partial_count=data["partial_count"],
-            miss_count=data["miss_count"],
-        )
-
-
-@dataclass
-class PipelineConfig:
+class PipelineConfig(BaseModel):
     """Configuration of the preprocessing pipeline used in a benchmark run."""
     target_width: int | None
     clahe_enabled: bool
@@ -157,25 +93,18 @@ class PipelineConfig:
     clahe_tile_size: tuple[int, int] | None
     clahe_dynamic_range_threshold: float | None
 
-    def to_dict(self) -> dict:
-        return {
-            "target_width": self.target_width,
-            "clahe_enabled": self.clahe_enabled,
-            "clahe_clip_limit": self.clahe_clip_limit,
-            "clahe_tile_size": list(self.clahe_tile_size) if self.clahe_tile_size else None,
-            "clahe_dynamic_range_threshold": self.clahe_dynamic_range_threshold,
-        }
-
+    @field_validator("clahe_tile_size", mode="before")
     @classmethod
-    def from_dict(cls, data: dict) -> PipelineConfig:
-        tile_size = data.get("clahe_tile_size")
-        return cls(
-            target_width=data.get("target_width"),
-            clahe_enabled=data.get("clahe_enabled", False),
-            clahe_clip_limit=data.get("clahe_clip_limit"),
-            clahe_tile_size=tuple(tile_size) if tile_size else None,
-            clahe_dynamic_range_threshold=data.get("clahe_dynamic_range_threshold"),
-        )
+    def _coerce_tile_size(cls, v: Any) -> Any:
+        """Accept list [w, h] from JSON; convert to tuple for in-memory use."""
+        if isinstance(v, list):
+            return tuple(v)
+        return v
+
+    @field_serializer("clahe_tile_size")
+    def _serialize_tile_size(self, v: tuple[int, int] | None) -> list[int] | None:
+        """Emit as list for JSON compatibility (JSON has no tuple type)."""
+        return list(v) if v is not None else None
 
     def summary(self) -> str:
         """Return a short human-readable summary of the pipeline config."""
@@ -187,8 +116,7 @@ class PipelineConfig:
         return ", ".join(parts) if parts else "default"
 
 
-@dataclass
-class FacePipelineConfig:
+class FacePipelineConfig(BaseModel):
     """Configuration of the face detection pipeline used in a run."""
     face_backend: str
     dnn_confidence_min: float
@@ -199,38 +127,19 @@ class FacePipelineConfig:
     fallback_max: int
     fallback_iou_threshold: float
 
-    def to_dict(self) -> dict:
-        return {
-            "face_backend": self.face_backend,
-            "dnn_confidence_min": self.dnn_confidence_min,
-            "dnn_fallback_confidence_min": self.dnn_fallback_confidence_min,
-            "dnn_fallback_max": self.dnn_fallback_max,
-            "fallback_backend": self.fallback_backend,
-            "fallback_min_face_count": self.fallback_min_face_count,
-            "fallback_max": self.fallback_max,
-            "fallback_iou_threshold": self.fallback_iou_threshold,
-        }
-
+    @field_validator("fallback_backend", mode="before")
     @classmethod
-    def from_dict(cls, data: dict) -> "FacePipelineConfig":
-        return cls(
-            face_backend=data.get("face_backend", "unknown"),
-            dnn_confidence_min=data.get("dnn_confidence_min", 0.0),
-            dnn_fallback_confidence_min=data.get("dnn_fallback_confidence_min", 0.0),
-            dnn_fallback_max=data.get("dnn_fallback_max", 0),
-            fallback_backend=data.get("fallback_backend"),
-            fallback_min_face_count=data.get("fallback_min_face_count", 0),
-            fallback_max=data.get("fallback_max", 0),
-            fallback_iou_threshold=data.get("fallback_iou_threshold", 0.0),
-        )
+    def _normalize_fallback_backend(cls, v: Any) -> Any:
+        """Normalise empty string to None; config layer emits '' when no fallback is set."""
+        if v == "":
+            return None
+        return v
 
     def summary(self) -> str:
         """Return a short human-readable summary of face backend config."""
         if not self.face_backend:
             return "faces: disabled"
-        fallback = ""
-        if self.fallback_backend:
-            fallback = f"+{self.fallback_backend}"
+        fallback = f"+{self.fallback_backend}" if self.fallback_backend else ""
         return f"faces: {self.face_backend}{fallback}"
 
     def summary_passes(self) -> str:
@@ -245,8 +154,7 @@ class FacePipelineConfig:
         return f"faces: {', '.join(passes)}"
 
 
-@dataclass
-class RunMetadata:
+class RunMetadata(BaseModel):
     """Metadata about a benchmark run."""
     run_id: str
     timestamp: str
@@ -256,61 +164,19 @@ class RunMetadata:
     python_version: str
     package_versions: dict[str, str]
     hostname: str
-    gpu_info: str | None
+    gpu_info: str | None = None
     total_runtime_seconds: float
     pipeline_config: PipelineConfig | None = None
     face_pipeline_config: FacePipelineConfig | None = None
     note: str | None = None
 
-    def to_dict(self) -> dict:
-        result = {
-            "run_id": self.run_id,
-            "timestamp": self.timestamp,
-            "split": self.split,
-            "git_commit": self.git_commit,
-            "git_dirty": self.git_dirty,
-            "python_version": self.python_version,
-            "package_versions": self.package_versions,
-            "hostname": self.hostname,
-            "gpu_info": self.gpu_info,
-            "total_runtime_seconds": self.total_runtime_seconds,
-        }
-        if self.pipeline_config:
-            result["pipeline_config"] = self.pipeline_config.to_dict()
-        if self.face_pipeline_config:
-            result["face_pipeline_config"] = self.face_pipeline_config.to_dict()
-        if self.note:
-            result["note"] = self.note
-        return result
 
-    @classmethod
-    def from_dict(cls, data: dict) -> RunMetadata:
-        pipeline_config = None
-        if "pipeline_config" in data:
-            pipeline_config = PipelineConfig.from_dict(data["pipeline_config"])
-        face_pipeline_config = None
-        if "face_pipeline_config" in data:
-            face_pipeline_config = FacePipelineConfig.from_dict(data["face_pipeline_config"])
-        return cls(
-            run_id=data.get("run_id", "unknown"),
-            timestamp=data["timestamp"],
-            split=data["split"],
-            git_commit=data["git_commit"],
-            git_dirty=data["git_dirty"],
-            python_version=data["python_version"],
-            package_versions=data["package_versions"],
-            hostname=data["hostname"],
-            gpu_info=data.get("gpu_info"),
-            total_runtime_seconds=data.get("total_runtime_seconds", 0),
-            pipeline_config=pipeline_config,
-            face_pipeline_config=face_pipeline_config,
-            note=data.get("note"),
-        )
-
-
-@dataclass
-class BenchmarkRun:
+class BenchmarkRun(BaseModel):
     """Complete benchmark run results."""
+    # BibScorecard/FaceScorecard/LinkScorecard are still plain dataclasses.
+    # TODO task-037: remove arbitrary_types_allowed once scorecards are Pydantic models.
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     metadata: RunMetadata
     metrics: BenchmarkMetrics
     photo_results: list[PhotoResult]
@@ -318,66 +184,58 @@ class BenchmarkRun:
     face_scorecard: FaceScorecard | None = None
     link_scorecard: LinkScorecard | None = None
 
-    def to_dict(self) -> dict:
-        d = {
-            "metadata": self.metadata.to_dict(),
-            "metrics": self.metrics.to_dict(),
-            "photo_results": [r.to_dict() for r in self.photo_results],
-        }
-        if self.bib_scorecard is not None:
-            d["bib_scorecard"] = self.bib_scorecard.to_dict()
-        if self.face_scorecard is not None:
-            d["face_scorecard"] = self.face_scorecard.to_dict()
-        if self.link_scorecard is not None:
-            d["link_scorecard"] = self.link_scorecard.to_dict()
-        return d
-
+    @model_validator(mode="before")
     @classmethod
-    def from_dict(cls, data: dict) -> BenchmarkRun:
-        bib_scorecard = None
-        if "bib_scorecard" in data:
-            sc = data["bib_scorecard"]
-            bib_scorecard = BibScorecard(
-                detection_tp=sc["detection_tp"],
-                detection_fp=sc["detection_fp"],
-                detection_fn=sc["detection_fn"],
-                ocr_correct=sc["ocr_correct"],
-                ocr_total=sc["ocr_total"],
-            )
+    def _coerce_scorecards(cls, data: Any) -> Any:
+        """Convert scorecard dicts to dataclass instances when loading from JSON.
 
-        face_scorecard = None
-        if "face_scorecard" in data:
-            sc = data["face_scorecard"]
-            face_scorecard = FaceScorecard(
-                detection_tp=sc["detection_tp"],
-                detection_fp=sc["detection_fp"],
-                detection_fn=sc["detection_fn"],
-            )
+        BibScorecard, FaceScorecard, and LinkScorecard are still plain dataclasses.
+        TODO task-037: remove once scorecards are migrated to Pydantic.
+        """
+        if isinstance(data, dict):
+            if isinstance(data.get("bib_scorecard"), dict):
+                sc = data["bib_scorecard"]
+                data["bib_scorecard"] = BibScorecard(
+                    detection_tp=sc["detection_tp"],
+                    detection_fp=sc["detection_fp"],
+                    detection_fn=sc["detection_fn"],
+                    ocr_correct=sc["ocr_correct"],
+                    ocr_total=sc["ocr_total"],
+                )
+            if isinstance(data.get("face_scorecard"), dict):
+                sc = data["face_scorecard"]
+                data["face_scorecard"] = FaceScorecard(
+                    detection_tp=sc["detection_tp"],
+                    detection_fp=sc["detection_fp"],
+                    detection_fn=sc["detection_fn"],
+                )
+            if isinstance(data.get("link_scorecard"), dict):
+                data["link_scorecard"] = LinkScorecard.from_dict(data["link_scorecard"])
+        return data
 
-        link_scorecard = None
-        if "link_scorecard" in data:
-            link_scorecard = LinkScorecard.from_dict(data["link_scorecard"])
+    @field_serializer("bib_scorecard")
+    def _serialize_bib_sc(self, v: BibScorecard | None) -> dict | None:
+        return v.to_dict() if v is not None else None
 
-        return cls(
-            metadata=RunMetadata.from_dict(data["metadata"]),
-            metrics=BenchmarkMetrics.from_dict(data["metrics"]),
-            photo_results=[PhotoResult.from_dict(r) for r in data["photo_results"]],
-            bib_scorecard=bib_scorecard,
-            face_scorecard=face_scorecard,
-            link_scorecard=link_scorecard,
-        )
+    @field_serializer("face_scorecard")
+    def _serialize_face_sc(self, v: FaceScorecard | None) -> dict | None:
+        return v.to_dict() if v is not None else None
+
+    @field_serializer("link_scorecard")
+    def _serialize_link_sc(self, v: LinkScorecard | None) -> dict | None:
+        return v.to_dict() if v is not None else None
 
     def save(self, path: Path) -> None:
         """Save benchmark run to JSON file."""
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w") as f:
-            json.dump(self.to_dict(), f, indent=2)
+            json.dump(self.model_dump(exclude_none=True), f, indent=2)
 
     @classmethod
-    def load(cls, path: Path) -> BenchmarkRun:
+    def load(cls, path: Path) -> "BenchmarkRun":
         """Load benchmark run from JSON file."""
         with open(path, "r") as f:
-            return cls.from_dict(json.load(f))
+            return cls.model_validate(json.load(f))
 
 
 def generate_run_id() -> str:
@@ -416,7 +274,8 @@ def get_package_versions() -> dict[str, str]:
             if pkg == "opencv-python":
                 versions[pkg] = cv2.__version__
             elif pkg == "torch":
-                versions[pkg] = torch.__version__
+                import torch as _torch
+                versions[pkg] = _torch.__version__
             elif pkg == "numpy":
                 versions[pkg] = np.__version__
             elif pkg == "easyocr":
@@ -430,6 +289,7 @@ def get_package_versions() -> dict[str, str]:
 
 def get_gpu_info() -> str | None:
     """Get GPU info if CUDA available."""
+    import torch
     if torch.cuda.is_available():
         return torch.cuda.get_device_name(0)
     return None
@@ -440,7 +300,14 @@ def compute_photo_result(
     detected_bibs: list[int],
     detection_time_ms: float,
 ) -> PhotoResult:
-    """Compute metrics for a single photo."""
+    """Compute per-photo detection status and TP/FP/FN counts.
+
+    Status rules:
+    - PASS:    all expected bibs found, no false positives.
+    - MISS:    at least one expected bib, but none detected (tp == 0).
+    - PARTIAL: anything in between, including false positives on a clean photo
+               (zero expected bibs but non-zero detected bibs).
+    """
     expected_set = set(label.bibs)
     detected_set = set(detected_bibs)
 
@@ -448,20 +315,18 @@ def compute_photo_result(
     fp = len(detected_set - expected_set)
     fn = len(expected_set - detected_set)
 
-    # Determine status
     if tp == len(expected_set) and fp == 0:
         status: Status = "PASS"
     elif tp == 0 and len(expected_set) > 0:
+        # Hard miss: detected nothing that was expected.
         status = "MISS"
     else:
         status = "PARTIAL"
 
-    # Special case: no expected bibs
+    # Special case: photo with no expected bibs.
+    # A clean photo is PASS only when there are also no false positives.
     if len(expected_set) == 0:
-        if fp == 0:
-            status = "PASS"
-        else:
-            status = "PARTIAL"  # False positives on a no-bib photo
+        status = "PASS" if fp == 0 else "PARTIAL"
 
     return PhotoResult(
         content_hash=label.content_hash,
@@ -523,6 +388,87 @@ def _validate_inputs(gt, index: dict, photos: list, split: str) -> None:
         raise ValueError(f"No photos in split '{split}'")
 
 
+def _run_bib_detection(
+    reader,
+    image_data: bytes,
+    label: BibPhotoLabel,
+    artifact_dir: str,
+) -> tuple[PhotoResult, list[BibBox], tuple[int, int]]:
+    """Run bib OCR on one photo; return result, normalised bib boxes, and image dims.
+
+    Args:
+        reader: EasyOCR Reader instance.
+        image_data: Raw bytes of the image.
+        label: BibPhotoLabel carrying content_hash, expected boxes, and tags.
+        artifact_dir: Directory path for debug artifact images.
+
+    Returns:
+        photo_result: Per-photo status and TP/FP/FN counts.
+        pred_bib_boxes: Detected bib boxes in normalised [0, 1] coordinates.
+            Empty when image dimensions are zero (e.g. undecodable image).
+        image_dims: (width, height) of the original image; (0, 0) on failure.
+    """
+    detect_start = time.time()
+    result = detect_bib_numbers(reader, image_data, artifact_dir=artifact_dir)
+    detect_time_ms = (time.time() - detect_start) * 1000
+
+    detected_bibs = []
+    for det in result.detections:
+        try:
+            detected_bibs.append(int(det.bib_number))
+        except ValueError:
+            pass
+
+    photo_result = compute_photo_result(label, detected_bibs, detect_time_ms)
+    photo_result.artifact_paths = result.artifact_paths
+    photo_result.preprocess_metadata = result.preprocess_metadata
+
+    img_w, img_h = result.original_dimensions
+    pred_bib_boxes: list[BibBox] = []
+    if img_w > 0 and img_h > 0:
+        for det in result.detections:
+            x1, y1, x2, y2 = bbox_to_rect(det.bbox)
+            pred_bib_boxes.append(BibBox(
+                x=x1 / img_w, y=y1 / img_h,
+                w=(x2 - x1) / img_w, h=(y2 - y1) / img_h,
+                number=det.bib_number,
+            ))
+
+    return photo_result, pred_bib_boxes, (img_w, img_h)
+
+
+def _run_face_detection(face_backend: FaceBackend, image_data: bytes) -> list[FaceBox]:
+    """Decode image and run face detection; return normalised FaceBox list.
+
+    Args:
+        face_backend: Face detection backend to use.
+        image_data: Raw bytes of the image.
+
+    Returns:
+        Predicted face boxes in normalised [0, 1] coordinates, filtered to
+        candidates that passed the backend's threshold. Returns [] if the image
+        cannot be decoded (cv2.imdecode returns None).
+    """
+    if not image_data:
+        return []
+    img_array = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
+    if img_array is None:
+        return []
+    image_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
+    face_h, face_w = image_rgb.shape[:2]
+    face_candidates = face_backend.detect_face_candidates(image_rgb)
+    pred_face_boxes: list[FaceBox] = []
+    for cand in face_candidates:
+        if not cand.passed:
+            continue
+        x1, y1, x2, y2 = bbox_to_rect(cand.bbox)
+        pred_face_boxes.append(FaceBox(
+            x=x1 / face_w, y=y1 / face_h,
+            w=(x2 - x1) / face_w, h=(y2 - y1) / face_h,
+        ))
+    return pred_face_boxes
+
+
 def _run_detection_loop(
     reader,
     photos: list,
@@ -532,10 +478,24 @@ def _run_detection_loop(
     face_backend: FaceBackend | None = None,
     face_gt: FaceGroundTruth | None = None,
 ) -> tuple[list[PhotoResult], BibScorecard, FaceScorecard | None]:
-    """Run detection on all photos; return results and aggregate IoU scorecards."""
+    """Run detection on all photos; return results and aggregate IoU scorecards.
+
+    The loop has three phases per photo:
+
+    1. **Bib OCR** — calls _run_bib_detection to produce a PhotoResult and
+       a list of normalised BibBox predictions. IoU-based bib scoring is
+       accumulated across all photos into bib_tp/fp/fn/ocr counters.
+
+    2. **Face detection** (optional) — when face_backend and face_gt are both
+       provided, calls _run_face_detection and scores results against GT face
+       boxes. Skipped entirely when face_backend is None.
+
+    3. **Scorecard accumulation** — per-photo counters are summed, then wrapped
+       into BibScorecard and (optionally) FaceScorecard at the end.
+    """
     photo_results: list[PhotoResult] = []
-    iou_det_tp = iou_det_fp = iou_det_fn = iou_ocr_correct = iou_ocr_total = 0
-    face_det_tp = face_det_fp = face_det_fn = 0
+    bib_tp = bib_fp = bib_fn = bib_ocr_correct = bib_ocr_total = 0
+    face_tp = face_fp = face_fn = 0
 
     for i, label in enumerate(photos):
         path = get_path_for_hash(label.content_hash, PHOTOS_DIR, index)
@@ -550,60 +510,30 @@ def _run_detection_loop(
         image_data = path.read_bytes()
         photo_artifact_dir = str(images_dir / label.content_hash[:16])
 
-        detect_start = time.time()
-        result = detect_bib_numbers(reader, image_data, artifact_dir=photo_artifact_dir)
-        detect_time_ms = (time.time() - detect_start) * 1000
-
-        detected_bibs = []
-        for det in result.detections:
-            try:
-                detected_bibs.append(int(det.bib_number))
-            except ValueError:
-                pass
-
-        photo_result = compute_photo_result(label, detected_bibs, detect_time_ms)
-        photo_result.artifact_paths = result.artifact_paths
-        photo_result.preprocess_metadata = result.preprocess_metadata
+        # Phase 1: Bib OCR
+        photo_result, pred_bib_boxes, (img_w, img_h) = _run_bib_detection(
+            reader, image_data, label, photo_artifact_dir
+        )
         photo_results.append(photo_result)
 
-        img_w, img_h = result.original_dimensions
+        # Phase 2: Bib IoU scoring (only when original image dimensions are valid)
         if img_w > 0 and img_h > 0:
-            pred_boxes: list[BibBox] = []
-            for det in result.detections:
-                x1, y1, x2, y2 = bbox_to_rect(det.bbox)
-                pred_boxes.append(BibBox(
-                    x=x1 / img_w, y=y1 / img_h,
-                    w=(x2 - x1) / img_w, h=(y2 - y1) / img_h,
-                    number=det.bib_number,
-                ))
-            photo_sc = score_bibs(pred_boxes, label.boxes)
-            iou_det_tp += photo_sc.detection_tp
-            iou_det_fp += photo_sc.detection_fp
-            iou_det_fn += photo_sc.detection_fn
-            iou_ocr_correct += photo_sc.ocr_correct
-            iou_ocr_total += photo_sc.ocr_total
+            photo_sc = score_bibs(pred_bib_boxes, label.boxes)
+            bib_tp += photo_sc.detection_tp
+            bib_fp += photo_sc.detection_fp
+            bib_fn += photo_sc.detection_fn
+            bib_ocr_correct += photo_sc.ocr_correct
+            bib_ocr_total += photo_sc.ocr_total
 
+        # Phase 3: Face detection + scoring (optional)
         if face_backend is not None and face_gt is not None:
             photo_face_label = face_gt.get_photo(label.content_hash)
             gt_face_boxes = photo_face_label.boxes if photo_face_label else []
-            img_array = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
-            if img_array is not None:
-                image_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
-                face_h, face_w = image_rgb.shape[:2]
-                face_candidates = face_backend.detect_face_candidates(image_rgb)
-                pred_face_boxes: list[FaceBox] = []
-                for cand in face_candidates:
-                    if not cand.passed:
-                        continue
-                    x1, y1, x2, y2 = bbox_to_rect(cand.bbox)
-                    pred_face_boxes.append(FaceBox(
-                        x=x1 / face_w, y=y1 / face_h,
-                        w=(x2 - x1) / face_w, h=(y2 - y1) / face_h,
-                    ))
-                photo_face_sc = score_faces(pred_face_boxes, gt_face_boxes)
-                face_det_tp += photo_face_sc.detection_tp
-                face_det_fp += photo_face_sc.detection_fp
-                face_det_fn += photo_face_sc.detection_fn
+            pred_face_boxes = _run_face_detection(face_backend, image_data)
+            photo_face_sc = score_faces(pred_face_boxes, gt_face_boxes)
+            face_tp += photo_face_sc.detection_tp
+            face_fp += photo_face_sc.detection_fp
+            face_fn += photo_face_sc.detection_fn
 
         if verbose:
             status_icon = {"PASS": "✓", "PARTIAL": "◐", "MISS": "✗"}[photo_result.status]
@@ -611,22 +541,22 @@ def _run_detection_loop(
                 "  [%s/%s] %s %-7s exp=%s det=%s (%.0fms)",
                 i + 1, len(photos), status_icon,
                 photo_result.status, photo_result.expected_bibs,
-                photo_result.detected_bibs, detect_time_ms,
+                photo_result.detected_bibs, photo_result.detection_time_ms,
             )
 
     bib_scorecard = BibScorecard(
-        detection_tp=iou_det_tp,
-        detection_fp=iou_det_fp,
-        detection_fn=iou_det_fn,
-        ocr_correct=iou_ocr_correct,
-        ocr_total=iou_ocr_total,
+        detection_tp=bib_tp,
+        detection_fp=bib_fp,
+        detection_fn=bib_fn,
+        ocr_correct=bib_ocr_correct,
+        ocr_total=bib_ocr_total,
     )
     face_scorecard = None
     if face_backend is not None:
         face_scorecard = FaceScorecard(
-            detection_tp=face_det_tp,
-            detection_fp=face_det_fp,
-            detection_fn=face_det_fn,
+            detection_tp=face_tp,
+            detection_fp=face_fp,
+            detection_fn=face_fn,
         )
     return photo_results, bib_scorecard, face_scorecard
 
@@ -637,7 +567,15 @@ def _build_run_metadata(
     note: str | None,
     start_time: float,
 ) -> RunMetadata:
-    """Capture environment and pipeline configuration into RunMetadata."""
+    """Capture environment and pipeline configuration into RunMetadata.
+
+    Records git state, Python/package versions, hostname, GPU info, and a
+    snapshot of the active preprocessing and face pipeline configs.
+
+    The fallback_backend value from config is normalised from '' to None here
+    because the config layer emits an empty string when no fallback is set,
+    but RunMetadata.FacePipelineConfig represents "no fallback" as None.
+    """
     git_commit, git_dirty = get_git_info()
     total_runtime = time.time() - start_time
 
@@ -649,15 +587,14 @@ def _build_run_metadata(
         clahe_tile_size=preprocess_config.clahe_tile_size if preprocess_config.clahe_enabled else None,
         clahe_dynamic_range_threshold=preprocess_config.clahe_dynamic_range_threshold if preprocess_config.clahe_enabled else None,
     )
-    fallback_backend = FACE_FALLBACK_BACKEND.strip() if isinstance(FACE_FALLBACK_BACKEND, str) else FACE_FALLBACK_BACKEND
-    if fallback_backend == "":
-        fallback_backend = None
+
+    # FacePipelineConfig validator handles '' → None for fallback_backend.
     face_pipeline_config = FacePipelineConfig(
         face_backend=FACE_BACKEND,
         dnn_confidence_min=FACE_DNN_CONFIDENCE_MIN,
         dnn_fallback_confidence_min=FACE_DNN_FALLBACK_CONFIDENCE_MIN,
         dnn_fallback_max=FACE_DNN_FALLBACK_MAX,
-        fallback_backend=fallback_backend,
+        fallback_backend=FACE_FALLBACK_BACKEND,
         fallback_min_face_count=FACE_FALLBACK_MIN_FACE_COUNT,
         fallback_max=FACE_FALLBACK_MAX,
         fallback_iou_threshold=FACE_FALLBACK_IOU_THRESHOLD,
@@ -687,12 +624,21 @@ def run_benchmark(
 ) -> BenchmarkRun:
     """Run benchmark on the specified split.
 
+    Loads ground truth and photo index, initialises EasyOCR, and runs the
+    detection loop over every photo in the split.
+
+    Face backend strategy: get_face_backend() is called once at startup inside
+    a try/except. If it raises for any reason (model not installed, config
+    error, etc.), face_backend is set to None and face scoring is silently
+    skipped for the entire run. A warning is logged in that case.
+
     Args:
-        split: Which split to run ("iteration" or "full")
-        verbose: Whether to print progress
+        split: Which split to run ("iteration" or "full").
+        verbose: Whether to log per-photo progress.
+        note: Optional free-text annotation stored in run metadata.
 
     Returns:
-        BenchmarkRun with all results and metadata
+        BenchmarkRun with all results and metadata, also saved to disk.
     """
     start_time = time.time()
 
@@ -710,6 +656,8 @@ def run_benchmark(
 
     if verbose:
         logger.info("Initializing EasyOCR...")
+    import easyocr
+    import torch
     suppress_torch_mps_pin_memory_warning()
     reader = easyocr.Reader(["en"], gpu=torch.cuda.is_available())
 
@@ -765,19 +713,26 @@ def compare_to_baseline(
 ) -> tuple[Judgement, dict]:
     """Compare current run to baseline.
 
+    A metric has regressed if it dropped more than ``tolerance`` below the
+    baseline value; it has improved if it rose more than ``tolerance`` above.
+    The band is symmetric.
+
+    Judgement asymmetry: if *any* metric (precision OR recall) regresses,
+    the overall judgement is REGRESSED, even if another metric improved.
+    Regression wins over improvement when metrics move in opposite directions.
+
     Args:
-        current: Current benchmark run
-        tolerance: Tolerance for regression detection
+        current: Current benchmark run.
+        tolerance: Symmetric band around zero for NO_CHANGE detection.
 
     Returns:
-        Tuple of (judgement, details) where details contains delta information
+        Tuple of (judgement, details) where details contains delta information.
     """
     if not BASELINE_PATH.exists():
         return "NO_CHANGE", {"reason": "No baseline exists"}
 
     baseline = BenchmarkRun.load(BASELINE_PATH)
 
-    # Calculate deltas
     precision_delta = current.metrics.precision - baseline.metrics.precision
     recall_delta = current.metrics.recall - baseline.metrics.recall
     f1_delta = current.metrics.f1 - baseline.metrics.f1
@@ -793,7 +748,6 @@ def compare_to_baseline(
         "baseline_f1": baseline.metrics.f1,
     }
 
-    # Determine judgement
     precision_regressed = precision_delta < -tolerance
     recall_regressed = recall_delta < -tolerance
     precision_improved = precision_delta > tolerance
@@ -858,7 +812,6 @@ def list_runs() -> list[dict]:
                 "total_photos": run.metrics.total_photos,
                 "path": str(run_dir),
             }
-            # Add pipeline config summary if available
             if run.metadata.pipeline_config:
                 run_info["pipeline"] = run.metadata.pipeline_config.summary()
             else:
@@ -870,13 +823,10 @@ def list_runs() -> list[dict]:
             run_info["note"] = run.metadata.note
             runs.append(run_info)
         except Exception:
-            # Skip malformed runs
             continue
 
-    # Sort by timestamp, newest first
     runs.sort(key=lambda r: r["timestamp"], reverse=True)
 
-    # Mark baseline
     baseline = load_baseline()
     if baseline:
         for run in runs:
@@ -891,22 +841,20 @@ def get_run(run_id: str) -> BenchmarkRun | None:
     """Load a specific run by ID.
 
     Args:
-        run_id: The run ID (or prefix)
+        run_id: The run ID (or prefix).
 
     Returns:
-        BenchmarkRun or None if not found
+        BenchmarkRun or None if not found.
     """
     if not RESULTS_DIR.exists():
         return None
 
-    # Try exact match first
     run_dir = RESULTS_DIR / run_id
     if run_dir.exists():
         run_json = run_dir / "run.json"
         if run_json.exists():
             return BenchmarkRun.load(run_json)
 
-    # Try prefix match
     for d in RESULTS_DIR.iterdir():
         if d.is_dir() and d.name.startswith(run_id):
             run_json = d / "run.json"
@@ -928,11 +876,11 @@ def clean_runs(keep_count: int = 5, dry_run: bool = False) -> list[dict]:
     """Remove old benchmark runs, keeping the most recent ones.
 
     Args:
-        keep_count: Number of recent runs to keep
-        dry_run: If True, don't actually delete, just return what would be deleted
+        keep_count: Number of recent runs to keep.
+        dry_run: If True, don't actually delete, just return what would be deleted.
 
     Returns:
-        List of dicts describing deleted (or would-be-deleted) runs
+        List of dicts describing deleted (or would-be-deleted) runs.
     """
     import shutil
 
@@ -941,14 +889,12 @@ def clean_runs(keep_count: int = 5, dry_run: bool = False) -> list[dict]:
     if len(runs) <= keep_count:
         return []
 
-    # Runs are already sorted newest first
     to_delete = runs[keep_count:]
     deleted = []
 
     for run_info in to_delete:
         run_dir = Path(run_info["path"])
 
-        # Calculate size
         total_size = 0
         for f in run_dir.rglob("*"):
             if f.is_file():

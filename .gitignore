@@ -1,7 +1,9 @@
 bibs.db
+uv.lock
 .idea
 .DS_Store
 __pycache__
+.claude/worktrees/
 cache/*
 commit.txt
 benchmarking/results/
