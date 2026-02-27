@@ -2,10 +2,13 @@
 
 from fastapi import APIRouter, HTTPException
 
+from benchmarking.ground_truth import BibBox
 from benchmarking.label_utils import find_hash_by_prefix
 from benchmarking.photo_index import load_photo_index
 from benchmarking.schemas import (
     AssociationsResponse,
+    BibBoxOut,
+    BibSuggestionOut,
     GetBibBoxesResponse,
     SaveAssociationsRequest,
     SaveBibBoxesRequest,
@@ -21,9 +24,13 @@ async def get_bib_boxes(content_hash: str) -> GetBibBoxesResponse:
     result = bib_service.get_bib_label(content_hash)
     if result is None:
         raise HTTPException(status_code=404, detail='Photo not found')
-    result = dict(result)
-    result.pop('full_hash', None)
-    return GetBibBoxesResponse(**result)
+    return GetBibBoxesResponse(
+        boxes=[BibBoxOut.model_validate(b.model_dump()) for b in result['boxes']],
+        suggestions=[BibSuggestionOut.model_validate(s.to_dict()) for s in result['suggestions']],
+        tags=result['tags'],
+        split=result['split'],
+        labeled=result['labeled'],
+    )
 
 
 @api_bibs_router.put('/api/bibs/{content_hash}')
@@ -34,11 +41,11 @@ async def save_bib_label(content_hash: str, request: SaveBibBoxesRequest):
     if not full_hash:
         raise HTTPException(status_code=404, detail='Photo not found')
 
-    boxes_data = [b.model_dump() for b in request.boxes] if request.boxes is not None else None
     try:
+        boxes = [BibBox.model_validate(b.model_dump()) for b in request.boxes] if request.boxes is not None else None
         bib_service.save_bib_label(
             content_hash=full_hash,
-            boxes_data=boxes_data,
+            boxes=boxes,
             bibs_legacy=request.bibs,
             tags=request.tags,
             split=request.split,

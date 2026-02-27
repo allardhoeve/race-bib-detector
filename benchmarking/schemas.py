@@ -39,10 +39,20 @@ class BibBoxOut(BaseModel):
     scope: str = "bib"
 
 
+class BibSuggestionOut(BaseModel):
+    """Output shape for a single bib ghost suggestion."""
+    x: float
+    y: float
+    w: float
+    h: float
+    number: str
+    confidence: float
+
+
 class GetBibBoxesResponse(BaseModel):
     """Response for GET /api/bibs/{hash}."""
     boxes: list[BibBoxOut]
-    suggestions: list[dict] = Field(default_factory=list)
+    suggestions: list[BibSuggestionOut] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
     split: str
     labeled: bool
@@ -78,16 +88,40 @@ class FaceBoxOut(BaseModel):
     tags: list[str] = Field(default_factory=list)
 
 
+class FaceSuggestionOut(BaseModel):
+    """Output shape for a single face ghost suggestion."""
+    x: float
+    y: float
+    w: float
+    h: float
+    confidence: float
+
+
 class GetFaceBoxesResponse(BaseModel):
     """Response for GET /api/faces/{hash}."""
     boxes: list[FaceBoxOut]
-    suggestions: list[dict] = Field(default_factory=list)
+    suggestions: list[FaceSuggestionOut] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
 # Identities
 # ---------------------------------------------------------------------------
+
+
+class IdentityMatchOut(BaseModel):
+    """Output shape for a single identity suggestion."""
+    identity: str
+    similarity: float
+    content_hash: str
+    box_index: int
+    samples: list[dict] = Field(default_factory=list)
+
+
+class IdentitySuggestionsResponse(BaseModel):
+    """Response for GET /api/faces/{hash}/suggestions."""
+    suggestions: list[IdentityMatchOut]
+
 
 class IdentitiesResponse(BaseModel):
     identities: list[str]

@@ -1,6 +1,7 @@
 """Business logic for bib photo labeling."""
 
 import random
+from typing import TypedDict
 
 from benchmarking.ground_truth import (
     BibBox,
@@ -8,18 +9,23 @@ from benchmarking.ground_truth import (
     load_bib_ground_truth,
     save_bib_ground_truth,
 )
-from benchmarking.ghost import load_suggestion_store
+from benchmarking.ghost import BibSuggestion, load_suggestion_store
 from benchmarking.label_utils import find_hash_by_prefix
 from benchmarking.photo_index import load_photo_index
 from config import ITERATION_SPLIT_PROBABILITY
 
 
-def get_bib_label(content_hash: str) -> dict | None:
-    """Return serialised bib label data for a photo hash prefix, or None if not found.
+class BibLabelData(TypedDict):
+    full_hash: str
+    boxes: list[BibBox]
+    suggestions: list[BibSuggestion]
+    tags: list[str]
+    split: str
+    labeled: bool
 
-    Returns a dict ready to be passed to jsonify():
-        {full_hash, boxes, suggestions, tags, split, labeled}
-    """
+
+def get_bib_label(content_hash: str) -> BibLabelData | None:
+    """Return typed bib label data for a photo hash prefix, or None if not found."""
     index = load_photo_index()
     full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
     if not full_hash:
@@ -30,37 +36,34 @@ def get_bib_label(content_hash: str) -> dict | None:
 
     store = load_suggestion_store()
     photo_sugg = store.get(full_hash)
-    suggestions = [s.to_dict() for s in photo_sugg.bibs] if photo_sugg else []
+    suggestions: list[BibSuggestion] = photo_sugg.bibs if photo_sugg else []
 
     if label:
-        return {
-            'full_hash': full_hash,
-            'boxes': [b.model_dump() for b in label.boxes],
-            'suggestions': suggestions,
-            'tags': label.tags,
-            'split': label.split,
-            'labeled': label.labeled,
-        }
-    return {
-        'full_hash': full_hash,
-        'boxes': [],
-        'suggestions': suggestions,
-        'tags': [],
-        'split': 'full',
-        'labeled': False,
-    }
+        return BibLabelData(
+            full_hash=full_hash,
+            boxes=label.boxes,
+            suggestions=suggestions,
+            tags=label.tags,
+            split=label.split,
+            labeled=label.labeled,
+        )
+    return BibLabelData(
+        full_hash=full_hash,
+        boxes=[],
+        suggestions=suggestions,
+        tags=[],
+        split='full',
+        labeled=False,
+    )
 
 
-def save_bib_label(content_hash: str, boxes_data: list[dict] | None,
+def save_bib_label(content_hash: str, boxes: list[BibBox] | None,
                    bibs_legacy: list[int] | None, tags: list[str],
                    split: str) -> None:
-    """Construct a BibPhotoLabel and persist it.
-
-    Raises ValueError on invalid data (propagate to HTTP layer as 400).
-    """
+    """Construct a BibPhotoLabel and persist it."""
     bib_gt = load_bib_ground_truth()
-    if boxes_data is not None:
-        boxes = [BibBox.model_validate(b) for b in boxes_data]
+    if boxes is not None:
+        pass  # already validated BibBox objects
     elif bibs_legacy is not None:
         boxes = [BibBox(x=0, y=0, w=0, h=0, number=str(b), scope="bib")
                  for b in bibs_legacy]

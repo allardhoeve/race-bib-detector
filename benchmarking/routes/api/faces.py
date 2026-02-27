@@ -5,9 +5,17 @@ import io
 from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import StreamingResponse
 
+from benchmarking.ground_truth import FaceBox
 from benchmarking.label_utils import find_hash_by_prefix
 from benchmarking.photo_index import load_photo_index
-from benchmarking.schemas import GetFaceBoxesResponse, SaveFaceBoxesRequest
+from benchmarking.schemas import (
+    FaceBoxOut,
+    FaceSuggestionOut,
+    GetFaceBoxesResponse,
+    IdentityMatchOut,
+    IdentitySuggestionsResponse,
+    SaveFaceBoxesRequest,
+)
 from benchmarking.services import face_service
 
 api_faces_router = APIRouter()
@@ -19,9 +27,11 @@ async def get_face_boxes(content_hash: str) -> GetFaceBoxesResponse:
     result = face_service.get_face_label(content_hash)
     if result is None:
         raise HTTPException(status_code=404, detail='Photo not found')
-    result = dict(result)
-    result.pop('full_hash', None)
-    return GetFaceBoxesResponse(**result)
+    return GetFaceBoxesResponse(
+        boxes=[FaceBoxOut.model_validate(b.model_dump()) for b in result['boxes']],
+        suggestions=[FaceSuggestionOut.model_validate(s.to_dict()) for s in result['suggestions']],
+        tags=result['tags'],
+    )
 
 
 @api_faces_router.put('/api/faces/{content_hash}')
@@ -33,9 +43,10 @@ async def save_face_label(content_hash: str, request: SaveFaceBoxesRequest):
         raise HTTPException(status_code=404, detail='Photo not found')
 
     try:
+        boxes = [FaceBox.model_validate(b.model_dump()) for b in request.boxes]
         face_service.save_face_label(
             content_hash=full_hash,
-            boxes_data=[b.model_dump() for b in request.boxes],
+            boxes=boxes,
             tags=request.face_tags,
         )
     except (ValueError, TypeError) as e:
@@ -44,7 +55,8 @@ async def save_face_label(content_hash: str, request: SaveFaceBoxesRequest):
     return {'status': 'ok'}
 
 
-@api_faces_router.get('/api/faces/{content_hash}/suggestions')
+@api_faces_router.get('/api/faces/{content_hash}/suggestions',
+                      response_model=IdentitySuggestionsResponse)
 async def face_identity_suggestions(
     content_hash: str,
     box_x: str | None = Query(default=None),
@@ -52,7 +64,7 @@ async def face_identity_suggestions(
     box_w: str | None = Query(default=None),
     box_h: str | None = Query(default=None),
     k: int = Query(default=5),
-):
+) -> IdentitySuggestionsResponse:
     """Suggest identities for a face box using embedding similarity."""
     try:
         box_x_f = float(box_x)
@@ -65,7 +77,9 @@ async def face_identity_suggestions(
     result = face_service.get_identity_suggestions(content_hash, box_x_f, box_y_f, box_w_f, box_h_f, k=k)
     if result is None:
         raise HTTPException(status_code=404, detail='Photo not found')
-    return {'suggestions': result}
+    return IdentitySuggestionsResponse(
+        suggestions=[IdentityMatchOut.model_validate(m.to_dict()) for m in result]
+    )
 
 
 @api_faces_router.get('/api/faces/{content_hash}/crop/{box_index}')

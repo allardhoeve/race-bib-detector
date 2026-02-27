@@ -2,6 +2,7 @@
 
 import pytest
 
+from benchmarking.ground_truth import BibBox
 from benchmarking.photo_index import save_photo_index
 from benchmarking.services import bib_service
 
@@ -35,10 +36,9 @@ def test_get_bib_label_no_existing_label():
 
 
 def test_save_bib_label_boxes():
-    boxes_data = [{"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4, "number": "42", "scope": "bib"}]
     bib_service.save_bib_label(
         content_hash=HASH_A,
-        boxes_data=boxes_data,
+        boxes=[BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42", scope="bib")],
         bibs_legacy=None,
         tags=["dark_bib"],
         split="full",
@@ -46,14 +46,14 @@ def test_save_bib_label_boxes():
     result = bib_service.get_bib_label(HASH_A[:8])
     assert result["labeled"] is True
     assert len(result["boxes"]) == 1
-    assert result["boxes"][0]["number"] == "42"
+    assert result["boxes"][0].number == "42"
     assert result["tags"] == ["dark_bib"]
 
 
 def test_save_bib_label_legacy_bibs():
     bib_service.save_bib_label(
         content_hash=HASH_A,
-        boxes_data=None,
+        boxes=None,
         bibs_legacy=[7, 42],
         tags=[],
         split="iteration",
@@ -62,16 +62,11 @@ def test_save_bib_label_legacy_bibs():
     assert result["labeled"] is True
     assert len(result["boxes"]) == 2
     # Legacy boxes have has_coords=False (x=y=w=h=0)
-    assert all(b["x"] == 0 and b["y"] == 0 for b in result["boxes"])
-    assert {b["number"] for b in result["boxes"]} == {"7", "42"}
+    assert all(b.x == 0 and b.y == 0 for b in result["boxes"])
+    assert {b.number for b in result["boxes"]} == {"7", "42"}
 
 
 def test_save_bib_label_invalid_scope():
+    """BibBox rejects invalid scope at construction time."""
     with pytest.raises(ValueError):
-        bib_service.save_bib_label(
-            content_hash=HASH_A,
-            boxes_data=[{"x": 0.1, "y": 0.2, "w": 0.3, "h": 0.4, "number": "1", "scope": "invalid_scope"}],
-            bibs_legacy=None,
-            tags=[],
-            split="full",
-        )
+        BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="1", scope="invalid_scope")

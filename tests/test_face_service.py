@@ -27,7 +27,7 @@ def test_get_face_label_not_found():
 
 
 def test_save_face_label_empty_boxes():
-    face_service.save_face_label(content_hash=HASH_A, boxes_data=None, tags=["no_faces"])
+    face_service.save_face_label(content_hash=HASH_A, boxes=[], tags=["no_faces"])
     result = face_service.get_face_label(HASH_A[:8])
     assert result is not None
     assert result["boxes"] == []
@@ -35,12 +35,9 @@ def test_save_face_label_empty_boxes():
 
 
 def test_save_face_label_invalid_scope():
+    """FaceBox rejects invalid scope at construction time."""
     with pytest.raises((ValueError, TypeError)):
-        face_service.save_face_label(
-            content_hash=HASH_A,
-            boxes_data=[{"x": 0.1, "y": 0.2, "w": 0.1, "h": 0.1, "scope": "bad_scope"}],
-            tags=[],
-        )
+        FaceBox(x=0.1, y=0.2, w=0.1, h=0.1, scope="bad_scope")
 
 
 def test_get_face_crop_jpeg_no_coords(tmp_path):

@@ -3,13 +3,19 @@
 import io
 import logging
 from pathlib import Path
+from typing import TypedDict
 
 import cv2
 import numpy as np
 from PIL import Image
 
-from benchmarking.face_embeddings import build_embedding_index, find_top_k, EmbeddingIndex
-from benchmarking.ghost import load_suggestion_store
+from benchmarking.face_embeddings import (
+    IdentityMatch,
+    build_embedding_index,
+    find_top_k,
+    EmbeddingIndex,
+)
+from benchmarking.ghost import FaceSuggestion, load_suggestion_store
 from benchmarking.ground_truth import (
     FaceBox,
     FacePhotoLabel,
@@ -22,6 +28,13 @@ from benchmarking.photo_index import load_photo_index, get_path_for_hash
 logger = logging.getLogger(__name__)
 
 PHOTOS_DIR = Path(__file__).parent.parent.parent / "photos"
+
+
+class FaceLabelData(TypedDict):
+    full_hash: str
+    boxes: list[FaceBox]
+    suggestions: list[FaceSuggestion]
+    tags: list[str]
 
 # Module-level cache for the embedding index. Reset only on process restart.
 # Tests that need a fresh index should call `_embedding_index_cache.clear()`.
@@ -55,12 +68,8 @@ def load_image_rgb(photo_path: Path):
     return cv2.cvtColor(arr, cv2.COLOR_BGR2RGB)
 
 
-def get_face_label(content_hash: str) -> dict | None:
-    """Return serialised face label data for a hash prefix, or None if not found.
-
-    Returns a dict ready to be passed to jsonify():
-        {full_hash, boxes, suggestions, tags}
-    """
+def get_face_label(content_hash: str) -> FaceLabelData | None:
+    """Return typed face label data for a hash prefix, or None if not found."""
     index = load_photo_index()
     full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
     if not full_hash:
@@ -71,31 +80,27 @@ def get_face_label(content_hash: str) -> dict | None:
 
     store = load_suggestion_store()
     photo_sugg = store.get(full_hash)
-    suggestions = [s.to_dict() for s in photo_sugg.faces] if photo_sugg else []
+    suggestions: list[FaceSuggestion] = photo_sugg.faces if photo_sugg else []
 
     if label:
-        return {
-            'full_hash': full_hash,
-            'boxes': [b.model_dump() for b in label.boxes],
-            'suggestions': suggestions,
-            'tags': label.tags,
-        }
-    return {
-        'full_hash': full_hash,
-        'boxes': [],
-        'suggestions': suggestions,
-        'tags': [],
-    }
+        return FaceLabelData(
+            full_hash=full_hash,
+            boxes=label.boxes,
+            suggestions=suggestions,
+            tags=label.tags,
+        )
+    return FaceLabelData(
+        full_hash=full_hash,
+        boxes=[],
+        suggestions=suggestions,
+        tags=[],
+    )
 
 
-def save_face_label(content_hash: str, boxes_data: list[dict] | None,
+def save_face_label(content_hash: str, boxes: list[FaceBox],
                     tags: list[str]) -> None:
-    """Construct a FacePhotoLabel and persist it.
-
-    Raises ValueError or TypeError on invalid data.
-    """
+    """Construct a FacePhotoLabel and persist it."""
     face_gt = load_face_ground_truth()
-    boxes = [FaceBox.model_validate(b) for b in boxes_data] if boxes_data else []
     label = FacePhotoLabel(content_hash=content_hash, boxes=boxes, tags=tags, labeled=True)
     face_gt.add_photo(label)
     save_face_ground_truth(face_gt)
@@ -136,7 +141,7 @@ def get_face_crop_jpeg(content_hash: str, box_index: int) -> bytes | None:
 
 
 def get_identity_suggestions(content_hash: str, box_x: float, box_y: float,
-                              box_w: float, box_h: float, k: int = 5) -> list[dict] | None:
+                              box_w: float, box_h: float, k: int = 5) -> list[IdentityMatch] | None:
     """Return top-k identity suggestions for a face box region.
 
     Returns None if the photo is not found. Returns [] if no embedding index
@@ -169,5 +174,4 @@ def get_identity_suggestions(content_hash: str, box_x: float, box_y: float,
     if not embeddings:
         return []
 
-    matches = find_top_k(embeddings[0], emb_index, k=k)
-    return [m.to_dict() for m in matches]
+    return find_top_k(embeddings[0], emb_index, k=k)

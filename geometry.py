@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-# Bounding box as list of 4 [x, y] points defining a quadrilateral
-Bbox = list[list[int]]
+# Bounding box as list of 4 (x, y) corner points defining a quadrilateral
+Bbox = list[tuple[int, int]]
 
 
 def rect_to_bbox(x: int, y: int, w: int, h: int) -> Bbox:
