@@ -1,0 +1,34 @@
+<nav class="workflow-tabs">
+  <a href="{{ request.url_for('bib_photo', content_hash=content_hash[:8]) }}"
+     class="tab {% if workflow.active_step == 'bibs' %}active{% endif %}">
+    Bibs <span class="badge">{{ workflow.bib_progress.done }}/{{ workflow.bib_progress.total }}</span>
+  </a>
+  <a href="{{ request.url_for('face_photo', content_hash=content_hash[:8]) }}"
+     class="tab {% if workflow.active_step == 'faces' %}active{% endif %}">
+    Faces <span class="badge">{{ workflow.face_progress.done }}/{{ workflow.face_progress.total }}</span>
+  </a>
+  {% if workflow.link_ready %}
+  <a href="{{ request.url_for('association_photo', content_hash=content_hash[:8]) }}"
+     class="tab {% if workflow.active_step == 'links' %}active{% endif %}">
+    Links <span class="badge">{{ workflow.link_progress.done }}/{{ workflow.link_progress.total }}</span>
+  </a>
+  {% else %}
+  <span class="tab disabled">
+    Links <span class="badge">{{ workflow.link_progress.done }}/{{ workflow.link_progress.total }}</span>
+  </span>
+  {% endif %}
+</nav>
+
+<div class="photo-status-strip">
+  <code>{{ content_hash[:8] }}</code>
+  <a href="{{ request.url_for('bib_photo', content_hash=content_hash[:8]) }}"
+     class="{{ 'done' if workflow.bib_labeled else 'pending' }}">bibs {{ '✓' if workflow.bib_labeled else '—' }}</a>
+  <a href="{{ request.url_for('face_photo', content_hash=content_hash[:8]) }}"
+     class="{{ 'done' if workflow.face_labeled else 'pending' }}">faces {{ '✓' if workflow.face_labeled else '—' }}</a>
+  {% if workflow.link_ready %}
+  <a href="{{ request.url_for('association_photo', content_hash=content_hash[:8]) }}"
+     class="{{ 'done' if workflow.links_saved else 'pending' }}">links {{ '✓' if workflow.links_saved else '—' }}</a>
+  {% else %}
+  <span class="links-na">links —</span>
+  {% endif %}
+</div>

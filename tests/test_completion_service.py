@@ -15,7 +15,14 @@ from benchmarking.ground_truth import (
     save_face_ground_truth,
     save_link_ground_truth,
 )
-from benchmarking.services.completion_service import get_link_ready_hashes, get_unlinked_hashes
+from benchmarking.services.completion_service import (
+    get_link_ready_hashes,
+    get_unlinked_hashes,
+    get_bib_progress,
+    get_face_progress,
+    get_link_progress,
+    workflow_context_for,
+)
 
 HASH_A = "a" * 64
 HASH_B = "b" * 64
@@ -130,3 +137,105 @@ class TestGetUnlinkedHashes:
         save_link_ground_truth(LinkGroundTruth())
 
         assert get_unlinked_hashes() == [HASH_A]
+
+
+class TestGetBibProgress:
+    def test_counts_labeled(self, tmp_path):
+        """Only photos with labeled=True are counted as done."""
+        _save_index(tmp_path, [HASH_A, HASH_B])
+        bib_gt = BibGroundTruth()
+        bib_gt.add_photo(_bib_label(HASH_A, labeled=True))
+        bib_gt.add_photo(_bib_label(HASH_B, labeled=False))
+        save_bib_ground_truth(bib_gt)
+
+        assert get_bib_progress() == (1, 2)
+
+    def test_zero_when_none_labeled(self, tmp_path):
+        """Total reflects index size even when no labels exist."""
+        _save_index(tmp_path, [HASH_A])
+        save_bib_ground_truth(BibGroundTruth())
+
+        assert get_bib_progress() == (0, 1)
+
+
+class TestGetFaceProgress:
+    def test_counts_labeled(self, tmp_path):
+        """Returns correct (done, total) for face labeling."""
+        _save_index(tmp_path, [HASH_A, HASH_B, HASH_C])
+        face_gt = FaceGroundTruth()
+        face_gt.add_photo(_face_label(HASH_A, labeled=True))
+        face_gt.add_photo(_face_label(HASH_B, labeled=True))
+        face_gt.add_photo(_face_label(HASH_C, labeled=False))
+        save_face_ground_truth(face_gt)
+
+        assert get_face_progress() == (2, 3)
+
+
+class TestGetLinkProgress:
+    def test_denominator_is_link_ready_total(self, tmp_path):
+        """Denominator is link-ready count, not all photos."""
+        _save_index(tmp_path, [HASH_A, HASH_B, HASH_C])
+        bib_gt = BibGroundTruth()
+        bib_gt.add_photo(_bib_label(HASH_A, labeled=True))
+        bib_gt.add_photo(_bib_label(HASH_B, labeled=True))
+        bib_gt.add_photo(_bib_label(HASH_C, labeled=False))
+        face_gt = FaceGroundTruth()
+        face_gt.add_photo(_face_label(HASH_A, labeled=True))
+        face_gt.add_photo(_face_label(HASH_B, labeled=True))
+        face_gt.add_photo(_face_label(HASH_C, labeled=True))
+        link_gt = LinkGroundTruth()
+        link_gt.set_links(HASH_A, [])
+        save_bib_ground_truth(bib_gt)
+        save_face_ground_truth(face_gt)
+        save_link_ground_truth(link_gt)
+
+        # A and B are link-ready; only A has links saved → (1, 2)
+        assert get_link_progress() == (1, 2)
+
+
+class TestWorkflowContextFor:
+    def _setup_both_labeled(self, tmp_path):
+        _save_index(tmp_path, [HASH_A])
+        bib_gt = BibGroundTruth()
+        bib_gt.add_photo(_bib_label(HASH_A, labeled=True))
+        face_gt = FaceGroundTruth()
+        face_gt.add_photo(_face_label(HASH_A, labeled=True))
+        save_bib_ground_truth(bib_gt)
+        save_face_ground_truth(face_gt)
+        save_link_ground_truth(LinkGroundTruth())
+
+    def test_bib_step_flags(self, tmp_path):
+        """active_step, bib_labeled, face_labeled, link_ready set correctly."""
+        self._setup_both_labeled(tmp_path)
+        ctx = workflow_context_for(HASH_A, 'bibs')
+
+        assert ctx['active_step'] == 'bibs'
+        assert ctx['bib_labeled'] is True
+        assert ctx['face_labeled'] is True
+        assert ctx['link_ready'] is True
+        assert ctx['links_saved'] is False
+
+    def test_bib_progress_shape(self, tmp_path):
+        """Progress values are dicts with 'done' and 'total' keys."""
+        self._setup_both_labeled(tmp_path)
+        ctx = workflow_context_for(HASH_A, 'bibs')
+
+        assert ctx['bib_progress'] == {'done': 1, 'total': 1}
+        assert ctx['face_progress'] == {'done': 1, 'total': 1}
+        assert ctx['link_progress'] == {'done': 0, 'total': 1}
+
+    def test_links_disabled_when_not_ready(self, tmp_path):
+        """link_ready=False when face labeling is incomplete."""
+        _save_index(tmp_path, [HASH_A])
+        bib_gt = BibGroundTruth()
+        bib_gt.add_photo(_bib_label(HASH_A, labeled=True))
+        face_gt = FaceGroundTruth()
+        face_gt.add_photo(_face_label(HASH_A, labeled=False))
+        save_bib_ground_truth(bib_gt)
+        save_face_ground_truth(face_gt)
+        save_link_ground_truth(LinkGroundTruth())
+
+        ctx = workflow_context_for(HASH_A, 'faces')
+
+        assert ctx['link_ready'] is False
+        assert ctx['links_saved'] is False

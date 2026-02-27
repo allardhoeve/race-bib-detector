@@ -319,6 +319,8 @@
     // Initial draw (after image loads)
     // -------------------------------------------------------------------------
 
+    updateProcessedUI();
+
     if (img.complete && img.naturalWidth) {
         resizeCanvas();
     } else {

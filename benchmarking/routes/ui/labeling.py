@@ -19,7 +19,11 @@ from benchmarking.label_utils import (
     get_filtered_hashes,
     is_face_labeled,
 )
-from benchmarking.services.completion_service import get_link_ready_hashes, get_unlinked_hashes
+from benchmarking.services.completion_service import (
+    get_link_ready_hashes,
+    get_unlinked_hashes,
+    workflow_context_for,
+)
 from benchmarking.photo_index import load_photo_index
 from benchmarking.runner import list_runs
 from benchmarking.templates_env import TEMPLATES
@@ -111,6 +115,7 @@ async def bib_photo(
         'next_unlabeled_url': next_unlabeled_url,
         'filter': filter_type,
         'latest_run_id': latest_run_id,
+        'workflow': workflow_context_for(full_hash, 'bibs'),
     })
 
 
@@ -200,6 +205,7 @@ async def face_photo(
         'next_unlabeled_url': next_unlabeled_url,
         'filter': filter_type,
         'latest_run_id': latest_run_id,
+        'workflow': workflow_context_for(full_hash, 'faces'),
     })
 
 
@@ -272,4 +278,5 @@ async def association_photo(content_hash: str, request: Request):
         'prev_url': prev_url,
         'next_url': next_url,
         'next_unlabeled_url': next_unlabeled_url,
+        'workflow': workflow_context_for(full_hash, 'links'),
     })

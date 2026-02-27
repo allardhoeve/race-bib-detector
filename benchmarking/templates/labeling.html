@@ -146,6 +146,7 @@
         }
 {% endblock %}
 {% block body %}
+    {% include '_workflow_nav.html' %}
     <div class="header">
         <div class="nav-info">
             <a href="{{ request.url_for('benchmark_list') }}" class="nav-link">← Benchmarks</a>

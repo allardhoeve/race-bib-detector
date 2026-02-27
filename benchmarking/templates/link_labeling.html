@@ -81,17 +81,18 @@
         }
 {% endblock %}
 {% block body %}
+    {% include '_workflow_nav.html' %}
     <div class="header">
         <div class="nav-info">
             <a href="{{ request.url_for('bib_photo', content_hash=content_hash[:8]) }}" class="nav-link">← Bib Labels</a>
             <a href="{{ request.url_for('face_photo', content_hash=content_hash[:8]) }}" class="nav-link">Face Labels →</a>
             <button class="nav-btn" id="prevBtn"
                     {{ 'disabled' if not prev_url else '' }}
-                    onclick="navigateLink('{{ prev_url or '' }}')">← Prev</button>
+                    onclick="navigateLink(PAGE_DATA.prevUrl)">← Prev</button>
             <span class="position">{{ current }} / {{ total }}</span>
             <button class="nav-btn" id="nextBtn"
                     {{ 'disabled' if not next_url else '' }}
-                    onclick="navigateLink('{{ next_url or '' }}')">Next →</button>
+                    onclick="navigateLink(PAGE_DATA.nextUrl)">Next →</button>
             {% if next_unlabeled_url %}
             <button class="nav-btn" onclick="navigateLink('{{ next_unlabeled_url }}')">Next unlabeled →→</button>
             {% endif %}
@@ -145,7 +146,7 @@
             <div class="form-section">
                 <button id="noLinksBtn"
                         class="no-links-btn {{ 'processed' if is_processed else '' }}">
-                    {{ 'No Links ✓' if is_processed else 'Mark as No Links' }}
+                    {{ 'Links Saved ✓' if (is_processed and links) else ('No Links ✓' if is_processed else 'Mark as No Links') }}
                 </button>
             </div>
 

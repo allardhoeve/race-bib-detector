@@ -90,6 +90,50 @@ body {
     text-align: center;
     padding: 10px;
 }
+.workflow-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 8px 20px;
+    background: #0d1a33;
+    border-bottom: 1px solid #0f3460;
+}
+.workflow-tabs .tab {
+    padding: 6px 16px;
+    border-radius: 4px;
+    text-decoration: none;
+    color: #888;
+    font-size: 14px;
+    border: 1px solid transparent;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.workflow-tabs .tab:hover { background: #1a4a7a; color: #eee; }
+.workflow-tabs .tab.active { background: #0f3460; color: #eee; border-color: #0f9b0f; }
+.workflow-tabs .tab.disabled { color: #444; cursor: not-allowed; }
+.workflow-tabs .badge {
+    background: #1a1a2e;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 12px;
+    font-family: monospace;
+}
+.workflow-tabs .tab.active .badge { background: #0d0d1a; }
+.photo-status-strip {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 5px 20px;
+    background: #12193a;
+    border-bottom: 1px solid #0f3460;
+    font-size: 13px;
+}
+.photo-status-strip code { font-family: monospace; color: #555; font-size: 12px; }
+.photo-status-strip a { text-decoration: none; }
+.photo-status-strip a:hover { text-decoration: underline; }
+.photo-status-strip .done { color: #0f9b0f; }
+.photo-status-strip .pending { color: #666; }
+.photo-status-strip .links-na { color: #444; }
 .photo-list { list-style: none; }
 .photo-item {
     padding: 10px 15px;
