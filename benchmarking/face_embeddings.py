@@ -12,6 +12,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from pydantic import BaseModel, field_serializer
 
 from benchmarking.ground_truth import FaceGroundTruth, FaceBox
 from benchmarking.photo_index import get_path_for_hash
@@ -19,24 +20,21 @@ from benchmarking.photo_index import get_path_for_hash
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class IdentityMatch:
+class IdentityMatch(BaseModel):
     """A single identity suggestion from the embedding index."""
 
     identity: str
     similarity: float
     content_hash: str
     box_index: int
-    samples: list[dict] = field(default_factory=list)
+    samples: list[dict] = []
+
+    @field_serializer("similarity")
+    def round_similarity(self, v: float) -> float:
+        return round(v, 4)
 
     def to_dict(self) -> dict:
-        return {
-            "identity": self.identity,
-            "similarity": round(self.similarity, 4),
-            "content_hash": self.content_hash,
-            "box_index": self.box_index,
-            "samples": self.samples,
-        }
+        return self.model_dump()
 
 
 @dataclass

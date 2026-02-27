@@ -6,33 +6,24 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
+from pydantic import BaseModel
+
 
 FROZEN_DIR = Path(__file__).parent / "frozen"
 
 
-@dataclass
-class BenchmarkSnapshotMetadata:
+class BenchmarkSnapshotMetadata(BaseModel):
     name: str
     created_at: str          # ISO 8601
     photo_count: int
     description: str = ""
 
     def to_dict(self) -> dict:
-        return {
-            "name": self.name,
-            "created_at": self.created_at,
-            "photo_count": self.photo_count,
-            "description": self.description,
-        }
+        return self.model_dump()
 
     @classmethod
     def from_dict(cls, data: dict) -> BenchmarkSnapshotMetadata:
-        return cls(
-            name=data["name"],
-            created_at=data["created_at"],
-            photo_count=data["photo_count"],
-            description=data.get("description", ""),
-        )
+        return cls.model_validate(data)
 
 
 @dataclass

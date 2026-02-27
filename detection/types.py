@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Literal, Any
 
 import numpy as np
+from pydantic import BaseModel, ConfigDict, Field
 
 from geometry import Bbox
 
@@ -22,8 +23,7 @@ if TYPE_CHECKING:
 DetectionSource = Literal["white_region", "full_image"]
 
 
-@dataclass
-class Detection:
+class Detection(BaseModel):
     """A detected bib number with its location and confidence.
 
     Supports lineage tracking: each detection knows which candidate region
@@ -37,11 +37,14 @@ class Detection:
         source_candidate: The BibCandidate this detection came from (None for full_image)
     """
 
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+
     bib_number: str
     confidence: float
-    bbox: Bbox
+    bbox: list[list[int]]
     source: DetectionSource = "white_region"
-    source_candidate: BibCandidate | None = field(default=None, repr=False)
+    # source_candidate is excluded from serialization (circular refs, not JSON-safe)
+    source_candidate: BibCandidate | None = Field(default=None, repr=False, exclude=True)
 
     def scale_bbox(self, factor: float) -> Detection:
         """Return a new Detection with scaled bounding box coordinates.
@@ -70,12 +73,7 @@ class Detection:
             Dict with 'bib_number', 'confidence', 'bbox', 'source' keys.
             Note: source_candidate is not serialized to avoid circular refs.
         """
-        return {
-            "bib_number": self.bib_number,
-            "confidence": self.confidence,
-            "bbox": self.bbox,
-            "source": self.source,
-        }
+        return self.model_dump()
 
     @classmethod
     def from_dict(cls, d: dict) -> Detection:
@@ -88,12 +86,7 @@ class Detection:
         Returns:
             Detection instance (without source_candidate, as it's not serialized)
         """
-        return cls(
-            bib_number=d["bib_number"],
-            confidence=d["confidence"],
-            bbox=d["bbox"],
-            source=d.get("source", "white_region"),
-        )
+        return cls.model_validate(d)
 
 
 @dataclass

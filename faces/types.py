@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
+from pydantic import BaseModel, ConfigDict, field_validator
 
 from geometry import Bbox
 
@@ -18,28 +19,26 @@ from geometry import Bbox
 FaceBbox = Bbox
 
 
-@dataclass(frozen=True)
-class FaceModelInfo:
+class FaceModelInfo(BaseModel):
     """Model metadata for face detection/embedding backends."""
+
+    model_config = ConfigDict(frozen=True)
 
     name: str
     version: str
     embedding_dim: int
 
+    @field_validator("embedding_dim", mode="before")
+    @classmethod
+    def coerce_embedding_dim(cls, v: Any) -> int:
+        return int(v)
+
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "version": self.version,
-            "embedding_dim": self.embedding_dim,
-        }
+        return self.model_dump()
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "FaceModelInfo":
-        return cls(
-            name=data["name"],
-            version=data["version"],
-            embedding_dim=int(data["embedding_dim"]),
-        )
+    def from_dict(cls, data: dict[str, Any]) -> FaceModelInfo:
+        return cls.model_validate(data)
 
 
 def embedding_to_bytes(embedding: np.ndarray) -> bytes:
@@ -96,9 +95,10 @@ class FaceDetection:
         )
 
 
-@dataclass(frozen=True)
-class FaceCandidate:
+class FaceCandidate(BaseModel):
     """A face candidate proposal with pass/fail metadata."""
+
+    model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     bbox: FaceBbox
     confidence: float | None
@@ -107,20 +107,8 @@ class FaceCandidate:
     model: FaceModelInfo
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "bbox": self.bbox,
-            "confidence": self.confidence,
-            "passed": self.passed,
-            "rejection_reason": self.rejection_reason,
-            "model": self.model.to_dict(),
-        }
+        return self.model_dump()
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "FaceCandidate":
-        return cls(
-            bbox=data["bbox"],
-            confidence=data.get("confidence"),
-            passed=bool(data["passed"]),
-            rejection_reason=data.get("rejection_reason"),
-            model=FaceModelInfo.from_dict(data["model"]),
-        )
+    def from_dict(cls, data: dict[str, Any]) -> FaceCandidate:
+        return cls.model_validate(data)

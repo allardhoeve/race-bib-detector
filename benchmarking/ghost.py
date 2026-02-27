@@ -18,6 +18,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Sequence
 
+from pydantic import BaseModel
+
 logger = logging.getLogger(__name__)
 
 
@@ -66,8 +68,7 @@ def normalize_quad(
 # =============================================================================
 
 
-@dataclass
-class Provenance:
+class Provenance(BaseModel):
     """Metadata about which backend/version produced a suggestion.
 
     Attributes:
@@ -78,26 +79,17 @@ class Provenance:
 
     backend: str
     version: str
-    config: dict = field(default_factory=dict)
+    config: dict = {}
 
     def to_dict(self) -> dict:
-        return {
-            "backend": self.backend,
-            "version": self.version,
-            "config": self.config,
-        }
+        return self.model_dump()
 
     @classmethod
     def from_dict(cls, data: dict) -> Provenance:
-        return cls(
-            backend=data["backend"],
-            version=data["version"],
-            config=data.get("config", {}),
-        )
+        return cls.model_validate(data)
 
 
-@dataclass
-class BibSuggestion:
+class BibSuggestion(BaseModel):
     """A suggested bib bounding box with detected number.
 
     Coordinates are in normalised [0, 1] image space.
@@ -115,29 +107,14 @@ class BibSuggestion:
         return self.w > 0 and self.h > 0
 
     def to_dict(self) -> dict:
-        return {
-            "x": self.x,
-            "y": self.y,
-            "w": self.w,
-            "h": self.h,
-            "number": self.number,
-            "confidence": self.confidence,
-        }
+        return self.model_dump()
 
     @classmethod
     def from_dict(cls, data: dict) -> BibSuggestion:
-        return cls(
-            x=data["x"],
-            y=data["y"],
-            w=data["w"],
-            h=data["h"],
-            number=data["number"],
-            confidence=data["confidence"],
-        )
+        return cls.model_validate(data)
 
 
-@dataclass
-class FaceSuggestion:
+class FaceSuggestion(BaseModel):
     """A suggested face bounding box.
 
     Coordinates are in normalised [0, 1] image space.
@@ -154,27 +131,14 @@ class FaceSuggestion:
         return self.w > 0 and self.h > 0
 
     def to_dict(self) -> dict:
-        return {
-            "x": self.x,
-            "y": self.y,
-            "w": self.w,
-            "h": self.h,
-            "confidence": self.confidence,
-        }
+        return self.model_dump()
 
     @classmethod
     def from_dict(cls, data: dict) -> FaceSuggestion:
-        return cls(
-            x=data["x"],
-            y=data["y"],
-            w=data["w"],
-            h=data["h"],
-            confidence=data["confidence"],
-        )
+        return cls.model_validate(data)
 
 
-@dataclass
-class PhotoSuggestions:
+class PhotoSuggestions(BaseModel):
     """All suggestions for a single photo.
 
     Attributes:
@@ -185,30 +149,23 @@ class PhotoSuggestions:
     """
 
     content_hash: str
-    bibs: list[BibSuggestion] = field(default_factory=list)
-    faces: list[FaceSuggestion] = field(default_factory=list)
+    bibs: list[BibSuggestion] = []
+    faces: list[FaceSuggestion] = []
     provenance: Provenance | None = None
 
     def to_dict(self) -> dict:
-        d: dict = {
-            "bibs": [b.to_dict() for b in self.bibs],
-            "faces": [f.to_dict() for f in self.faces],
-        }
-        if self.provenance is not None:
-            d["provenance"] = self.provenance.to_dict()
-        return d
+        # content_hash is the JSON key, not stored in the value dict.
+        # exclude_none drops provenance when absent.
+        return self.model_dump(exclude={"content_hash"}, exclude_none=True)
 
     @classmethod
     def from_dict(cls, content_hash: str, data: dict) -> PhotoSuggestions:
-        provenance = None
-        if "provenance" in data:
-            provenance = Provenance.from_dict(data["provenance"])
-        return cls(
-            content_hash=content_hash,
-            bibs=[BibSuggestion.from_dict(b) for b in data.get("bibs", [])],
-            faces=[FaceSuggestion.from_dict(f) for f in data.get("faces", [])],
-            provenance=provenance,
-        )
+        """Load from a value dict, with content_hash passed separately.
+
+        The JSON file stores content_hash as the dict key, not inside the
+        value, so it must be merged in here.
+        """
+        return cls.model_validate({**data, "content_hash": content_hash})
 
 
 @dataclass

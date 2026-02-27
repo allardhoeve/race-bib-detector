@@ -13,6 +13,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
+from pydantic import BaseModel, computed_field
+
 from .ground_truth import BibBox, BibFaceLink, FaceBox, _BIB_BOX_UNSCORED
 
 # Type alias for a box as (x, y, w, h) tuple
@@ -160,8 +162,7 @@ def _safe_div(num: float, denom: float) -> float:
     return num / denom if denom > 0 else 0.0
 
 
-@dataclass
-class BibScorecard:
+class BibScorecard(BaseModel):
     """Bib detection scorecard: IoU-based detection P/R + OCR accuracy.
 
     Attributes:
@@ -178,39 +179,32 @@ class BibScorecard:
     ocr_correct: int
     ocr_total: int
 
+    @computed_field
     @property
     def detection_precision(self) -> float:
         return _safe_div(self.detection_tp, self.detection_tp + self.detection_fp)
 
+    @computed_field
     @property
     def detection_recall(self) -> float:
         return _safe_div(self.detection_tp, self.detection_tp + self.detection_fn)
 
+    @computed_field
     @property
     def detection_f1(self) -> float:
         p, r = self.detection_precision, self.detection_recall
         return _safe_div(2 * p * r, p + r)
 
+    @computed_field
     @property
     def ocr_accuracy(self) -> float:
         return _safe_div(self.ocr_correct, self.ocr_total)
 
     def to_dict(self) -> dict:
-        return {
-            "detection_tp": self.detection_tp,
-            "detection_fp": self.detection_fp,
-            "detection_fn": self.detection_fn,
-            "detection_precision": self.detection_precision,
-            "detection_recall": self.detection_recall,
-            "detection_f1": self.detection_f1,
-            "ocr_correct": self.ocr_correct,
-            "ocr_total": self.ocr_total,
-            "ocr_accuracy": self.ocr_accuracy,
-        }
+        return self.model_dump()
 
 
-@dataclass
-class FaceScorecard:
+class FaceScorecard(BaseModel):
     """Face detection scorecard: IoU-based detection P/R for keep-scoped faces.
 
     Attributes:
@@ -223,32 +217,27 @@ class FaceScorecard:
     detection_fp: int
     detection_fn: int
 
+    @computed_field
     @property
     def detection_precision(self) -> float:
         return _safe_div(self.detection_tp, self.detection_tp + self.detection_fp)
 
+    @computed_field
     @property
     def detection_recall(self) -> float:
         return _safe_div(self.detection_tp, self.detection_tp + self.detection_fn)
 
+    @computed_field
     @property
     def detection_f1(self) -> float:
         p, r = self.detection_precision, self.detection_recall
         return _safe_div(2 * p * r, p + r)
 
     def to_dict(self) -> dict:
-        return {
-            "detection_tp": self.detection_tp,
-            "detection_fp": self.detection_fp,
-            "detection_fn": self.detection_fn,
-            "detection_precision": self.detection_precision,
-            "detection_recall": self.detection_recall,
-            "detection_f1": self.detection_f1,
-        }
+        return self.model_dump()
 
 
-@dataclass
-class LinkScorecard:
+class LinkScorecard(BaseModel):
     """Bib-face link association scorecard.
 
     A TP requires: predicted bib box matches GT bib box (IoU >= threshold),
@@ -268,38 +257,28 @@ class LinkScorecard:
     link_fn: int
     gt_link_count: int
 
+    @computed_field
     @property
     def link_precision(self) -> float:
         return _safe_div(self.link_tp, self.link_tp + self.link_fp)
 
+    @computed_field
     @property
     def link_recall(self) -> float:
         return _safe_div(self.link_tp, self.link_tp + self.link_fn)
 
+    @computed_field
     @property
     def link_f1(self) -> float:
         p, r = self.link_precision, self.link_recall
         return _safe_div(2 * p * r, p + r)
 
     def to_dict(self) -> dict:
-        return {
-            "link_tp": self.link_tp,
-            "link_fp": self.link_fp,
-            "link_fn": self.link_fn,
-            "link_f1": self.link_f1,
-            "link_precision": self.link_precision,
-            "link_recall": self.link_recall,
-            "gt_link_count": self.gt_link_count,
-        }
+        return self.model_dump()
 
     @classmethod
     def from_dict(cls, data: dict) -> LinkScorecard:
-        return cls(
-            link_tp=data["link_tp"],
-            link_fp=data["link_fp"],
-            link_fn=data["link_fn"],
-            gt_link_count=data["gt_link_count"],
-        )
+        return cls.model_validate(data)
 
 
 # =============================================================================
