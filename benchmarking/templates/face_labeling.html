@@ -163,23 +163,37 @@
         .suggestion-chip:hover { background: #1a4a7a; color: #fff; }
         .crop-tooltip {
             display: none;
+            flex-direction: row;
+            gap: 4px;
             position: absolute;
             bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
+            left: 0;
             margin-bottom: 6px;
             border: 2px solid #1a4a7a;
             border-radius: 4px;
             background: #16213e;
-            padding: 2px;
+            padding: 4px;
             z-index: 100;
         }
         .crop-tooltip img {
             display: block;
-            max-width: 96px;
-            max-height: 96px;
+            max-width: 80px;
+            max-height: 80px;
         }
-        .suggestion-chip:hover .crop-tooltip { display: block; }
+        .suggestion-chip:hover .crop-tooltip { display: flex; }
+        .confirm-label {
+            font-size: 11px;
+            color: #888;
+            align-self: center;
+            white-space: nowrap;
+        }
+        .confirm-crop {
+            width: 48px;
+            height: 48px;
+            object-fit: cover;
+            border-radius: 3px;
+            border: 1px solid #1a4a7a;
+        }
         .anon-btn {
             background: #0f3460;
             color: #eee;

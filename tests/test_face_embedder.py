@@ -235,4 +235,28 @@ class TestFindTopK:
             "similarity": 0.9512,
             "content_hash": "abc123",
             "box_index": 2,
+            "samples": [],
         }
+
+    def test_samples_populated_for_multiple_exemplars(self):
+        # Alice has 3 entries, Bob has 1; samples should collect up to max_samples per identity
+        index = self._make_index(
+            ["Alice", "Alice", "Alice", "Bob"],
+            [[0.9, 0.1, 0.0], [0.8, 0.2, 0.0], [0.7, 0.3, 0.0], [0.0, 1.0, 0.0]],
+        )
+        query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+        results = find_top_k(query, index, k=5, max_samples=3)
+        alice = next(r for r in results if r.identity == "Alice")
+        assert len(alice.samples) == 3
+        # samples ordered by similarity descending
+        sims = [s["box_index"] for s in alice.samples]
+        assert sims == [0, 1, 2]  # hash_0/hash_1/hash_2 are Alice's entries sorted best first
+
+    def test_samples_capped_by_max_samples(self):
+        index = self._make_index(
+            ["Alice", "Alice", "Alice"],
+            [[0.9, 0.1, 0.0], [0.8, 0.2, 0.0], [0.7, 0.3, 0.0]],
+        )
+        query = np.array([1.0, 0.0, 0.0], dtype=np.float32)
+        results = find_top_k(query, index, k=5, max_samples=2)
+        assert len(results[0].samples) == 2

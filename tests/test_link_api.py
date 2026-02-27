@@ -3,6 +3,14 @@
 import pytest
 from starlette.testclient import TestClient
 
+from benchmarking.ground_truth import (
+    BibGroundTruth,
+    BibPhotoLabel,
+    FaceGroundTruth,
+    FacePhotoLabel,
+    save_bib_ground_truth,
+    save_face_ground_truth,
+)
 from benchmarking.photo_index import save_photo_index
 
 
@@ -21,6 +29,15 @@ def link_client(tmp_path, monkeypatch):
     index_path = tmp_path / "photo_index.json"
 
     save_photo_index({HASH_A: ["photo_a.jpg"]}, index_path)
+
+    # Both dimensions must be explicitly labeled for HASH_A to appear in the link queue
+    bib_gt = BibGroundTruth()
+    bib_gt.add_photo(BibPhotoLabel(content_hash=HASH_A, labeled=True))
+    save_bib_ground_truth(bib_gt, bib_gt_path)
+
+    face_gt = FaceGroundTruth()
+    face_gt.add_photo(FacePhotoLabel(content_hash=HASH_A, labeled=True))
+    save_face_ground_truth(face_gt, face_gt_path)
 
     monkeypatch.setattr(
         "benchmarking.ground_truth.get_link_ground_truth_path", lambda: link_gt_path

@@ -51,7 +51,7 @@ async function assignAnonymous() {
 
 // --- Identity suggestions ---
 let _suggestAbort = null;
-function fetchIdentitySuggestions(box) {
+function fetchIdentitySuggestions(box, confirmIdentity) {
     const container = document.getElementById('identitySuggestions');
     container.innerHTML = '';
     if (!box || !box.w || !box.h) return;
@@ -60,35 +60,51 @@ function fetchIdentitySuggestions(box) {
     const params = new URLSearchParams({
         box_x: box.x, box_y: box.y, box_w: box.w, box_h: box.h, k: 5
     });
-    fetch('/api/faces/' + contentHash + '/suggestions?' + params,
-          {signal: _suggestAbort.signal})
+    fetch('/api/faces/' + contentHash + '/suggestions?' + params, {signal: _suggestAbort.signal})
         .then(r => r.json())
         .then(data => {
             container.innerHTML = '';
-            (data.suggestions || []).forEach(s => {
-                const chip = document.createElement('span');
-                chip.className = 'suggestion-chip';
-                chip.textContent = s.identity + ' ' + Math.round(s.similarity * 100) + '%';
-                if (s.content_hash && s.box_index !== undefined) {
-                    const tooltip = document.createElement('span');
-                    tooltip.className = 'crop-tooltip';
-                    const img = document.createElement('img');
-                    img.src = '/api/faces/' + s.content_hash + '/crop/' + s.box_index;
-                    img.alt = s.identity;
-                    tooltip.appendChild(img);
-                    chip.appendChild(tooltip);
+            if (confirmIdentity) {
+                const match = (data.suggestions || []).find(s => s.identity === confirmIdentity);
+                if (match?.samples?.length > 0) {
+                    const label = document.createElement('span');
+                    label.className = 'confirm-label';
+                    label.textContent = 'other ' + confirmIdentity + ':';
+                    container.appendChild(label);
+                    match.samples.forEach(({content_hash, box_index}) => {
+                        const img = document.createElement('img');
+                        img.src = '/api/faces/' + content_hash + '/crop/' + box_index;
+                        img.className = 'confirm-crop';
+                        container.appendChild(img);
+                    });
                 }
-                chip.addEventListener('click', function() {
-                    document.getElementById('faceIdentity').value = s.identity;
-                    const state = LabelingUI.getState();
-                    if (state.selectedIdx >= 0) {
-                        state.boxes[state.selectedIdx].identity = s.identity;
-                        renderBoxList(state.boxes);
-                        LabelingUI.render();
+            } else {
+                (data.suggestions || []).forEach(s => {
+                    const chip = document.createElement('span');
+                    chip.className = 'suggestion-chip';
+                    chip.textContent = s.identity + ' ' + Math.round(s.similarity * 100) + '%';
+                    if (s.samples?.length > 0) {
+                        const tooltip = document.createElement('span');
+                        tooltip.className = 'crop-tooltip';
+                        s.samples.forEach(({content_hash, box_index}) => {
+                            const img = document.createElement('img');
+                            img.src = '/api/faces/' + content_hash + '/crop/' + box_index;
+                            tooltip.appendChild(img);
+                        });
+                        chip.appendChild(tooltip);
                     }
+                    chip.addEventListener('click', () => {
+                        document.getElementById('faceIdentity').value = s.identity;
+                        const state = LabelingUI.getState();
+                        if (state.selectedIdx >= 0) {
+                            state.boxes[state.selectedIdx].identity = s.identity;
+                            renderBoxList(state.boxes);
+                            LabelingUI.render();
+                        }
+                    });
+                    container.appendChild(chip);
                 });
-                container.appendChild(chip);
-            });
+            }
         })
         .catch(e => { if (e.name !== 'AbortError') console.warn('Suggestion fetch failed:', e); });
 }
@@ -144,12 +160,8 @@ function onBoxSelected(idx, box) {
 
     document.getElementById('faceIdentity').focus();
 
-    // Fetch identity suggestions if identity is empty
-    if (!box.identity) {
-        fetchIdentitySuggestions(box);
-    } else {
-        document.getElementById('identitySuggestions').innerHTML = '';
-    }
+    // Fetch suggestions: chips if unlabeled, confirmation crops if already identified
+    fetchIdentitySuggestions(box, box.identity || null);
 }
 
 // Update box when editor changes

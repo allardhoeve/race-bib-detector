@@ -27,6 +27,7 @@ class IdentityMatch:
     similarity: float
     content_hash: str
     box_index: int
+    samples: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -34,6 +35,7 @@ class IdentityMatch:
             "similarity": round(self.similarity, 4),
             "content_hash": self.content_hash,
             "box_index": self.box_index,
+            "samples": self.samples,
         }
 
 
@@ -128,10 +130,12 @@ def find_top_k(
     query_embedding: np.ndarray,
     index: EmbeddingIndex,
     k: int = 5,
+    max_samples: int = 3,
 ) -> list[IdentityMatch]:
     """Return top-k identity matches by cosine similarity.
 
     Deduplicates by identity — returns the highest similarity per unique name.
+    Each result includes up to max_samples exemplar crops sorted by similarity.
     """
     if index.size == 0:
         return []
@@ -149,23 +153,30 @@ def find_top_k(
 
     similarities = normed_index @ query  # (N,)
 
-    # Deduplicate by identity: keep best match per name
-    best_by_identity: dict[str, tuple[float, int]] = {}
+    # Collect all matches per identity, sorted by similarity descending
+    all_by_identity: dict[str, list[tuple[float, int]]] = {}
     for i, (identity, sim) in enumerate(zip(index.identities, similarities)):
-        sim_f = float(sim)
-        if identity not in best_by_identity or sim_f > best_by_identity[identity][0]:
-            best_by_identity[identity] = (sim_f, i)
+        all_by_identity.setdefault(identity, []).append((float(sim), i))
+    for matches in all_by_identity.values():
+        matches.sort(key=lambda x: x[0], reverse=True)
 
-    # Sort by similarity descending, take top-k
-    ranked = sorted(best_by_identity.items(), key=lambda x: x[1][0], reverse=True)
+    # Rank identities by best similarity, take top-k
+    ranked = sorted(all_by_identity.items(), key=lambda x: x[1][0][0], reverse=True)[:k]
+
     results: list[IdentityMatch] = []
-    for identity, (sim, idx) in ranked[:k]:
+    for identity, matches in ranked:
+        best_sim, best_idx = matches[0]
+        samples = [
+            {"content_hash": index.content_hashes[idx], "box_index": index.box_indices[idx]}
+            for _, idx in matches[:max_samples]
+        ]
         results.append(
             IdentityMatch(
                 identity=identity,
-                similarity=sim,
-                content_hash=index.content_hashes[idx],
-                box_index=index.box_indices[idx],
+                similarity=best_sim,
+                content_hash=index.content_hashes[best_idx],
+                box_index=index.box_indices[best_idx],
+                samples=samples,
             )
         )
     return results
