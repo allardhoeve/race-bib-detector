@@ -150,27 +150,33 @@
     function updateProcessedUI() {
         var btn = document.getElementById('noLinksBtn');
         var stat = document.getElementById('processedStatus');
+        var hasLinks = links.length > 0;
         if (btn) {
-            btn.classList.toggle('processed', isProcessed);
-            btn.textContent = isProcessed ? 'No Links ✓' : 'Mark as No Links';
+            btn.classList.toggle('processed', isProcessed && !hasPendingChanges);
+            if (hasPendingChanges) {
+                btn.textContent = hasLinks ? 'Save Links\u2026' : 'Save\u2026';
+            } else if (isProcessed) {
+                btn.textContent = hasLinks ? 'Links Saved \u2713' : 'No Links \u2713';
+            } else {
+                btn.textContent = hasLinks ? 'Save Links' : 'Mark as No Links';
+            }
         }
         if (stat) stat.textContent = isProcessed ? 'Yes' : '—';
     }
 
-    function onNoLinksBtnClick() {
+    function onSaveDoneBtn() {
         clearTimeout(saveTimer);
-        links = [];
-        updateLinkCounter();
-        redraw();
+        hasPendingChanges = false;
+        var hasLinks = links.length > 0;
         fetch('/api/associations/' + contentHash, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ links: [] }),
+            body: JSON.stringify({ links: links }),
         }).then(function (resp) {
             if (resp.ok) {
                 isProcessed = true;
                 updateProcessedUI();
-                showStatus('Saved — no links', false);
+                showStatus(hasLinks ? 'Links saved' : 'Saved \u2014 no links', false);
             } else {
                 resp.json().then(function (err) {
                     showStatus('Save failed: ' + (err.error || 'unknown'), true);
@@ -182,18 +188,25 @@
     }
 
     // -------------------------------------------------------------------------
-    // Saving (debounced)
+    // Saving (debounced, with promise tracking for safe navigation)
     // -------------------------------------------------------------------------
 
     var saveTimer = null;
+    var savePromise = null;
+    var hasPendingChanges = false;
 
     function saveLinksSoon() {
         clearTimeout(saveTimer);
-        saveTimer = setTimeout(saveLinks, 500);
+        hasPendingChanges = true;
+        updateProcessedUI();  // update button label while unsaved
+        saveTimer = setTimeout(function () { saveLinks(); }, 500);
     }
 
     function saveLinks() {
-        fetch('/api/associations/' + contentHash, {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+        hasPendingChanges = false;
+        savePromise = fetch('/api/associations/' + contentHash, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ links: links }),
@@ -208,7 +221,25 @@
         }).catch(function (err) {
             showStatus('Save failed: ' + err.message, true);
         });
+        return savePromise;
     }
+
+    // Navigate to url, flushing any pending save first.
+    function navigateLink(url) {
+        if (!url) return;
+        if (hasPendingChanges) {
+            clearTimeout(saveTimer);
+            hasPendingChanges = false;
+            showStatus('Saving\u2026', false);
+            saveLinks().then(function () { window.location.href = url; });
+        } else if (savePromise) {
+            savePromise.then(function () { window.location.href = url; });
+        } else {
+            window.location.href = url;
+        }
+    }
+
+    window.navigateLink = navigateLink;
 
     // -------------------------------------------------------------------------
     // Click handling
@@ -269,11 +300,11 @@
     document.addEventListener('keydown', function (e) {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
 
-        if (e.key === 'ArrowLeft') { navigate('prev'); }
-        else if (e.key === 'ArrowRight') { navigate('next'); }
-        else if (e.key === 'n') {
+        if (e.key === 'ArrowLeft') { navigateLink(PAGE_DATA.prevUrl); }
+        else if (e.key === 'ArrowRight') { navigateLink(PAGE_DATA.nextUrl); }
+        else if (e.key === 'n' || e.key === 'Enter') {
             e.preventDefault();
-            onNoLinksBtnClick();
+            onSaveDoneBtn();
         }
     });
 
@@ -282,7 +313,7 @@
     // -------------------------------------------------------------------------
 
     var noLinksBtn = document.getElementById('noLinksBtn');
-    if (noLinksBtn) noLinksBtn.addEventListener('click', onNoLinksBtnClick);
+    if (noLinksBtn) noLinksBtn.addEventListener('click', onSaveDoneBtn);
 
     // -------------------------------------------------------------------------
     // Initial draw (after image loads)

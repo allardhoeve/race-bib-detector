@@ -9,6 +9,69 @@ from benchmarking.ground_truth import (
 from benchmarking.photo_index import load_photo_index
 
 
+def get_bib_progress() -> tuple[int, int]:
+    """Return (labeled_count, total_count) for bib labeling."""
+    index = load_photo_index()
+    total = len(index)
+    bib_gt = load_bib_ground_truth()
+    done = sum(1 for h in index if (lbl := bib_gt.get_photo(h)) and lbl.labeled)
+    return done, total
+
+
+def get_face_progress() -> tuple[int, int]:
+    """Return (labeled_count, total_count) for face labeling."""
+    index = load_photo_index()
+    total = len(index)
+    face_gt = load_face_ground_truth()
+    done = sum(1 for h in index if (lbl := face_gt.get_photo(h)) and lbl.labeled)
+    return done, total
+
+
+def get_link_progress() -> tuple[int, int]:
+    """Return (linked_count, link_ready_total) for link labeling."""
+    link_gt = load_link_ground_truth()
+    link_ready = get_link_ready_hashes()
+    total = len(link_ready)
+    done = sum(1 for h in link_ready if h in link_gt.photos)
+    return done, total
+
+
+def workflow_context_for(content_hash: str, active_step: str) -> dict:
+    """Build the ``workflow`` dict passed to all labeling templates.
+
+    active_step: one of 'bibs', 'faces', 'links'
+    Returns dict with keys: active_step, bib_progress, face_progress,
+    link_progress, bib_labeled, face_labeled, links_saved, link_ready.
+    Progress values are dicts with 'done' and 'total' keys.
+    """
+    bib_gt = load_bib_ground_truth()
+    face_gt = load_face_ground_truth()
+    link_gt = load_link_ground_truth()
+
+    bib_label = bib_gt.get_photo(content_hash)
+    face_label = face_gt.get_photo(content_hash)
+
+    bib_labeled = bool(bib_label and bib_label.labeled)
+    face_labeled = bool(face_label and face_label.labeled)
+    link_ready = bib_labeled and face_labeled
+    links_saved = link_ready and content_hash in link_gt.photos
+
+    bib_done, bib_total = get_bib_progress()
+    face_done, face_total = get_face_progress()
+    link_done, link_total = get_link_progress()
+
+    return {
+        'active_step': active_step,
+        'bib_progress': {'done': bib_done, 'total': bib_total},
+        'face_progress': {'done': face_done, 'total': face_total},
+        'link_progress': {'done': link_done, 'total': link_total},
+        'bib_labeled': bib_labeled,
+        'face_labeled': face_labeled,
+        'links_saved': links_saved,
+        'link_ready': link_ready,
+    }
+
+
 def get_link_ready_hashes() -> list[str]:
     """Return sorted hashes where both bib and face labeling are explicitly done.
 

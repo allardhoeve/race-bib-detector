@@ -87,13 +87,13 @@
             <a href="{{ request.url_for('face_photo', content_hash=content_hash[:8]) }}" class="nav-link">Face Labels →</a>
             <button class="nav-btn" id="prevBtn"
                     {{ 'disabled' if not prev_url else '' }}
-                    onclick="if('{{ prev_url }}') location.href='{{ prev_url or '' }}'">← Prev</button>
+                    onclick="navigateLink('{{ prev_url or '' }}')">← Prev</button>
             <span class="position">{{ current }} / {{ total }}</span>
             <button class="nav-btn" id="nextBtn"
                     {{ 'disabled' if not next_url else '' }}
-                    onclick="if('{{ next_url }}') location.href='{{ next_url or '' }}'">Next →</button>
+                    onclick="navigateLink('{{ next_url or '' }}')">Next →</button>
             {% if next_unlabeled_url %}
-            <button class="nav-btn" onclick="navigateUnlabeled()">Next unlabeled →→</button>
+            <button class="nav-btn" onclick="navigateLink('{{ next_unlabeled_url }}')">Next unlabeled →→</button>
             {% endif %}
         </div>
     </div>
@@ -138,7 +138,7 @@
                     Click the same pair again to unlink.
                     Links save automatically.
                     <br><br>
-                    ← → navigate &nbsp;|&nbsp; N no links
+                    ← → navigate &nbsp;|&nbsp; N / Enter = save &amp; done
                 </div>
             </div>
 
