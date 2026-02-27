@@ -1,6 +1,6 @@
 # task-027: Wire face detection into benchmark runner
 
-**Status:** pending
+**Status:** done
 
 ## Goal
 

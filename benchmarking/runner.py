@@ -34,9 +34,11 @@ from geometry import bbox_to_rect
 from preprocessing import PreprocessConfig
 from warnings_utils import suppress_torch_mps_pin_memory_warning
 
-from .ground_truth import load_bib_ground_truth, BibBox, BibPhotoLabel
+from faces import FaceBackend, get_face_backend
+
+from .ground_truth import load_bib_ground_truth, BibBox, BibPhotoLabel, FaceGroundTruth, load_face_ground_truth, FaceBox
 from .photo_index import load_photo_index, get_path_for_hash
-from .scoring import score_bibs, BibScorecard, FaceScorecard, LinkScorecard
+from .scoring import score_bibs, score_faces, BibScorecard, FaceScorecard, LinkScorecard
 
 logger = logging.getLogger(__name__)
 
@@ -527,10 +529,13 @@ def _run_detection_loop(
     index: dict,
     images_dir: Path,
     verbose: bool,
-) -> tuple[list[PhotoResult], BibScorecard]:
-    """Run detection on all photos; return results and aggregate IoU scorecard."""
+    face_backend: FaceBackend | None = None,
+    face_gt: FaceGroundTruth | None = None,
+) -> tuple[list[PhotoResult], BibScorecard, FaceScorecard | None]:
+    """Run detection on all photos; return results and aggregate IoU scorecards."""
     photo_results: list[PhotoResult] = []
     iou_det_tp = iou_det_fp = iou_det_fn = iou_ocr_correct = iou_ocr_total = 0
+    face_det_tp = face_det_fp = face_det_fn = 0
 
     for i, label in enumerate(photos):
         path = get_path_for_hash(label.content_hash, PHOTOS_DIR, index)
@@ -578,6 +583,28 @@ def _run_detection_loop(
             iou_ocr_correct += photo_sc.ocr_correct
             iou_ocr_total += photo_sc.ocr_total
 
+        if face_backend is not None and face_gt is not None:
+            photo_face_label = face_gt.get_photo(label.content_hash)
+            gt_face_boxes = photo_face_label.boxes if photo_face_label else []
+            img_array = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
+            if img_array is not None:
+                image_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
+                face_h, face_w = image_rgb.shape[:2]
+                face_candidates = face_backend.detect_face_candidates(image_rgb)
+                pred_face_boxes: list[FaceBox] = []
+                for cand in face_candidates:
+                    if not cand.passed:
+                        continue
+                    x1, y1, x2, y2 = bbox_to_rect(cand.bbox)
+                    pred_face_boxes.append(FaceBox(
+                        x=x1 / face_w, y=y1 / face_h,
+                        w=(x2 - x1) / face_w, h=(y2 - y1) / face_h,
+                    ))
+                photo_face_sc = score_faces(pred_face_boxes, gt_face_boxes)
+                face_det_tp += photo_face_sc.detection_tp
+                face_det_fp += photo_face_sc.detection_fp
+                face_det_fn += photo_face_sc.detection_fn
+
         if verbose:
             status_icon = {"PASS": "✓", "PARTIAL": "◐", "MISS": "✗"}[photo_result.status]
             logger.info(
@@ -594,7 +621,14 @@ def _run_detection_loop(
         ocr_correct=iou_ocr_correct,
         ocr_total=iou_ocr_total,
     )
-    return photo_results, bib_scorecard
+    face_scorecard = None
+    if face_backend is not None:
+        face_scorecard = FaceScorecard(
+            detection_tp=face_det_tp,
+            detection_fp=face_det_fp,
+            detection_fn=face_det_fn,
+        )
+    return photo_results, bib_scorecard, face_scorecard
 
 
 def _build_run_metadata(
@@ -679,7 +713,16 @@ def run_benchmark(
     suppress_torch_mps_pin_memory_warning()
     reader = easyocr.Reader(["en"], gpu=torch.cuda.is_available())
 
-    photo_results, bib_scorecard = _run_detection_loop(reader, photos, index, images_dir, verbose)
+    face_gt = load_face_ground_truth()
+    face_backend: FaceBackend | None = None
+    try:
+        face_backend = get_face_backend()
+    except Exception as exc:
+        logger.warning("Face backend unavailable — face scoring skipped: %s", exc)
+
+    photo_results, bib_scorecard, face_scorecard = _run_detection_loop(
+        reader, photos, index, images_dir, verbose, face_backend, face_gt
+    )
     metrics = compute_metrics(photo_results)
     metadata = _build_run_metadata(run_id, split, note, start_time)
 
@@ -703,6 +746,7 @@ def run_benchmark(
         metrics=metrics,
         photo_results=photo_results,
         bib_scorecard=bib_scorecard,
+        face_scorecard=face_scorecard,
         link_scorecard=link_scorecard,
     )
 

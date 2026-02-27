@@ -59,6 +59,15 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
         else:
             print("\nIoU Scorecard: no GT boxes with coordinates yet")
 
+    if run.face_scorecard is not None:
+        from benchmarking.scoring import format_scorecard
+        sc = run.face_scorecard
+        has_face_data = (sc.detection_tp + sc.detection_fp + sc.detection_fn) > 0
+        if has_face_data:
+            print(f"\n{format_scorecard(face=sc)}")
+        else:
+            print("\nFace Scorecard: no GT face boxes with coordinates yet")
+
     if run.link_scorecard and run.link_scorecard.gt_link_count > 0:
         from benchmarking.scoring import format_scorecard
         print(f"\n{format_scorecard(link=run.link_scorecard)}")
