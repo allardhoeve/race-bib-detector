@@ -36,9 +36,20 @@ from warnings_utils import suppress_torch_mps_pin_memory_warning
 
 from faces import FaceBackend, get_face_backend
 
-from .ground_truth import load_bib_ground_truth, BibBox, BibPhotoLabel, FaceGroundTruth, load_face_ground_truth, FaceBox
+from faces.autolink import predict_links
+
+from .ground_truth import (
+    load_bib_ground_truth,
+    load_face_ground_truth,
+    load_link_ground_truth,
+    BibBox,
+    BibPhotoLabel,
+    FaceGroundTruth,
+    FaceBox,
+    LinkGroundTruth,
+)
 from .photo_index import load_photo_index, get_path_for_hash
-from .scoring import score_bibs, score_faces, BibScorecard, FaceScorecard, LinkScorecard
+from .scoring import score_bibs, score_faces, score_links, BibScorecard, FaceScorecard, LinkScorecard
 
 logger = logging.getLogger(__name__)
 
@@ -531,11 +542,13 @@ def _run_detection_loop(
     verbose: bool,
     face_backend: FaceBackend | None = None,
     face_gt: FaceGroundTruth | None = None,
-) -> tuple[list[PhotoResult], BibScorecard, FaceScorecard | None]:
+    link_gt: LinkGroundTruth | None = None,
+) -> tuple[list[PhotoResult], BibScorecard, FaceScorecard | None, LinkScorecard | None]:
     """Run detection on all photos; return results and aggregate IoU scorecards."""
     photo_results: list[PhotoResult] = []
     iou_det_tp = iou_det_fp = iou_det_fn = iou_ocr_correct = iou_ocr_total = 0
     face_det_tp = face_det_fp = face_det_fn = 0
+    link_tp = link_fp = link_fn = 0
 
     for i, label in enumerate(photos):
         path = get_path_for_hash(label.content_hash, PHOTOS_DIR, index)
@@ -566,23 +579,25 @@ def _run_detection_loop(
         photo_result.preprocess_metadata = result.preprocess_metadata
         photo_results.append(photo_result)
 
+        pred_bib_boxes: list[BibBox] = []
         img_w, img_h = result.original_dimensions
         if img_w > 0 and img_h > 0:
-            pred_boxes: list[BibBox] = []
             for det in result.detections:
                 x1, y1, x2, y2 = bbox_to_rect(det.bbox)
-                pred_boxes.append(BibBox(
+                pred_bib_boxes.append(BibBox(
                     x=x1 / img_w, y=y1 / img_h,
                     w=(x2 - x1) / img_w, h=(y2 - y1) / img_h,
                     number=det.bib_number,
                 ))
-            photo_sc = score_bibs(pred_boxes, label.boxes)
+            photo_sc = score_bibs(pred_bib_boxes, label.boxes)
             iou_det_tp += photo_sc.detection_tp
             iou_det_fp += photo_sc.detection_fp
             iou_det_fn += photo_sc.detection_fn
             iou_ocr_correct += photo_sc.ocr_correct
             iou_ocr_total += photo_sc.ocr_total
 
+        pred_face_boxes: list[FaceBox] = []
+        photo_face_label = None
         if face_backend is not None and face_gt is not None:
             photo_face_label = face_gt.get_photo(label.content_hash)
             gt_face_boxes = photo_face_label.boxes if photo_face_label else []
@@ -591,7 +606,6 @@ def _run_detection_loop(
                 image_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
                 face_h, face_w = image_rgb.shape[:2]
                 face_candidates = face_backend.detect_face_candidates(image_rgb)
-                pred_face_boxes: list[FaceBox] = []
                 for cand in face_candidates:
                     if not cand.passed:
                         continue
@@ -604,6 +618,18 @@ def _run_detection_loop(
                 face_det_tp += photo_face_sc.detection_tp
                 face_det_fp += photo_face_sc.detection_fp
                 face_det_fn += photo_face_sc.detection_fn
+
+        if link_gt is not None and photo_face_label is not None:
+            autolink = predict_links(pred_bib_boxes, pred_face_boxes)
+            photo_link_sc = score_links(
+                predicted_pairs=autolink.pairs,
+                gt_bib_boxes=label.boxes,
+                gt_face_boxes=photo_face_label.boxes,
+                gt_links=link_gt.get_links(label.content_hash),
+            )
+            link_tp += photo_link_sc.link_tp
+            link_fp += photo_link_sc.link_fp
+            link_fn += photo_link_sc.link_fn
 
         if verbose:
             status_icon = {"PASS": "✓", "PARTIAL": "◐", "MISS": "✗"}[photo_result.status]
@@ -628,7 +654,16 @@ def _run_detection_loop(
             detection_fp=face_det_fp,
             detection_fn=face_det_fn,
         )
-    return photo_results, bib_scorecard, face_scorecard
+    link_scorecard = None
+    if link_gt is not None:
+        total_gt_links = link_tp + link_fn
+        link_scorecard = LinkScorecard(
+            link_tp=link_tp,
+            link_fp=link_fp,
+            link_fn=link_fn,
+            gt_link_count=total_gt_links,
+        )
+    return photo_results, bib_scorecard, face_scorecard, link_scorecard
 
 
 def _build_run_metadata(
@@ -714,32 +749,18 @@ def run_benchmark(
     reader = easyocr.Reader(["en"], gpu=torch.cuda.is_available())
 
     face_gt = load_face_ground_truth()
+    link_gt = load_link_ground_truth()
     face_backend: FaceBackend | None = None
     try:
         face_backend = get_face_backend()
     except Exception as exc:
         logger.warning("Face backend unavailable — face scoring skipped: %s", exc)
 
-    photo_results, bib_scorecard, face_scorecard = _run_detection_loop(
-        reader, photos, index, images_dir, verbose, face_backend, face_gt
+    photo_results, bib_scorecard, face_scorecard, link_scorecard = _run_detection_loop(
+        reader, photos, index, images_dir, verbose, face_backend, face_gt, link_gt
     )
     metrics = compute_metrics(photo_results)
     metadata = _build_run_metadata(run_id, split, note, start_time)
-
-    # Stub link scorecard: pipeline does not yet provide link predictions.
-    # Count GT links for reporting; TP/FP = 0 until pipeline is extended.
-    from .ground_truth import load_link_ground_truth
-    link_gt = load_link_ground_truth()
-    total_gt_links = sum(
-        len(link_gt.get_links(r.content_hash))
-        for r in photo_results
-    )
-    link_scorecard = LinkScorecard(
-        link_tp=0,
-        link_fp=0,
-        link_fn=total_gt_links,
-        gt_link_count=total_gt_links,
-    )
 
     benchmark_run = BenchmarkRun(
         metadata=metadata,

@@ -4,6 +4,7 @@ Face backend interface and local implementations.
 
 from __future__ import annotations
 
+import dataclasses
 from dataclasses import dataclass
 import logging
 from pathlib import Path
@@ -34,8 +35,17 @@ class OpenCVHaarFaceBackend:
     """Local face backend using OpenCV's Haar cascade."""
 
     cascade_path: str = f"{cv2.data.haarcascades}haarcascade_frontalface_default.xml"
+    min_neighbors: int | None = None
+    scale_factor: float | None = None
+    min_size: tuple[int, int] | None = None
 
     def __post_init__(self) -> None:
+        if self.min_neighbors is None:
+            self.min_neighbors = config.FACE_DETECTION_MIN_NEIGHBORS
+        if self.scale_factor is None:
+            self.scale_factor = config.FACE_DETECTION_SCALE_FACTOR
+        if self.min_size is None:
+            self.min_size = config.FACE_DETECTION_MIN_SIZE
         self._cascade = cv2.CascadeClassifier(self.cascade_path)
         if self._cascade.empty():
             raise RuntimeError(f"Failed to load Haar cascade: {self.cascade_path}")
@@ -54,9 +64,9 @@ class OpenCVHaarFaceBackend:
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         faces = self._cascade.detectMultiScale(
             gray,
-            scaleFactor=config.FACE_DETECTION_SCALE_FACTOR,
-            minNeighbors=config.FACE_DETECTION_MIN_NEIGHBORS,
-            minSize=config.FACE_DETECTION_MIN_SIZE,
+            scaleFactor=self.scale_factor,
+            minNeighbors=self.min_neighbors,
+            minSize=self.min_size,
         )
         model_info = self.model_info()
         boxes = [rect_to_bbox(int(x), int(y), int(w), int(h)) for (x, y, w, h) in faces]
@@ -109,8 +119,17 @@ class OpenCVDnnSsdFaceBackend:
 
     proto_path: str = config.FACE_DNN_PROTO_PATH
     model_path: str = config.FACE_DNN_MODEL_PATH
+    confidence_min: float | None = None
+    nms_iou: float | None = None
+    fallback_confidence_min: float | None = None
 
     def __post_init__(self) -> None:
+        if self.confidence_min is None:
+            self.confidence_min = config.FACE_DNN_CONFIDENCE_MIN
+        if self.nms_iou is None:
+            self.nms_iou = config.FACE_DNN_NMS_IOU
+        if self.fallback_confidence_min is None:
+            self.fallback_confidence_min = config.FACE_DNN_FALLBACK_CONFIDENCE_MIN
         proto_path = Path(self.proto_path)
         model_path = Path(self.model_path)
         if not proto_path.exists():
@@ -157,7 +176,7 @@ class OpenCVDnnSsdFaceBackend:
             if x2 <= x1 or y2 <= y1:
                 continue
             bbox = rect_to_bbox(int(x1), int(y1), int(x2 - x1), int(y2 - y1))
-            passed = confidence >= config.FACE_DNN_CONFIDENCE_MIN
+            passed = confidence >= self.confidence_min
             candidates.append(
                 FaceCandidate(
                     bbox=bbox,
@@ -177,8 +196,8 @@ class OpenCVDnnSsdFaceBackend:
         indices = cv2.dnn.NMSBoxes(
             boxes,
             confidences,
-            score_threshold=config.FACE_DNN_CONFIDENCE_MIN,
-            nms_threshold=config.FACE_DNN_NMS_IOU,
+            score_threshold=self.confidence_min,
+            nms_threshold=self.nms_iou,
         )
         kept: set[int] = set()
         for idx in indices:
@@ -228,3 +247,32 @@ def get_face_backend_by_name(backend_name: str) -> FaceBackend:
     if backend_cls is None:
         raise ValueError(f"Unknown face backend: {backend_name}")
     return backend_cls()
+
+
+def get_face_backend_with_overrides(
+    backend_name: str | None = None,
+    **kwargs,
+) -> FaceBackend:
+    """Instantiate a face backend with parameter overrides.
+
+    Args:
+        backend_name: Backend name (e.g. ``"opencv_dnn_ssd"``). Defaults to
+            ``config.FACE_BACKEND`` if None.
+        **kwargs: Constructor keyword arguments to override. Must be valid
+            field names for the selected backend class.
+
+    Raises:
+        ValueError: If ``backend_name`` is unknown or any kwarg is not a
+            valid field for the selected backend.
+    """
+    name = backend_name if backend_name is not None else config.FACE_BACKEND
+    backend_cls = _BACKENDS.get(name)
+    if backend_cls is None:
+        raise ValueError(f"Unknown face backend: {name!r}")
+    valid_fields = {f.name for f in dataclasses.fields(backend_cls)}
+    unknown = set(kwargs) - valid_fields
+    if unknown:
+        raise ValueError(
+            f"Unknown kwargs for backend {name!r}: {sorted(unknown)}"
+        )
+    return backend_cls(**kwargs)
