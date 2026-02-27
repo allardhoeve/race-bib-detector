@@ -50,7 +50,7 @@ def _face_gt_with(hashes_boxes: dict) -> FaceGroundTruth:
     """Build a FaceGroundTruth with each hash mapped to a list of FaceBox objects."""
     gt = FaceGroundTruth()
     for h, boxes in hashes_boxes.items():
-        gt.add_photo(FacePhotoLabel(content_hash=h, boxes=boxes))
+        gt.add_photo(FacePhotoLabel(content_hash=h, boxes=boxes, labeled=True))
     return gt
 
 
@@ -105,9 +105,8 @@ class TestPhotoCompleteness:
     def test_known_negative(self):
         """Both labeled, 0 boxes each → is_known_negative=True, is_complete=True."""
         save_bib_ground_truth(_bib_gt_with({HASH_A: []}))
-        # Face labeled with no_faces tag to satisfy is_face_labeled
         gt = FaceGroundTruth()
-        gt.add_photo(FacePhotoLabel(content_hash=HASH_A, boxes=[], tags=["no_faces"]))
+        gt.add_photo(FacePhotoLabel(content_hash=HASH_A, boxes=[], tags=["no_faces"], labeled=True))
         save_face_ground_truth(gt)
         # (No link GT needed)
 
@@ -121,16 +120,28 @@ class TestPhotoCompleteness:
         assert result.is_known_negative is True
         assert result.is_complete is True
 
-    def test_links_trivial_when_face_empty(self):
-        """Bib has boxes, face has 0 boxes → links_labeled=True without any link GT entry."""
+    def test_links_trivial_when_both_labeled_and_face_empty(self):
+        """Bib has boxes, face explicitly labeled with 0 boxes → links trivially done."""
         save_bib_ground_truth(_bib_gt_with({HASH_A: [_bib_box()]}))
-        save_face_ground_truth(_face_gt_with({HASH_A: []}))
+        save_face_ground_truth(_face_gt_with({HASH_A: []}))  # labeled=True via helper
 
         result = photo_completeness(HASH_A)
 
         assert result.bib_box_count == 1
         assert result.face_box_count == 0
         assert result.links_labeled is True
+
+    def test_links_not_trivial_when_face_not_labeled(self):
+        """Face not explicitly labeled → links not trivially done even with 0 face boxes."""
+        save_bib_ground_truth(_bib_gt_with({HASH_A: [_bib_box()]}))
+        gt = FaceGroundTruth()
+        gt.add_photo(FacePhotoLabel(content_hash=HASH_A, boxes=[]))  # labeled=False (default)
+        save_face_ground_truth(gt)
+
+        result = photo_completeness(HASH_A)
+
+        assert result.face_labeled is False
+        assert result.links_labeled is False
 
     def test_links_missing_when_both_have_boxes(self):
         """Both have boxes but no link GT entry → links_labeled=False."""

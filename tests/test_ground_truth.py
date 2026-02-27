@@ -94,6 +94,40 @@ class TestBibPhotoLabel:
 
 
 class TestFacePhotoLabel:
+    def test_labeled_defaults_false(self):
+        label = FacePhotoLabel(content_hash="abc")
+        assert label.labeled is False
+
+    def test_labeled_roundtrip(self):
+        """to_dict / from_dict preserves labeled=True."""
+        from benchmarking.ground_truth import FaceGroundTruth
+        gt = FaceGroundTruth()
+        gt.add_photo(FacePhotoLabel(content_hash="abc", labeled=True))
+        restored = FaceGroundTruth.from_dict(gt.to_dict())
+        assert restored.get_photo("abc").labeled is True
+
+    def test_from_dict_missing_labeled_defaults_false(self):
+        """Old JSON without 'labeled' key loads as labeled=False (no backfill)."""
+        from benchmarking.ground_truth import FaceGroundTruth
+        old_json = {"version": 3, "photos": {"abc": {"boxes": [], "tags": []}}}
+        gt = FaceGroundTruth.from_dict(old_json)
+        assert gt.get_photo("abc").labeled is False
+
+    def test_from_dict_with_boxes_no_labeled_stays_false(self):
+        """Old JSON with boxes but no 'labeled' key does NOT get backfilled."""
+        from benchmarking.ground_truth import FaceGroundTruth, FaceBox
+        old_json = {
+            "version": 3,
+            "photos": {
+                "abc": {
+                    "boxes": [{"x": 0.1, "y": 0.1, "w": 0.1, "h": 0.1, "scope": "keep", "tags": []}],
+                    "tags": [],
+                }
+            },
+        }
+        gt = FaceGroundTruth.from_dict(old_json)
+        assert gt.get_photo("abc").labeled is False
+
     def test_face_count_from_keep_scoped_boxes(self):
         boxes = [
             FaceBox(x=0.1, y=0.1, w=0.1, h=0.1, scope="keep"),

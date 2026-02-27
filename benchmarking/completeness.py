@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from benchmarking.ground_truth import (
     load_bib_ground_truth,
     load_face_ground_truth,
+    load_link_ground_truth,
 )
 from benchmarking.label_utils import is_face_labeled
 
@@ -48,17 +49,14 @@ def photo_completeness(content_hash: str) -> PhotoCompleteness:
     bib_box_count = len(bib_label.boxes) if bib_label else 0
     face_box_count = len(face_label.boxes) if face_label else 0
 
-    # links_labeled: trivially True when no bib or face boxes exist
-    if bib_box_count == 0 or face_box_count == 0:
+    # links_labeled: trivially True only when BOTH dimensions are labeled and one is empty
+    if bib_labeled and face_labeled and (bib_box_count == 0 or face_box_count == 0):
         links_labeled = True
+    elif bib_labeled and face_labeled:
+        link_gt = load_link_ground_truth()
+        links_labeled = content_hash in link_gt.photos
     else:
-        # Requires task-007 LinkGroundTruth; gracefully defaults to True if unavailable
-        try:
-            from benchmarking.ground_truth import load_link_ground_truth
-            link_gt = load_link_ground_truth()
-            links_labeled = content_hash in link_gt.photos
-        except (ImportError, AttributeError):
-            links_labeled = True
+        links_labeled = False
 
     return PhotoCompleteness(
         content_hash=content_hash,

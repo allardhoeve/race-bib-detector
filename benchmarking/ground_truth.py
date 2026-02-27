@@ -281,6 +281,7 @@ class FacePhotoLabel(BaseModel):
     content_hash: str
     boxes: list[FaceBox] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
+    labeled: bool = False  # True once a human has explicitly saved face labels for this photo
 
     model_config = ConfigDict(extra="ignore")
 

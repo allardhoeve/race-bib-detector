@@ -19,6 +19,7 @@ from benchmarking.label_utils import (
     get_filtered_hashes,
     is_face_labeled,
 )
+from benchmarking.services.completion_service import get_link_ready_hashes, get_unlinked_hashes
 from benchmarking.photo_index import load_photo_index
 from benchmarking.runner import list_runs
 from benchmarking.templates_env import TEMPLATES
@@ -207,8 +208,7 @@ async def face_photo(
 @ui_labeling_router.get('/associations/')
 async def associations_index(request: Request):
     """Show first photo for link labeling."""
-    index = load_photo_index()
-    hashes = sorted(index.keys())
+    hashes = get_link_ready_hashes()
     if not hashes:
         return TEMPLATES.TemplateResponse(request, 'empty.html')
     return RedirectResponse(
@@ -222,11 +222,12 @@ async def association_photo(content_hash: str, request: Request):
     """Link labeling page: associate bib boxes with face boxes."""
     from benchmarking.ground_truth import load_link_ground_truth
 
-    index = load_photo_index()
-    full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
+    all_hashes = get_link_ready_hashes()
+    full_hash = find_hash_by_prefix(content_hash, all_hashes)
     if not full_hash:
-        raise HTTPException(status_code=404, detail='Photo not found')
+        raise HTTPException(status_code=404, detail='Photo not found or not ready for linking')
 
+    index = load_photo_index()
     photo_paths = index[full_hash]
     photo_path = photo_paths[0] if isinstance(photo_paths, list) else photo_paths
 
@@ -243,19 +244,19 @@ async def association_photo(content_hash: str, request: Request):
     face_boxes = [b.model_dump() for b in face_label.boxes] if face_label else []
     links = [lnk.to_pair() for lnk in link_label]
 
-    all_hashes = sorted(index.keys())
     try:
         idx = all_hashes.index(full_hash)
     except ValueError:
-        raise HTTPException(status_code=404, detail='Photo not in index')
+        raise HTTPException(status_code=404, detail='Photo not in link-ready list')
 
     total = len(all_hashes)
     prev_url = str(request.url_for('association_photo', content_hash=all_hashes[idx - 1][:8])) if idx > 0 else None
     next_url = str(request.url_for('association_photo', content_hash=all_hashes[idx + 1][:8])) if idx < total - 1 else None
 
+    unlinked = get_unlinked_hashes()
     next_unlabeled_url = None
-    for h in all_hashes[idx + 1:]:
-        if h not in link_gt.photos:
+    for h in unlinked:
+        if h > full_hash:
             next_unlabeled_url = str(request.url_for('association_photo', content_hash=h[:8]))
             break
 

@@ -96,7 +96,7 @@ def save_face_label(content_hash: str, boxes_data: list[dict] | None,
     """
     face_gt = load_face_ground_truth()
     boxes = [FaceBox.model_validate(b) for b in boxes_data] if boxes_data else []
-    label = FacePhotoLabel(content_hash=content_hash, boxes=boxes, tags=tags)
+    label = FacePhotoLabel(content_hash=content_hash, boxes=boxes, tags=tags, labeled=True)
     face_gt.add_photo(label)
     save_face_ground_truth(face_gt)
 

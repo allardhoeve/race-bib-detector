@@ -33,8 +33,8 @@ def get_filtered_hashes(filter_type: str) -> list[str]:
 
 
 def is_face_labeled(label: FacePhotoLabel) -> bool:
-    """Check if a photo has face labeling data."""
-    return bool(label.boxes) or bool(label.tags)
+    """True once a human has explicitly saved face labels for this photo."""
+    return label.labeled
 
 
 def get_filtered_face_hashes(filter_type: str) -> list[str]:
