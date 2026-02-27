@@ -144,7 +144,10 @@
 
     function updateLinkCounter() {
         var el = document.getElementById('linkCount');
-        if (el) el.textContent = links.length + ' link' + (links.length === 1 ? '' : 's');
+        if (el) {
+            el.textContent = links.length + ' link' + (links.length === 1 ? '' : 's');
+            el.classList.toggle('warning', links.length < PAGE_DATA.numbered_bib_count);
+        }
     }
 
     function updateProcessedUI() {
@@ -240,6 +243,13 @@
     }
 
     window.navigateLink = navigateLink;
+
+    window.applyFilter = function () {
+        var filter = document.getElementById('filter').value;
+        var url = '/associations/';
+        if (filter !== 'all') url += '?filter=' + filter;
+        window.location.href = url;
+    };
 
     // -------------------------------------------------------------------------
     // Click handling

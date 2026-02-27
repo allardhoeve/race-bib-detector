@@ -79,6 +79,7 @@
             font-size: 11px;
             color: #666;
         }
+        .stat-value.warning { color: #f0a500; }
 {% endblock %}
 {% block body %}
     {% include '_workflow_nav.html' %}
@@ -96,6 +97,16 @@
             {% if next_unlabeled_url %}
             <button class="nav-btn" onclick="navigateLink('{{ next_unlabeled_url }}')">Next unlabeled →→</button>
             {% endif %}
+            {% if next_incomplete_url %}
+            <button class="nav-btn" onclick="navigateLink('{{ next_incomplete_url }}')">Next incomplete →→</button>
+            {% endif %}
+        </div>
+        <div class="filter-section" style="background: transparent; border: none; padding: 0;">
+            <select class="filter-select" style="width: auto;" id="filter" onchange="applyFilter()">
+                <option value="all" {{ 'selected' if filter == 'all' else '' }}>All</option>
+                <option value="unlinked" {{ 'selected' if filter == 'unlinked' else '' }}>Unlinked</option>
+                <option value="underlinked" {{ 'selected' if filter == 'underlinked' else '' }}>Incomplete</option>
+            </select>
         </div>
     </div>
 
@@ -111,6 +122,10 @@
             <div class="form-section">
                 <h3>Stats</h3>
                 <div class="stat-row">
+                    <span>Numbered bibs</span>
+                    <span class="stat-value" id="numberedBibCount">{{ numbered_bib_count }}</span>
+                </div>
+                <div class="stat-row">
                     <span>Bib boxes</span>
                     <span class="stat-value" id="bibCount">{{ bib_boxes|length }}</span>
                 </div>
@@ -120,7 +135,7 @@
                 </div>
                 <div class="stat-row">
                     <span>Links</span>
-                    <span class="stat-value" id="linkCount">{{ links|length }} link{{ '' if links|length == 1 else 's' }}</span>
+                    <span class="stat-value{% if links|length < numbered_bib_count %} warning{% endif %}" id="linkCount">{{ links|length }} link{{ '' if links|length == 1 else 's' }}</span>
                 </div>
                 <div class="stat-row">
                     <span>Processed</span>
@@ -158,14 +173,16 @@
 
     <script id="page-data" type="application/json">
     {
-        "content_hash": {{ content_hash|tojson }},
-        "bib_boxes":    {{ bib_boxes|tojson }},
-        "face_boxes":   {{ face_boxes|tojson }},
-        "links":        {{ links|tojson }},
-        "is_processed": {{ is_processed|tojson }},
-        "prevUrl":           {{ prev_url|tojson }},
-        "nextUrl":           {{ next_url|tojson }},
-        "nextUnlabeledUrl":  {{ next_unlabeled_url|tojson }}
+        "content_hash":       {{ content_hash|tojson }},
+        "bib_boxes":          {{ bib_boxes|tojson }},
+        "face_boxes":         {{ face_boxes|tojson }},
+        "links":              {{ links|tojson }},
+        "is_processed":       {{ is_processed|tojson }},
+        "numbered_bib_count": {{ numbered_bib_count|tojson }},
+        "prevUrl":            {{ prev_url|tojson }},
+        "nextUrl":            {{ next_url|tojson }},
+        "nextUnlabeledUrl":   {{ next_unlabeled_url|tojson }},
+        "nextIncompleteUrl":  {{ next_incomplete_url|tojson }}
     }
     </script>
     <script src="{{ request.url_for('static', path='labeling.js') }}"></script>

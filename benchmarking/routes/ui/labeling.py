@@ -22,6 +22,7 @@ from benchmarking.label_utils import (
 from benchmarking.services.completion_service import (
     get_link_ready_hashes,
     get_unlinked_hashes,
+    get_underlinked_hashes,
     workflow_context_for,
 )
 from benchmarking.photo_index import load_photo_index
@@ -211,24 +212,38 @@ async def face_photo(
 
 # ---- ASSOCIATION LABELING ------------------------------------------------
 
+def _get_association_hashes(filter_type: str) -> list[str]:
+    if filter_type == 'underlinked':
+        return get_underlinked_hashes()
+    if filter_type == 'unlinked':
+        return get_unlinked_hashes()
+    return get_link_ready_hashes()
+
+
 @ui_labeling_router.get('/associations/')
-async def associations_index(request: Request):
+async def associations_index(
+    request: Request,
+    filter_type: str = Query(default='all', alias='filter'),
+):
     """Show first photo for link labeling."""
-    hashes = get_link_ready_hashes()
+    hashes = _get_association_hashes(filter_type)
     if not hashes:
         return TEMPLATES.TemplateResponse(request, 'empty.html')
-    return RedirectResponse(
-        url=str(request.url_for('association_photo', content_hash=hashes[0][:8])),
-        status_code=302,
-    )
+    filter_suffix = f'?filter={filter_type}' if filter_type != 'all' else ''
+    url = str(request.url_for('association_photo', content_hash=hashes[0][:8])) + filter_suffix
+    return RedirectResponse(url=url, status_code=302)
 
 
 @ui_labeling_router.get('/associations/{content_hash}')
-async def association_photo(content_hash: str, request: Request):
+async def association_photo(
+    content_hash: str,
+    request: Request,
+    filter_type: str = Query(default='all', alias='filter'),
+):
     """Link labeling page: associate bib boxes with face boxes."""
     from benchmarking.ground_truth import load_link_ground_truth
 
-    all_hashes = get_link_ready_hashes()
+    all_hashes = _get_association_hashes(filter_type)
     full_hash = find_hash_by_prefix(content_hash, all_hashes)
     if not full_hash:
         raise HTTPException(status_code=404, detail='Photo not found or not ready for linking')
@@ -249,21 +264,34 @@ async def association_photo(content_hash: str, request: Request):
     bib_boxes = [b.model_dump() for b in bib_label.boxes] if bib_label else []
     face_boxes = [b.model_dump() for b in face_label.boxes] if face_label else []
     links = [lnk.to_pair() for lnk in link_label]
+    numbered_bib_count = len(bib_label.bib_numbers_int) if bib_label else 0
 
     try:
         idx = all_hashes.index(full_hash)
     except ValueError:
-        raise HTTPException(status_code=404, detail='Photo not in link-ready list')
+        raise HTTPException(status_code=404, detail='Photo not in filtered list')
 
     total = len(all_hashes)
-    prev_url = str(request.url_for('association_photo', content_hash=all_hashes[idx - 1][:8])) if idx > 0 else None
-    next_url = str(request.url_for('association_photo', content_hash=all_hashes[idx + 1][:8])) if idx < total - 1 else None
+    filter_suffix = f'?filter={filter_type}' if filter_type != 'all' else ''
+    prev_url = (
+        str(request.url_for('association_photo', content_hash=all_hashes[idx - 1][:8])) + filter_suffix
+    ) if idx > 0 else None
+    next_url = (
+        str(request.url_for('association_photo', content_hash=all_hashes[idx + 1][:8])) + filter_suffix
+    ) if idx < total - 1 else None
 
-    unlinked = get_unlinked_hashes()
     next_unlabeled_url = None
-    for h in unlinked:
+    for h in get_unlinked_hashes():
         if h > full_hash:
             next_unlabeled_url = str(request.url_for('association_photo', content_hash=h[:8]))
+            break
+
+    next_incomplete_url = None
+    for h in get_underlinked_hashes():
+        if h > full_hash:
+            next_incomplete_url = (
+                str(request.url_for('association_photo', content_hash=h[:8])) + '?filter=underlinked'
+            )
             break
 
     return TEMPLATES.TemplateResponse(request, 'link_labeling.html', {
@@ -273,10 +301,13 @@ async def association_photo(content_hash: str, request: Request):
         'face_boxes': face_boxes,
         'links': links,
         'is_processed': is_processed,
+        'numbered_bib_count': numbered_bib_count,
         'current': idx + 1,
         'total': total,
         'prev_url': prev_url,
         'next_url': next_url,
         'next_unlabeled_url': next_unlabeled_url,
+        'next_incomplete_url': next_incomplete_url,
+        'filter': filter_type,
         'workflow': workflow_context_for(full_hash, 'links'),
     })

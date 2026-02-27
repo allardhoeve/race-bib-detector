@@ -5,6 +5,7 @@ import pytest
 
 from benchmarking.ground_truth import (
     BibBox,
+    BibFaceLink,
     BibPhotoLabel,
     BibGroundTruth,
     FaceBox,
@@ -18,6 +19,7 @@ from benchmarking.ground_truth import (
 from benchmarking.services.completion_service import (
     get_link_ready_hashes,
     get_unlinked_hashes,
+    get_underlinked_hashes,
     get_bib_progress,
     get_face_progress,
     get_link_progress,
@@ -137,6 +139,119 @@ class TestGetUnlinkedHashes:
         save_link_ground_truth(LinkGroundTruth())
 
         assert get_unlinked_hashes() == [HASH_A]
+
+
+class TestGetUnderlinkedHashes:
+    def _setup_link_ready(self, tmp_path, hashes: list[str]) -> None:
+        """Mark all hashes as bib+face labeled (link-ready)."""
+        _save_index(tmp_path, hashes)
+        bib_gt = BibGroundTruth()
+        face_gt = FaceGroundTruth()
+        for h in hashes:
+            bib_gt.add_photo(_bib_label(h, labeled=True))
+            face_gt.add_photo(_face_label(h, labeled=True))
+        save_bib_ground_truth(bib_gt)
+        save_face_ground_truth(face_gt)
+
+    def test_unprocessed_excluded(self, tmp_path):
+        """Photo not yet in link GT is excluded (not processed)."""
+        self._setup_link_ready(tmp_path, [HASH_A])
+        bib_gt = BibGroundTruth()
+        bib_gt.add_photo(BibPhotoLabel(
+            content_hash=HASH_A, labeled=True,
+            boxes=[BibBox(x=0, y=0, w=0.1, h=0.1, number='42', scope='bib')],
+        ))
+        save_bib_ground_truth(bib_gt)
+        save_link_ground_truth(LinkGroundTruth())
+
+        assert get_underlinked_hashes() == []
+
+    def test_no_numbered_bibs_not_underlinked(self, tmp_path):
+        """Photo with zero numbered bibs and zero links is not underlinked."""
+        self._setup_link_ready(tmp_path, [HASH_A])
+        link_gt = LinkGroundTruth()
+        link_gt.set_links(HASH_A, [])
+        save_link_ground_truth(link_gt)
+
+        assert get_underlinked_hashes() == []
+
+    def test_links_match_numbered_bibs_not_underlinked(self, tmp_path):
+        """Photo where link count equals numbered bib count is not underlinked."""
+        _save_index(tmp_path, [HASH_A])
+        bib_gt = BibGroundTruth()
+        bib_gt.add_photo(BibPhotoLabel(
+            content_hash=HASH_A, labeled=True,
+            boxes=[BibBox(x=0, y=0, w=0.1, h=0.1, number='42', scope='bib')],
+        ))
+        face_gt = FaceGroundTruth()
+        face_gt.add_photo(_face_label(HASH_A))
+        link_gt = LinkGroundTruth()
+        link_gt.set_links(HASH_A, [BibFaceLink(bib_index=0, face_index=0)])
+        save_bib_ground_truth(bib_gt)
+        save_face_ground_truth(face_gt)
+        save_link_ground_truth(link_gt)
+
+        assert get_underlinked_hashes() == []
+
+    def test_fewer_links_than_numbered_bibs(self, tmp_path):
+        """Photo with fewer links than numbered bibs is underlinked."""
+        _save_index(tmp_path, [HASH_A])
+        bib_gt = BibGroundTruth()
+        bib_gt.add_photo(BibPhotoLabel(
+            content_hash=HASH_A, labeled=True,
+            boxes=[
+                BibBox(x=0, y=0, w=0.1, h=0.1, number='42', scope='bib'),
+                BibBox(x=0.5, y=0, w=0.1, h=0.1, number='99', scope='bib'),
+            ],
+        ))
+        face_gt = FaceGroundTruth()
+        face_gt.add_photo(_face_label(HASH_A))
+        link_gt = LinkGroundTruth()
+        link_gt.set_links(HASH_A, [BibFaceLink(bib_index=0, face_index=0)])  # only 1 of 2
+        save_bib_ground_truth(bib_gt)
+        save_face_ground_truth(face_gt)
+        save_link_ground_truth(link_gt)
+
+        assert get_underlinked_hashes() == [HASH_A]
+
+    def test_unscored_scopes_excluded_from_count(self, tmp_path):
+        """not_bib and bib_obscured boxes do not count toward numbered bib total."""
+        _save_index(tmp_path, [HASH_A])
+        bib_gt = BibGroundTruth()
+        bib_gt.add_photo(BibPhotoLabel(
+            content_hash=HASH_A, labeled=True,
+            boxes=[
+                BibBox(x=0, y=0, w=0.1, h=0.1, number='42', scope='not_bib'),
+                BibBox(x=0.5, y=0, w=0.1, h=0.1, number='99', scope='bib_obscured'),
+            ],
+        ))
+        face_gt = FaceGroundTruth()
+        face_gt.add_photo(_face_label(HASH_A))
+        link_gt = LinkGroundTruth()
+        link_gt.set_links(HASH_A, [])  # zero links, but zero numbered bibs too
+        save_bib_ground_truth(bib_gt)
+        save_face_ground_truth(face_gt)
+        save_link_ground_truth(link_gt)
+
+        assert get_underlinked_hashes() == []
+
+    def test_zero_links_with_numbered_bib(self, tmp_path):
+        """Processed photo with numbered bibs but no links is underlinked."""
+        _save_index(tmp_path, [HASH_A])
+        bib_gt = BibGroundTruth()
+        bib_gt.add_photo(BibPhotoLabel(
+            content_hash=HASH_A, labeled=True,
+            boxes=[BibBox(x=0, y=0, w=0.1, h=0.1, number='42', scope='bib')],
+        ))
+        face_gt = FaceGroundTruth()
+        face_gt.add_photo(_face_label(HASH_A))
+        link_gt = LinkGroundTruth()
+        link_gt.set_links(HASH_A, [])  # processed but no links
+        save_bib_ground_truth(bib_gt)
+        save_face_ground_truth(face_gt)
+        save_link_ground_truth(link_gt)
+
+        assert get_underlinked_hashes() == [HASH_A]
 
 
 class TestGetBibProgress:

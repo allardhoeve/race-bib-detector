@@ -98,3 +98,24 @@ def get_unlinked_hashes() -> list[str]:
     """Return link-ready hashes that have not yet had links saved."""
     link_gt = load_link_ground_truth()
     return [h for h in get_link_ready_hashes() if h not in link_gt.photos]
+
+
+def get_underlinked_hashes() -> list[str]:
+    """Return processed link-ready hashes where link count < numbered bib count.
+
+    A photo is underlinked when it has been reviewed (saved in link GT) but
+    the number of links is fewer than the number of distinct numbered bibs.
+    This is a quality-check filter — most underlinked photos are genuine
+    mistakes; a few are legitimate exceptions (back-of-head, face out of frame).
+    """
+    bib_gt = load_bib_ground_truth()
+    link_gt = load_link_ground_truth()
+    result = []
+    for h in get_link_ready_hashes():
+        if h not in link_gt.photos:
+            continue
+        bib_label = bib_gt.get_photo(h)
+        numbered_bibs = len(bib_label.bib_numbers_int) if bib_label else 0
+        if len(link_gt.photos[h]) < numbered_bibs:
+            result.append(h)
+    return result
