@@ -208,26 +208,17 @@
 {% endblock %}
 {% block body %}
     {% include '_workflow_nav.html' %}
-    <div class="header">
-        <div class="nav-info">
-            <a href="{{ request.url_for('benchmark_list') }}" class="nav-link">← Benchmarks</a>
-            <a href="{{ request.url_for('bibs_index') }}" class="nav-link">Bib Labels →</a>
-            <a href="{{ request.url_for('association_photo', content_hash=content_hash[:8]) }}" class="nav-link">Links ⇄</a>
-            <button class="nav-btn" onclick="navigate('prev')" {{ 'disabled' if not has_prev else '' }}>← Prev</button>
-            <span class="position">{{ current }} / {{ total }}</span>
-            <button class="nav-btn" onclick="navigate('next')" {{ 'disabled' if not has_next else '' }}>Next →</button>
-            {% if next_unlabeled_url %}
-            <button class="nav-btn" onclick="navigateUnlabeled()">Next unlabeled →→</button>
-            {% endif %}
-        </div>
-        <div class="filter-section" style="background: transparent; border: none; padding: 0;">
-            <select class="filter-select" style="width: auto;" id="filter" onchange="applyFilter()">
-                <option value="all" {{ 'selected' if filter == 'all' else '' }}>All photos</option>
-                <option value="unlabeled" {{ 'selected' if filter == 'unlabeled' else '' }}>Unlabeled only</option>
-                <option value="labeled" {{ 'selected' if filter == 'labeled' else '' }}>Labeled only</option>
-            </select>
-        </div>
-    </div>
+    {% set nav_links %}
+<a href="{{ request.url_for('benchmark_list') }}" class="nav-link">← Benchmarks</a>
+<a href="{{ request.url_for('bibs_index') }}" class="nav-link">Bib Labels →</a>
+<a href="{{ request.url_for('association_photo', content_hash=content_hash[:8]) }}" class="nav-link">Links ⇄</a>
+    {% endset %}
+    {% set filter_options = [
+        {'value': 'all',       'label': 'All photos'},
+        {'value': 'unlabeled', 'label': 'Unlabeled only'},
+        {'value': 'labeled',   'label': 'Labeled only'},
+    ] %}
+    {% include '_labeling_header.html' %}
 
     <div class="main">
         <div class="image-panel">

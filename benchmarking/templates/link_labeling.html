@@ -83,32 +83,21 @@
 {% endblock %}
 {% block body %}
     {% include '_workflow_nav.html' %}
-    <div class="header">
-        <div class="nav-info">
-            <a href="{{ request.url_for('bib_photo', content_hash=content_hash[:8]) }}" class="nav-link">← Bib Labels</a>
-            <a href="{{ request.url_for('face_photo', content_hash=content_hash[:8]) }}" class="nav-link">Face Labels →</a>
-            <button class="nav-btn" id="prevBtn"
-                    {{ 'disabled' if not prev_url else '' }}
-                    onclick="navigateLink(PAGE_DATA.prevUrl)">← Prev</button>
-            <span class="position">{{ current }} / {{ total }}</span>
-            <button class="nav-btn" id="nextBtn"
-                    {{ 'disabled' if not next_url else '' }}
-                    onclick="navigateLink(PAGE_DATA.nextUrl)">Next →</button>
-            {% if next_unlabeled_url %}
-            <button class="nav-btn" onclick="navigateLink('{{ next_unlabeled_url }}')">Next unlabeled →→</button>
-            {% endif %}
-            {% if next_incomplete_url %}
-            <button class="nav-btn" onclick="navigateLink('{{ next_incomplete_url }}')">Next incomplete →→</button>
-            {% endif %}
-        </div>
-        <div class="filter-section" style="background: transparent; border: none; padding: 0;">
-            <select class="filter-select" style="width: auto;" id="filter" onchange="applyFilter()">
-                <option value="all" {{ 'selected' if filter == 'all' else '' }}>All</option>
-                <option value="unlinked" {{ 'selected' if filter == 'unlinked' else '' }}>Unlinked</option>
-                <option value="underlinked" {{ 'selected' if filter == 'underlinked' else '' }}>Incomplete</option>
-            </select>
-        </div>
-    </div>
+    {% set nav_links %}
+<a href="{{ request.url_for('bib_photo', content_hash=content_hash[:8]) }}" class="nav-link">← Bib Labels</a>
+<a href="{{ request.url_for('face_photo', content_hash=content_hash[:8]) }}" class="nav-link">Face Labels →</a>
+    {% endset %}
+    {% set extra_buttons %}
+{% if next_incomplete_url %}
+<button class="nav-btn" onclick="navigate('{{ next_incomplete_url }}')">Next incomplete →→</button>
+{% endif %}
+    {% endset %}
+    {% set filter_options = [
+        {'value': 'all',         'label': 'All'},
+        {'value': 'unlinked',    'label': 'Unlinked'},
+        {'value': 'underlinked', 'label': 'Incomplete'},
+    ] %}
+    {% include '_labeling_header.html' %}
 
     <div class="main">
         <div class="image-panel">
@@ -182,7 +171,8 @@
         "prevUrl":            {{ prev_url|tojson }},
         "nextUrl":            {{ next_url|tojson }},
         "nextUnlabeledUrl":   {{ next_unlabeled_url|tojson }},
-        "nextIncompleteUrl":  {{ next_incomplete_url|tojson }}
+        "nextIncompleteUrl":  {{ next_incomplete_url|tojson }},
+        "labelsIndexUrl":     "{{ request.url_for('associations_index') }}"
     }
     </script>
     <script src="{{ request.url_for('static', path='labeling.js') }}"></script>
