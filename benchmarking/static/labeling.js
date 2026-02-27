@@ -683,8 +683,7 @@ function showStatus(message, isError) {
     setTimeout(() => { status.style.display = 'none'; }, 2000);
 }
 
-function navigate(direction) {
-    const url = direction === 'prev' ? PAGE_DATA.prevUrl : PAGE_DATA.nextUrl;
+function navigate(url) {
     if (url) window.location.href = url;
 }
 

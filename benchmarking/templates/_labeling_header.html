@@ -1,0 +1,35 @@
+{#
+  Shared labeling page header. Set these variables before including:
+
+    nav_links          — HTML block: page-specific <a class="nav-link"> elements
+    filter_options     — list of {value, label} dicts for the <select>
+    filter             — currently selected filter value (string)
+    current            — int: current photo index (1-based)
+    total              — int: total photos in filtered list
+    prev_url           — string|None
+    next_url           — string|None
+    next_unlabeled_url — string|None (optional)
+    extra_buttons      — HTML block: additional nav buttons (optional, default '')
+#}
+{% set extra_buttons = extra_buttons | default('') %}
+<div class="header">
+    <div class="nav-info">
+        {{ nav_links }}
+        <button class="nav-btn" {{ 'disabled' if not prev_url else '' }}
+                onclick="navigate(PAGE_DATA.prevUrl)">← Prev</button>
+        <span class="position">{{ current }} / {{ total }}</span>
+        <button class="nav-btn" {{ 'disabled' if not next_url else '' }}
+                onclick="navigate(PAGE_DATA.nextUrl)">Next →</button>
+        {% if next_unlabeled_url %}
+        <button class="nav-btn" onclick="navigateUnlabeled()">Next unlabeled →→</button>
+        {% endif %}
+        {{ extra_buttons }}
+    </div>
+    <div class="filter-section" style="background: transparent; border: none; padding: 0;">
+        <select class="filter-select" style="width: auto;" id="filter" onchange="applyFilter()">
+            {% for opt in filter_options %}
+            <option value="{{ opt.value }}" {{ 'selected' if filter == opt.value else '' }}>{{ opt.label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>

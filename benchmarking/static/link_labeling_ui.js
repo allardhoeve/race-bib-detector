@@ -228,7 +228,7 @@
     }
 
     // Navigate to url, flushing any pending save first.
-    function navigateLink(url) {
+    function navigate(url) {
         if (!url) return;
         if (hasPendingChanges) {
             clearTimeout(saveTimer);
@@ -242,14 +242,7 @@
         }
     }
 
-    window.navigateLink = navigateLink;
-
-    window.applyFilter = function () {
-        var filter = document.getElementById('filter').value;
-        var url = '/associations/';
-        if (filter !== 'all') url += '?filter=' + filter;
-        window.location.href = url;
-    };
+    window.navigate = navigate;
 
     // -------------------------------------------------------------------------
     // Click handling
@@ -310,8 +303,8 @@
     document.addEventListener('keydown', function (e) {
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
 
-        if (e.key === 'ArrowLeft') { navigateLink(PAGE_DATA.prevUrl); }
-        else if (e.key === 'ArrowRight') { navigateLink(PAGE_DATA.nextUrl); }
+        if (e.key === 'ArrowLeft') { navigate(PAGE_DATA.prevUrl); }
+        else if (e.key === 'ArrowRight') { navigate(PAGE_DATA.nextUrl); }
         else if (e.key === 'n' || e.key === 'Enter') {
             e.preventDefault();
             onSaveDoneBtn();
