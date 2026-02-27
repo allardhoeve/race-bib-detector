@@ -3563,30 +3563,66 @@
       "labeled": true
     },
     "705744dedcf946ca1214bdff8ebe63db438268ff6b7efefd0b2fb36af68f18df": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.5928515928515928,
+          "y": 0.6152725153016613,
+          "w": 0.035936285936285936,
+          "h": 0.03526668609734771,
+          "number": "636",
+          "scope": "bib"
+        }
+      ],
       "tags": [
         "obscured_bib"
       ],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "70ad968d1afdb571fbee28186b6dc9fe966508864624a4e4e44c1177d067f854": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.41322988975091873,
+          "y": 0.7437232088181261,
+          "w": 0.1365863617803185,
+          "h": 0.10777709736680956,
+          "number": "511",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "iteration",
-      "labeled": false
+      "labeled": true
     },
     "70b0d89303df6eb7121a5ebdd23d7b9c671c4dd9fd4c95077fa214fae76926ab": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.4662937062937063,
+          "y": 0.3148355336764377,
+          "w": 0.053986013986013985,
+          "h": 0.027522935779816515,
+          "number": "220",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "iteration",
-      "labeled": false
+      "labeled": true
     },
     "7138a40f15bd6ef7d8020e02766103388ce81ebd200bcfda218ec79796c78837": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.6429154757043691,
+          "y": 0.6738131699846861,
+          "w": 0.10146998775010209,
+          "h": 0.10781010719754977,
+          "number": "333",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "iteration",
-      "labeled": false
+      "labeled": true
     },
     "7199a42399af864e181862c1ee8a23a7c484742a846333d486f503d1856a262b": {
       "boxes": [],
@@ -3597,22 +3633,57 @@
       "labeled": true
     },
     "725a502aefe7ef60bffebadbbe345ff134add549e69bcf6c4459a5b93a26a732": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.4069767441860465,
+          "y": 0.65625,
+          "w": 0.19840116279069767,
+          "h": 0.09302325581395349,
+          "number": "200",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "iteration",
-      "labeled": false
+      "labeled": true
     },
     "739fe8c77ea2f892ffce0b6b9939bf9e0cb55094002ac062591da73e52cad9a0": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.4155982905982906,
+          "y": 0.5401234567901234,
+          "w": 0.042868589743589744,
+          "h": 0.05009496676163343,
+          "number": "514",
+          "scope": "bib"
+        },
+        {
+          "x": 0.7608173076923077,
+          "y": 0.49715099715099714,
+          "w": 0.0375267094017094,
+          "h": 0.04154795821462488,
+          "number": "507",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "73ee0772495652053dd04f0a307695a1c25651b30f63971f502b68e3e0c9a96d": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.4866299244743825,
+          "y": 0.4346094946401225,
+          "w": 0.060828740559297816,
+          "h": 0.051761102603369066,
+          "number": "534",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "iteration",
-      "labeled": false
+      "labeled": true
     },
     "74592e7acf1f96942c612f6a88e9a22cf8e03d047f09791dfedf2fdaf7749ca3": {
       "boxes": [],
@@ -3623,10 +3694,19 @@
       "labeled": true
     },
     "74b01e459247f6648c2b80b45597f7150d87559dfd257fdb4d96d8cb5a8bd49f": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.4219047651590351,
+          "y": 0.6867154811715481,
+          "w": 0.13178570879412832,
+          "h": 0.14225941422594146,
+          "number": "430",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "753de9feee82795b9ac9b48ff503c6c01a6d01df53de07eeb8243d36c6d94097": {
       "boxes": [],
@@ -3645,10 +3725,19 @@
       "labeled": true
     },
     "77c17cecb99659346fe28ad4eddeb8658b4cdc44d40d5e8a20692b8e7f8a8f78": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.3639518269034497,
+          "y": 0.5682792406613595,
+          "w": 0.11879975505205144,
+          "h": 0.12522963870177586,
+          "number": "510",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "iteration",
-      "labeled": false
+      "labeled": true
     },
     "782bdc64ba27395f3a8e34f98e71b27d9d2eeffd2dc4bdd8cfefdbafb506a9f3": {
       "boxes": [],
@@ -3684,22 +3773,49 @@
       "labeled": true
     },
     "78cdeb630949cc7927095480c2f3d80ca1dda9ff9dbe47b375bc81b0dd5f0e12": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.41603630862329805,
+          "y": 0.6478494623655914,
+          "w": 0.2102874432677761,
+          "h": 0.08198924731182795,
+          "number": "436",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "iteration",
-      "labeled": false
+      "labeled": true
     },
     "79270a95f688980e728c7978fd672fad611059b48499c9bdb47b97459eef6d07": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.5131358300726663,
+          "y": 0.39937388193202145,
+          "w": 0.08272778088317496,
+          "h": 0.04002683363148479,
+          "number": "221",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "iteration",
-      "labeled": false
+      "labeled": true
     },
     "792df79b17aac97e67c8bc6485992f4c13768613e53f555373a93569fe766a63": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.4499795835034708,
+          "y": 0.851761102603369,
+          "w": 0.12576561861984484,
+          "h": 0.14885145482388973,
+          "number": "634",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "99a0594322c318fd9f1b15de21692202998334a4bff9cdda9c405bc62af3f7c3": {
       "boxes": [],
@@ -3744,10 +3860,27 @@
       "labeled": false
     },
     "7d35d935da8c13661d1259bc9404205dd9229a02061302620bab74db3a59ddb5": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.4577103325150636,
+          "y": 0.8014730498828255,
+          "w": 0.1077884400803392,
+          "h": 0.09039169735520589,
+          "number": "600",
+          "scope": "bib"
+        },
+        {
+          "x": 0.19877838460669364,
+          "y": 0.7578451882845189,
+          "w": 0.09343448255255335,
+          "h": 0.09518828451882844,
+          "number": "",
+          "scope": "bib_obscured"
+        }
+      ],
       "tags": [],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "9419656e93b77553447cb5b88a25e05a1a3ac57324341ff4e9f20aa49d7c3a4e": {
       "boxes": [],
@@ -4038,10 +4171,27 @@
       "labeled": false
     },
     "7ac1b331618945809fb492bd892592746e3e8a8620f87bb5305cae2e9b582b39": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.36075949367088606,
+          "y": 0.7580398162327718,
+          "w": 0.11024908125765619,
+          "h": 0.11362940275650842,
+          "number": "515",
+          "scope": "bib"
+        },
+        {
+          "x": 0.690357134924852,
+          "y": 0.6971757322175732,
+          "w": 0.11644557337893868,
+          "h": 0.11192468619246865,
+          "number": "506",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "9b575f0208f14208d630fd3c749fa8f0f194f82d6c4f0327b3b5507cd395db0d": {
       "boxes": [],
@@ -4404,10 +4554,19 @@
       "labeled": false
     },
     "7ae7d298c4048f781389f476d1aa2d9594ecf2be7762b5350c1f85f2b59f8211": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.41710930947721553,
+          "y": 0.7316636851520573,
+          "w": 0.2007268660889013,
+          "h": 0.0919051878354204,
+          "number": "375",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "83e52259fa853bec2a28f5f62d6c581bb8fce66136fa6c7793bf736507bc09a9": {
       "boxes": [],
@@ -4434,10 +4593,27 @@
       "labeled": false
     },
     "7ad5cddf427b1bb13006a8bd1af7c98dff1a1652bd5ae278ef8f0239ca593a3d": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.2092263727291284,
+          "y": 0.6058192955589586,
+          "w": 0.0718513982445397,
+          "h": 0.07963246554364471,
+          "number": "305",
+          "scope": "bib"
+        },
+        {
+          "x": 0.7170851194121249,
+          "y": 0.636447166921899,
+          "w": 0.0718513982445397,
+          "h": 0.06921898928024502,
+          "number": "326",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "d22f75a7d1d1cb845017c27446de3bf7a70a6a0d35284e5a11ad8df91f870341": {
       "boxes": [],
@@ -4464,10 +4640,27 @@
       "labeled": false
     },
     "79c8e80c17ae5c667fa98d7aae5f957eba0d035c8228dea3bd3d8e9eda396658": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.5225556235966524,
+          "y": 0.6690140845070423,
+          "w": 0.08899775464380486,
+          "h": 0.07960808328230251,
+          "number": "306",
+          "scope": "bib"
+        },
+        {
+          "x": 0.1596931659693166,
+          "y": 0.6804393305439331,
+          "w": 0.08437935843793584,
+          "h": 0.09937238493723854,
+          "number": "304",
+          "scope": "bib_obscured"
+        }
+      ],
       "tags": [],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "e2bbb2da92b9cfdbb5554473fccbdbe983334cbc27a3a9bde8b82902ef86eee3": {
       "boxes": [],
@@ -4512,10 +4705,21 @@
       "labeled": false
     },
     "79dba43cada27a35e7c22170a3f808769372dbf3e5143b630ae198df2452df41": {
-      "boxes": [],
-      "tags": [],
+      "boxes": [
+        {
+          "x": 0.3343584008946044,
+          "y": 0.6305077163945426,
+          "w": 0.1506849315068493,
+          "h": 0.0995303064191456,
+          "number": "3",
+          "scope": "bib_clipped"
+        }
+      ],
+      "tags": [
+        "obscured_bib"
+      ],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "8584dbef3669c6304d8417b2ee1e019fb4754f6c5e96bcb192b5f0986cd978c0": {
       "boxes": [],
@@ -4647,10 +4851,19 @@
       "labeled": false
     },
     "7dce81f4168d5277b66a8bd7eacffaf6a40c452035237acbb2f289fa1d620698": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.40465496120865657,
+          "y": 0.398468606431853,
+          "w": 0.029603919967333605,
+          "h": 0.030321592649310874,
+          "number": "217",
+          "scope": "bib"
+        }
+      ],
       "tags": [],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "adf55003f0267e8791b54e7f9ffd43e84e4ae441a5614358abd4a1a9859e72d2": {
       "boxes": [],
@@ -4890,7 +5103,7 @@
       "boxes": [],
       "tags": [],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "8a4680aff2fc807d23f5024b63604b3ca75bc1da23d0d726df1c52c937d794f9": {
       "boxes": [],
@@ -4926,7 +5139,7 @@
       "boxes": [],
       "tags": [],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "d3aa6914d47ed0ada642e66cf23695070f3cad38e4aff1ada211d651fe82f8e8": {
       "boxes": [],
@@ -5064,7 +5277,7 @@
       "boxes": [],
       "tags": [],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "f951945afd95e2b95fd561341f8d97c7cdcdf907383f098e76fd4c4714e929a0": {
       "boxes": [],
@@ -5148,7 +5361,7 @@
       "boxes": [],
       "tags": [],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "d8685078d6f141de9150aa13c71a44c1ae8f92d9479a7069cd70df3c874e658d": {
       "boxes": [],
