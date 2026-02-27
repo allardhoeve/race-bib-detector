@@ -2,32 +2,31 @@
 
 import io
 
-from fastapi import APIRouter, Body, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import StreamingResponse
 
 from benchmarking.label_utils import find_hash_by_prefix
 from benchmarking.photo_index import load_photo_index
+from benchmarking.schemas import GetFaceBoxesResponse, SaveFaceBoxesRequest
 from benchmarking.services import face_service
 
 api_faces_router = APIRouter()
 
 
-@api_faces_router.get('/api/faces/{content_hash}')
-async def get_face_boxes(content_hash: str):
+@api_faces_router.get('/api/faces/{content_hash}', response_model=GetFaceBoxesResponse)
+async def get_face_boxes(content_hash: str) -> GetFaceBoxesResponse:
     """Get face boxes, suggestions, and tags."""
     result = face_service.get_face_label(content_hash)
     if result is None:
         raise HTTPException(status_code=404, detail='Photo not found')
     result = dict(result)
     result.pop('full_hash', None)
-    return result
+    return GetFaceBoxesResponse(**result)
 
 
 @api_faces_router.put('/api/faces/{content_hash}')
-async def save_face_label(content_hash: str, body: dict = Body(...)):
+async def save_face_label(content_hash: str, request: SaveFaceBoxesRequest):
     """Save face boxes/tags for a photo label. Replaces all existing data."""
-    face_tags = body.get('face_tags', [])
-
     index = load_photo_index()
     full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
     if not full_hash:
@@ -36,8 +35,8 @@ async def save_face_label(content_hash: str, body: dict = Body(...)):
     try:
         face_service.save_face_label(
             content_hash=full_hash,
-            boxes_data=body.get('boxes'),
-            tags=face_tags,
+            boxes_data=[b.model_dump() for b in request.boxes],
+            tags=request.face_tags,
         )
     except (ValueError, TypeError) as e:
         raise HTTPException(status_code=400, detail=str(e))

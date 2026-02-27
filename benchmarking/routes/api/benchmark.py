@@ -1,18 +1,18 @@
 """Benchmark JSON API endpoints."""
 
-from fastapi import APIRouter, Body, HTTPException
+from fastapi import APIRouter, HTTPException
 
 from benchmarking.photo_index import load_photo_index
+from benchmarking.schemas import FreezeRequest, FreezeResponse
 
 api_benchmark_router = APIRouter()
 
 
-@api_benchmark_router.post('/api/freeze')
-async def api_freeze(body: dict = Body(default={})):
+@api_benchmark_router.post('/api/freeze', response_model=FreezeResponse)
+async def api_freeze(request: FreezeRequest) -> FreezeResponse:
     from benchmarking.sets import freeze
-    name = body.get("name", "").strip()
-    description = body.get("description", "")
-    hashes = body.get("hashes", [])
+    name = request.name.strip()
+    hashes = request.hashes
 
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
@@ -28,9 +28,9 @@ async def api_freeze(body: dict = Body(default={})):
             name=name,
             hashes=sorted(flat_index.keys()),
             index=flat_index,
-            description=description,
+            description=request.description,
         )
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
 
-    return snapshot.metadata.to_dict()
+    return FreezeResponse(**snapshot.metadata.to_dict())

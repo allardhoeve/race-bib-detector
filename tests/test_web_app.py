@@ -205,6 +205,11 @@ class TestFaceBoxApi:
         assert data["boxes"][0]["identity"] == "Alice"
         assert data["boxes"][1]["scope"] == "exclude"
 
+    def test_save_face_boxes_missing_body_400(self, app_client):
+        """PUT with no body returns 400 (validation error)."""
+        resp = app_client.put(f"/api/faces/{HASH_A[:8]}")
+        assert resp.status_code == 400
+
     def test_save_face_backward_compat(self, app_client):
         """Sending face_count without boxes keeps current behavior (compat tags)."""
         resp = app_client.put(
@@ -341,7 +346,7 @@ class TestIdentitiesApi:
 
 class TestRenameIdentityApi:
     def test_rename_missing_params_400(self, app_client):
-        """Missing new_name returns 400."""
+        """Missing or empty new_name returns 400."""
         resp = app_client.patch("/api/identities/Alice", json={})
         assert resp.status_code == 400
 
@@ -711,6 +716,14 @@ class TestApiFreezeEndpoint:
         resp = freeze_client.post(
             "/api/freeze",
             json={"name": "no-photos", "hashes": []},
+        )
+        assert resp.status_code == 400
+
+    def test_freeze_missing_hashes_field_400(self, freeze_client):
+        """POST without hashes field returns 400 (validation error)."""
+        resp = freeze_client.post(
+            "/api/freeze",
+            json={"name": "missing-hashes"},
         )
         assert resp.status_code == 400
 

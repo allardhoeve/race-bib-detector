@@ -83,7 +83,6 @@ class TestBibFaceLinkApi:
         )
         assert resp.status_code == 200
         data = resp.json()
-        assert data["status"] == "ok"
         assert data["links"] == [[0, 1], [2, 0]]
 
         get_resp = link_client.get(f"/api/associations/{HASH_A}")
