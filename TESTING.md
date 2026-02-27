@@ -33,3 +33,29 @@ These guidelines capture how we approach tests in this repo. Project-wide conven
 - Does this test fail if real behavior regresses?
 - Could we remove this test and still catch the same bug elsewhere?
 - Is this test asserting a language feature instead of our code?
+
+## Refactoring Discipline
+
+Guidelines for pure refactors — changes that reorganise code without altering behaviour.
+
+**Core principle:** Tests are the behavioral contract. If `pytest` passes before and after with no test changes, the refactor is verified correct by definition. A refactor that requires changing what a test *asserts* has changed behaviour — stop, investigate, and decide whether that was intended.
+
+**Before you start:**
+1. Establish a green baseline — run `pytest` and confirm everything passes. Fix broken tests first.
+2. Understand the call graph — find all callers before renaming or moving anything.
+
+**What to change vs. leave alone:**
+
+| Situation | Action |
+|---|---|
+| Extracting a private helper called only by the split function | Leave tests unchanged |
+| Renaming an internal variable | Leave tests unchanged |
+| Moving a function to a different module | Update import paths in tests (patch paths) |
+| Changing a function's signature or return type | Update all callers — but reconsider scope |
+| Spotted a bug while refactoring | Do not fix it here — file a new task |
+
+**Patch paths:** `unittest.mock.patch` targets the name *as imported at the call site*. When splitting modules, update the patch string — that is mechanical, not a behaviour change.
+
+**Commit discipline:** One logical change per commit. Run `pytest` after each commit. Keep the diff minimal.
+
+**Scope discipline:** Do not add docstrings, type annotations, comments, reformatting, or error handling to code outside your change. The "while I'm here" instinct is the primary source of refactoring regressions.

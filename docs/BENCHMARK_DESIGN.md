@@ -5,6 +5,25 @@ This document captures the design for the benchmark system: repeatable evaluatio
 Project-wide conventions and invariants live in `STANDARDS.md`.
 UI layout and keyboard conventions live in `BENCHMARK_UI_DESIGN.md`.
 
+## System Goal
+
+This is a **race photo retrieval product**. Runners find photos of themselves from a race event by:
+
+1. Searching by bib number, or
+2. Uploading a reference face photo (selfie matching)
+
+The system detects bibs and faces in race photos, then links them via geometric proximity. A runner queries by bib number or selfie and receives matching photos.
+
+**Face retrieval is the primary path.** Bib lookup is a secondary convenience — it works when a runner remembers their number, but the face selfie path requires no prior knowledge.
+
+Bystanders and non-participants are detected by the face detector (it has no race context) but are never linked to a bib, so they are never returned in retrieval results. They are harmless noise that silently drops out at the linking stage.
+
+The three pipeline stages are independent:
+
+1. **Bib detection** — localise bib regions and read numbers via OCR.
+2. **Face detection** — find every face in the frame, regardless of whether the person is a runner.
+3. **Bib–face linking** — associate faces to bibs via geometric rules (bib appears ~torso-length below its runner's face, ±half a bib width sideways). Rule-based, not learned.
+
 ## Glossary
 
 | Abbreviation | Meaning |
@@ -57,17 +76,52 @@ Bounding box coordinates are normalised to `[0, 1]` image space. Legacy migrated
 
 ### Bib Labels
 
-- Bib labels: `bib`, `not_bib`, `bib_obscured` (real bib, too obscured to read — excluded from scoring), `bib_clipped` (readable but clipped at edge — scored).
+Label bibs **as a human would decide whether the number is readable**. The detector cannot inherently distinguish a full bib from a partial bib — that distinction belongs in the label.
+
+**Labeler test:** *Can I read the full number?*
+- Yes → `bib` or `bib_clipped` (enter the number)
+- No → `bib_obscured`
+
+| Scope | Scored? | Meaning |
+|-------|---------|---------|
+| `bib` | Yes | Complete, fully readable bib |
+| `bib_clipped` | Yes | Top or bottom edge clipped, but full number still legible |
+| `bib_obscured` | No | Side-clipped (digits missing → would produce a wrong number), or too blurry/obscured to read |
+| `not_bib` | No | Ghost suggestion that is not a real bib |
+
+**Clipping distinction:** top/bottom clipping usually leaves the number legible → `bib_clipped`. Side clipping cuts off digits (e.g. `234` becomes `34`) → `bib_obscured`. The system cannot know which digits are missing, so side-clipped bibs must be excluded from scoring.
+
+`bib_obscured` and `not_bib` are excluded from detection scoring (`_BIB_BOX_UNSCORED`).
+
 - Allow manual bib box drawing with optional partial number entry (e.g., `62?` when `621` is obscured).
 - Bib bounding boxes enable separating detection failure (region not found) from recognition failure (wrong OCR output).
 
 ### Face Labels
 
-- Face labeling is manual-first: the user draws boxes for faces that should be recognized.
-- Auto-detected faces appear as faint suggestion boxes to accept, adjust, or ignore.
-- Scope tags: `keep` (should be recognized), `exclude` (blurry/obscured/background), `uncertain` (labeler unsure).
-- Backward compat: old `ignore`→`exclude`, `unknown`→`uncertain` via `_FACE_SCOPE_COMPAT`.
-- No `maybe` tag -- it adds metric ambiguity without clear scoring semantics.
+Face labeling scope is about **detectability**, not relevance to the race. The face detector has no race context and cannot distinguish a participant from a bystander — penalising it for finding a valid face would cause it to optimise against correct detections.
+
+**Scopes:**
+
+| Scope | Meaning | Scored? |
+|-------|---------|---------|
+| `keep` | Any face a human would recognise as a face — participants and bystanders alike. | Yes |
+| `uncertain` | Face is clipped at the frame edge or degraded enough that the labeler is unsure whether the detector should be expected to find it. | No |
+| `exclude` | Ghost suggestion that is not actually a face (false auto-detection). Rarely needed otherwise. | No |
+
+Backward compat: old `ignore`→`exclude`, `unknown`→`uncertain` via `_FACE_SCOPE_COMPAT`.
+
+**Identity labels** are used to benchmark the linking step, not as a production registry:
+
+| Value | When to use |
+|-------|-------------|
+| `"Name"` | Known participant, clearly identifiable |
+| `"anonymous_N"` | Recurring person the labeler cannot name (participant or bystander) |
+| `null` | Genuinely one-off unknown face — will not appear again |
+
+`keep` + `null` identity participates in detection scoring but contributes nothing to clustering/linking evaluation. This is intentional: `null` means "I won't see this face again, so clustering it is meaningless."
+
+Bystanders labeled `keep` + `anonymous_N` do contribute to clustering evaluation — the system can be tested on whether it correctly groups all appearances of the same anonymous person.
+
 - Per-box tags: `tiny`, `blurry`, `occluded`, `profile`, `looking_down`.
 - Per-photo tags: `no_faces`, `light_faces`.
 - Identity labels (person name/ID) per face, accumulated via the labeling UI. Currently 137 named + 7 anonymous identities in `face_identities.json`.
@@ -132,7 +186,7 @@ the detection pipeline does not yet output link predictions.
 
 ### Future scorecard extensions
 
-- **Face clustering:** pairwise F1 or NMI. Requires identity labels.
+- **Face clustering quality:** pairwise F1 or NMI comparing predicted clusters against identity labels. Requires `anonymous_N` labels for bystanders who appear multiple times.
 - **Retrieval quality:** percentage of "wanted images" found (top-k recall).
 
 Every run is archived with metadata (timestamp, git commit, config, runtime, metrics) in `benchmarking/results/<run_id>/run.json`.

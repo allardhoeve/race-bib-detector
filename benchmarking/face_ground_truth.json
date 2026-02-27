@@ -308,7 +308,7 @@
           "w": 0.10357583230579537,
           "h": 0.2022194821208385,
           "scope": "uncertain",
-          "identity": null,
+          "identity": "Juda",
           "tags": [
             "blurry"
           ]
@@ -1069,7 +1069,7 @@
           "y": 0.40978215566839743,
           "w": 0.03945401084735245,
           "h": 0.08631319358816275,
-          "scope": "keep",
+          "scope": "uncertain",
           "identity": null,
           "tags": [
             "blurry"
@@ -1080,7 +1080,7 @@
           "y": 0.37279078698775625,
           "w": 0.044385762203271506,
           "h": 0.08631319358816275,
-          "scope": "keep",
+          "scope": "uncertain",
           "identity": null,
           "tags": [
             "blurry"
@@ -1091,7 +1091,7 @@
           "y": 0.37279078698775625,
           "w": 0.04685163788123098,
           "h": 0.10604192355117137,
-          "scope": "keep",
+          "scope": "uncertain",
           "identity": null,
           "tags": [
             "blurry"
@@ -1754,8 +1754,8 @@
           "y": 0.3022045315370484,
           "w": 0.07370355247039607,
           "h": 0.144213104715248,
-          "scope": "keep",
-          "identity": null,
+          "scope": "uncertain",
+          "identity": "Pippa",
           "tags": [
             "blurry"
           ]
@@ -1846,6 +1846,15 @@
           "h": 0.09741060419235509,
           "scope": "keep",
           "identity": "Florine",
+          "tags": []
+        },
+        {
+          "x": 0.3291492329149233,
+          "y": 0.11767782426778242,
+          "w": 0.08507670850767085,
+          "h": 0.17573221757322174,
+          "scope": "keep",
+          "identity": "anon-2",
           "tags": []
         }
       ],
@@ -2047,7 +2056,7 @@
           "y": 0.2996861924686192,
           "w": 0.03068340306834033,
           "h": 0.05648535564853557,
-          "scope": "keep",
+          "scope": "uncertain",
           "identity": null,
           "tags": [
             "blurry"
@@ -2069,11 +2078,11 @@
           "tags": []
         },
         {
-          "x": 0.08651608546124559,
+          "x": 0.08581881073183792,
           "y": 0.5402719665271966,
           "w": 0.05926835199965283,
           "h": 0.10564853556485354,
-          "scope": "keep",
+          "scope": "uncertain",
           "identity": null,
           "tags": [
             "occluded"
@@ -2165,7 +2174,17 @@
       "labeled": true
     },
     "2fef82ba2f0573c46944bf950c75129ebe49eed85d82de870cb5cd0438863398": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.24693943175150593,
+          "y": 0.16788702928870292,
+          "w": 0.07110792826817189,
+          "h": 0.1297071129707113,
+          "scope": "uncertain",
+          "identity": null,
+          "tags": []
+        }
+      ],
       "tags": [
         "no_faces"
       ],
@@ -2673,7 +2692,7 @@
           "y": 0.4506238807840544,
           "w": 0.028930817610062887,
           "h": 0.060383522590462924,
-          "scope": "keep",
+          "scope": "exclude",
           "identity": null,
           "tags": [
             "blurry",
@@ -2798,8 +2817,8 @@
           "y": 0.44497977706430286,
           "w": 0.03396226415094339,
           "h": 0.05659221943638865,
-          "scope": "keep",
-          "identity": null,
+          "scope": "uncertain",
+          "identity": "Trainer 1",
           "tags": [
             "blurry",
             "tiny"
@@ -3667,11 +3686,11 @@
           "tags": []
         },
         {
-          "x": 0.6036402569593148,
+          "x": 0.6043373083780563,
           "y": 0.10122107969151671,
           "w": 0.08693790149892934,
           "h": 0.15038560411311053,
-          "scope": "keep",
+          "scope": "uncertain",
           "identity": null,
           "tags": []
         }
@@ -3797,7 +3816,7 @@
           "y": 0.12771084337349398,
           "w": 0.057307547872174736,
           "h": 0.11887550200803212,
-          "scope": "exclude",
+          "scope": "uncertain",
           "identity": "Anna-Sophie",
           "tags": [
             "blurry"
@@ -3851,6 +3870,24 @@
           "h": 0.17917304747320062,
           "scope": "keep",
           "identity": "Wies",
+          "tags": []
+        },
+        {
+          "x": 0.6324289129877892,
+          "y": 0.4388075313807531,
+          "w": 0.08642729058150456,
+          "h": 0.16422594142259417,
+          "scope": "uncertain",
+          "identity": null,
+          "tags": []
+        },
+        {
+          "x": 0.7571908889078645,
+          "y": 0.4074267782426778,
+          "w": 0.06412347365724536,
+          "h": 0.16108786610878667,
+          "scope": "exclude",
+          "identity": null,
           "tags": []
         }
       ],
@@ -3909,10 +3946,10 @@
         },
         {
           "x": 0.7452404809619239,
-          "y": 0.40999624201428037,
+          "y": 0.40895021690967787,
           "w": 0.06387775551102204,
           "h": 0.10935738444193913,
-          "scope": "keep",
+          "scope": "uncertain",
           "identity": null,
           "tags": []
         },
@@ -3930,7 +3967,7 @@
           "y": 0.31266441187523486,
           "w": 0.05886773547094189,
           "h": 0.14430665163472378,
-          "scope": "keep",
+          "scope": "uncertain",
           "identity": null,
           "tags": []
         }
@@ -4085,15 +4122,6 @@
           "tags": []
         },
         {
-          "x": 0.8020004082465809,
-          "y": 0.25329249617151606,
-          "w": 0.07266789140640947,
-          "h": 0.13996937212863705,
-          "scope": "keep",
-          "identity": "Trainer 3",
-          "tags": []
-        },
-        {
           "x": 0.15974842767295602,
           "y": 0.1731703603426459,
           "w": 0.11069182389937107,
@@ -4101,10 +4129,19 @@
           "scope": "keep",
           "identity": "Trainer 4",
           "tags": []
+        },
+        {
+          "x": 0.8020004082465809,
+          "y": 0.25329249617151606,
+          "w": 0.07266789140640947,
+          "h": 0.13996937212863705,
+          "scope": "keep",
+          "identity": "anon-14",
+          "tags": []
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "592d630cfc7081df6122c49d3f3fd6a9bec6008cad1aaf25c52d8d8b4cc9cb45": {
       "boxes": [
@@ -4128,7 +4165,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "5930516b99e125f7431742af937e2167d59e44101c84ea47d8af65a5b30bbd43": {
       "boxes": [
@@ -4143,7 +4180,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "593d0bc47bab58f53693ff148dcc396c89ddbe6a6826bce14bdbc1b7103eac4f": {
       "boxes": [
@@ -4158,7 +4195,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "596680462b29f8f0246cc601d07d52ede247f737fd29b75a7d48be045db7a5ff": {
       "boxes": [
@@ -4182,7 +4219,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "59e7c09a16397fdc0f6a8069beaeaf8d0c739fd289e47a1e6ca53b225864db6c": {
       "boxes": [
@@ -4215,7 +4252,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "5a15cc43eaf2bc170b4b624a1cc47ccc4d9a18dfd708a6da6236a56fb121d363": {
       "boxes": [
@@ -4230,7 +4267,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "5a967418aee7fa9917b6dc2483278478a51719f0c49b843e408905bd6f244de2": {
       "boxes": [
@@ -4245,7 +4282,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "5c03e7419f782af21df409576abd46db949e749d5670fffede12cd41b910275e": {
       "boxes": [
@@ -4271,7 +4308,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "5c6d0a872f704f3b901313e7804d275765d392ff7788633f33ad9a79c1b2b311": {
       "boxes": [
@@ -4304,7 +4341,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "5fa2ee947e19490177f52a64228a7253be95480808cb651930fb947a02c312c8": {
       "boxes": [
@@ -4330,7 +4367,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "600c8e1124db9a62c37c65cf27a76e882d3aedaa6fdc9085ddea04b1175ed675": {
       "boxes": [
@@ -4345,7 +4382,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "60cf39eda17150126981359cf3ddf6aa0fef8b758b78900df234fcc2f93c7829": {
       "boxes": [
@@ -4371,7 +4408,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "61243bd34d616f597db8e90177055c4d70cec3769d37bfbe82a828a3755236d7": {
       "boxes": [
@@ -4404,7 +4441,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "61682341df484d04ebcedac484e0018db7a3538a65029f3c1d505ed31f4bd428": {
       "boxes": [
@@ -4428,7 +4465,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "627a6259a18c69ad0cf4533bcbf60e7736cb2ee29f1b6f6eca8e65e1b30fd575": {
       "boxes": [
@@ -4452,7 +4489,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "627defa1ef231140b67b23ad272010ac9bbcd030129644dff7c37db5d103a8c6": {
       "boxes": [
@@ -4467,7 +4504,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "62aa141d4ac306c3e3b3b30ccf2b07b35eaf727ef946ea7e878008c924c2a865": {
       "boxes": [
@@ -4482,7 +4519,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "6331fe6eac65289c0cdb00e3f7dd33c4747a4123559f2ef71cecc52dbfc1d81f": {
       "boxes": [
@@ -4497,7 +4534,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "640798a903d69639335148aec6adb38a69dbbd9612bc4dad57f9ddae22037014": {
       "boxes": [
@@ -4544,7 +4581,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "65669b9fb32fbdedc82fa8e81cfa6cb530de8f5af6b5051f549bfebd74e0f1d6": {
       "boxes": [
@@ -4559,7 +4596,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "6627ce11d36226d4c61562d14299c852d565c7a645cb45991b3d6e6cf7a802ec": {
       "boxes": [
@@ -4574,7 +4611,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "672d71d54f0b66260231d244cae4ef61dfa89896689500696a7267272fce9278": {
       "boxes": [
@@ -4589,7 +4626,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "678765b4a54bfc973d52d5b80804c87b9748197cf80bbfad650f871fecce1b0a": {
       "boxes": [
@@ -4604,7 +4641,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "685e03006d6dfaec899c73822ce46b0fa17b3a31dff97d2cafd8ceeaf1d31960": {
       "boxes": [
@@ -4619,7 +4656,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "685e0cfe6167d1fd28f018f0169b0717c6db84cadc680a7e8d2f19e50d211339": {
       "boxes": [
@@ -4634,7 +4671,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "68a9ad6264e7b8ced6f5abfd2e2c48eea0743f93ffca75e6261b0c61e45d6014": {
       "boxes": [
@@ -4672,7 +4709,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "691438acd71ef95f9fbdc941911211d23f4cc8265e3dc45445b283c545af3e01": {
       "boxes": [
@@ -4687,7 +4724,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "695cf743866354665fd793ee50b1212338ee15c42ffa91937741a0604ad6de01": {
       "boxes": [
@@ -4722,7 +4759,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "6a2fea588ee495beba684cace6367c2bbd2b58ab6271ebf0a3b1dad5f3425bb1": {
       "boxes": [
@@ -4737,7 +4774,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "6a45d3eea4fce4acba639141a39ca4ed821e2580b45694323c6bf0404bbf3822": {
       "boxes": [
@@ -4747,7 +4784,7 @@
           "w": 0.05646051905024848,
           "h": 0.1010561192793539,
           "scope": "keep",
-          "identity": null,
+          "identity": "Trainer 3",
           "tags": []
         },
         {
@@ -4760,11 +4797,11 @@
           "tags": []
         },
         {
-          "x": 0.23018867924528302,
+          "x": 0.2294913773084904,
           "y": 0.373261682841683,
           "w": 0.04528301886792452,
           "h": 0.09434613466074337,
-          "scope": "keep",
+          "scope": "uncertain",
           "identity": null,
           "tags": [
             "blurry",
@@ -4773,7 +4810,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "6cdf616b50a7142d2d38b4d7019bce5cfd80cec8e86970253fe58942bf15db23": {
       "boxes": [
@@ -4788,7 +4825,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "6d449f304aa02465085a87f0b18ceaa5ec00888ad61e42fa23954652f133e2a7": {
       "boxes": [
@@ -4800,10 +4837,19 @@
           "scope": "keep",
           "identity": "Max",
           "tags": []
+        },
+        {
+          "x": 0.5725290697674419,
+          "y": 0.1092217135382603,
+          "w": 0.05625,
+          "h": 0.10333551340745585,
+          "scope": "keep",
+          "identity": "anon-13",
+          "tags": []
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "6d6e8f9f7c476f650b04d37c8e6e63a5e600c6e76978930d21ccd9f4a04b632b": {
       "boxes": [
@@ -4818,7 +4864,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "6ead616c226837a1c25cb6f1426eb2e362402a608c275891c9be8127e1b5d62a": {
       "boxes": [
@@ -4833,7 +4879,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "6f112e51586f9cf5b148f58c87a3367d1490f43fe636a1a48c8c2b7af6613b7e": {
       "boxes": [
@@ -4856,10 +4902,19 @@
           "tags": [
             "blurry"
           ]
+        },
+        {
+          "x": 0.7921002151408236,
+          "y": 0.4534518828451883,
+          "w": 0.1122389848154478,
+          "h": 0.20606694560669453,
+          "scope": "exclude",
+          "identity": null,
+          "tags": []
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "6f752497f81e6f8494e6dbf5f82164e0e83e2166873d300caa551f92f8d20fc8": {
       "boxes": [
@@ -4883,7 +4938,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "705744dedcf946ca1214bdff8ebe63db438268ff6b7efefd0b2fb36af68f18df": {
       "boxes": [
@@ -4911,7 +4966,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "70ad968d1afdb571fbee28186b6dc9fe966508864624a4e4e44c1177d067f854": {
       "boxes": [
@@ -4926,7 +4981,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "70b0d89303df6eb7121a5ebdd23d7b9c671c4dd9fd4c95077fa214fae76926ab": {
       "boxes": [
@@ -4941,7 +4996,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "7138a40f15bd6ef7d8020e02766103388ce81ebd200bcfda218ec79796c78837": {
       "boxes": [
@@ -4965,7 +5020,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "7199a42399af864e181862c1ee8a23a7c484742a846333d486f503d1856a262b": {
       "boxes": [
@@ -4980,7 +5035,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "725a502aefe7ef60bffebadbbe345ff134add549e69bcf6c4459a5b93a26a732": {
       "boxes": [
@@ -4995,7 +5050,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "739fe8c77ea2f892ffce0b6b9939bf9e0cb55094002ac062591da73e52cad9a0": {
       "boxes": [
@@ -5082,7 +5137,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "73ee0772495652053dd04f0a307695a1c25651b30f63971f502b68e3e0c9a96d": {
       "boxes": [
@@ -5124,7 +5179,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "74592e7acf1f96942c612f6a88e9a22cf8e03d047f09791dfedf2fdaf7749ca3": {
       "boxes": [
@@ -5139,7 +5194,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "74b01e459247f6648c2b80b45597f7150d87559dfd257fdb4d96d8cb5a8bd49f": {
       "boxes": [
@@ -5154,7 +5209,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "753de9feee82795b9ac9b48ff503c6c01a6d01df53de07eeb8243d36c6d94097": {
       "boxes": [
@@ -5196,7 +5251,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "771430e9096cf4d45a4c66685d488375232c47de7810129779da72f56cb4e47d": {
       "boxes": [
@@ -5229,7 +5284,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "77c17cecb99659346fe28ad4eddeb8658b4cdc44d40d5e8a20692b8e7f8a8f78": {
       "boxes": [
@@ -5266,7 +5321,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "782bdc64ba27395f3a8e34f98e71b27d9d2eeffd2dc4bdd8cfefdbafb506a9f3": {
       "boxes": [
@@ -5308,7 +5363,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "78787f7a593c020c607be33c32cf3ccfc0d87936c089ff36bd1e2af8ec27bb5e": {
       "boxes": [
@@ -5341,7 +5396,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "78808d836b210b9b89be3fe172eeff9eee8ffd06b48e45fd572bb816a296297f": {
       "boxes": [
@@ -5374,7 +5429,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "78cdeb630949cc7927095480c2f3d80ca1dda9ff9dbe47b375bc81b0dd5f0e12": {
       "boxes": [
@@ -5398,7 +5453,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "79270a95f688980e728c7978fd672fad611059b48499c9bdb47b97459eef6d07": {
       "boxes": [
@@ -5422,7 +5477,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "792df79b17aac97e67c8bc6485992f4c13768613e53f555373a93569fe766a63": {
       "boxes": [
@@ -5437,7 +5492,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "99a0594322c318fd9f1b15de21692202998334a4bff9cdda9c405bc62af3f7c3": {
       "boxes": [],
@@ -5484,10 +5539,28 @@
           "scope": "keep",
           "identity": "Lonneke",
           "tags": []
+        },
+        {
+          "x": 0.6819880593001226,
+          "y": 0.06642259414225941,
+          "w": 0.1317844567345715,
+          "h": 0.252092050209205,
+          "scope": "uncertain",
+          "identity": "Trainer 3",
+          "tags": []
+        },
+        {
+          "x": 0.16740113300322423,
+          "y": 0.2975941422594142,
+          "w": 0.1094717444832155,
+          "h": 0.16736401673640167,
+          "scope": "uncertain",
+          "identity": "Sezen",
+          "tags": []
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "9419656e93b77553447cb5b88a25e05a1a3ac57324341ff4e9f20aa49d7c3a4e": {
       "boxes": [],
@@ -5530,9 +5603,28 @@
       "labeled": false
     },
     "807f72628a4a65290fa26a668919bfa0e837d68081284730cd20962d8423307f": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.2462229481420988,
+          "y": 0.15038284839203675,
+          "w": 0.07676602694977541,
+          "h": 0.12955589586523736,
+          "scope": "keep",
+          "identity": "anon-15",
+          "tags": []
+        },
+        {
+          "x": 0.5867701102490812,
+          "y": 0.507197549770291,
+          "w": 0.07064107799101674,
+          "h": 0.1460949464012251,
+          "scope": "keep",
+          "identity": "Dastan",
+          "tags": []
+        }
+      ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "d4f04151cd7f85181dfdf4629fce2db51f73aaf8728538d7192d60ed19c551e9": {
       "boxes": [],
@@ -5575,9 +5667,19 @@
       "labeled": false
     },
     "82c0626bc1b249a79c85df7316cacefa9cf043e152eebed7b6c689e65ca686e1": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.3365677158695197,
+          "y": 0.17625523012552302,
+          "w": 0.23664994742093548,
+          "h": 0.18723849372384938,
+          "scope": "keep",
+          "identity": "Florine",
+          "tags": []
+        }
+      ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "9321a20010eebc8877fb001050befa32d3cc74277fde6ba56d724730c6ef67ad": {
       "boxes": [],
@@ -5751,7 +5853,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "9b575f0208f14208d630fd3c749fa8f0f194f82d6c4f0327b3b5507cd395db0d": {
       "boxes": [],
@@ -5884,9 +5986,37 @@
       "labeled": false
     },
     "7fa5f91cc12ffb6b0ad73944b1c172bc4948c7525be10d7ee3ab2fd0179d9a10": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.3788901696031615,
+          "y": 0.20813817330210774,
+          "w": 0.052198254569405564,
+          "h": 0.09133489461358314,
+          "scope": "keep",
+          "identity": "Casper",
+          "tags": []
+        },
+        {
+          "x": 0.6462068965517241,
+          "y": 0.1009122385528547,
+          "w": 0.08275862068965512,
+          "h": 0.16552026972462247,
+          "scope": "keep",
+          "identity": "Etienne",
+          "tags": []
+        },
+        {
+          "x": 0.21793103448275863,
+          "y": 0.21371123718000481,
+          "w": 0.046896551724137925,
+          "h": 0.09931216183477351,
+          "scope": "uncertain",
+          "identity": null,
+          "tags": []
+        }
+      ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "abcb3c0ab83791d93a41bd0d775b621164bf0097e1362b002b70acf6bb9390c3": {
       "boxes": [],
@@ -5984,9 +6114,28 @@
       "labeled": false
     },
     "821c6160cafaf65cad2410213a74eecbce651f64285e05ccb1a80df910ff3a2a": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.2271892222902633,
+          "y": 0.2541334966319657,
+          "w": 0.08328230251071647,
+          "h": 0.16840171463563994,
+          "scope": "keep",
+          "identity": "Marlijn",
+          "tags": []
+        },
+        {
+          "x": 0.6013472137170851,
+          "y": 0.23637477036129823,
+          "w": 0.0892018779342723,
+          "h": 0.18156766687078996,
+          "scope": "keep",
+          "identity": "Sofie",
+          "tags": []
+        }
+      ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "b9cf94aa43c50cf14742c0fe83a3af16f6840a7d546fc5212292c947affe5937": {
       "boxes": [],
@@ -5999,9 +6148,28 @@
       "labeled": false
     },
     "831c52224e9bf1a136078f3c6d7b16b810cae32f93492995badf9af2664cb147": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.49246473321769185,
+          "y": 0.08453292496171516,
+          "w": 0.054500918554807105,
+          "h": 0.11546707503828484,
+          "scope": "keep",
+          "identity": "Femke",
+          "tags": []
+        },
+        {
+          "x": 0.33756718346584264,
+          "y": 0.15219665271966526,
+          "w": 0.06762224550992818,
+          "h": 0.10355648535564854,
+          "scope": "uncertain",
+          "identity": null,
+          "tags": []
+        }
+      ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "a4c424bfffb3ead5808a7a91372a09ab851b166b0532d5ff5784f3c11390979e": {
       "boxes": [],
@@ -6066,12 +6234,31 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "83e52259fa853bec2a28f5f62d6c581bb8fce66136fa6c7793bf736507bc09a9": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.5748979591836735,
+          "y": 0.13139356814701378,
+          "w": 0.11734693877551021,
+          "h": 0.2591117917304747,
+          "scope": "keep",
+          "identity": "Floor",
+          "tags": []
+        },
+        {
+          "x": 0.24211211681325248,
+          "y": 0.18985355648535565,
+          "w": 0.1184890274101272,
+          "h": 0.198744769874477,
+          "scope": "uncertain",
+          "identity": null,
+          "tags": []
+        }
+      ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "ac423e8b173e100be4f56b036767afe3c562b60318a136c2802f748fcc34bf93": {
       "boxes": [],
@@ -6110,7 +6297,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "d22f75a7d1d1cb845017c27446de3bf7a70a6a0d35284e5a11ad8df91f870341": {
       "boxes": [],
@@ -6154,7 +6341,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "e2bbb2da92b9cfdbb5554473fccbdbe983334cbc27a3a9bde8b82902ef86eee3": {
       "boxes": [],
@@ -6204,12 +6391,22 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "8584dbef3669c6304d8417b2ee1e019fb4754f6c5e96bcb192b5f0986cd978c0": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.50377411238468,
+          "y": 0.20572450805008943,
+          "w": 0.18003913894324852,
+          "h": 0.2039355992844365,
+          "scope": "keep",
+          "identity": "Noah",
+          "tags": []
+        }
+      ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "f5ad0e266d49bcb00174b1b40e1eaaf96d2c9c4073f9fee31f3c3d667ec36783": {
       "boxes": [],
@@ -6274,7 +6471,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "bb09c6d3d7df19dd4b12b7b645f31383b0d2a3b0fb465da03e0635f26a1ca4e2": {
       "boxes": [],
@@ -6329,7 +6526,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "adf55003f0267e8791b54e7f9ffd43e84e4ae441a5614358abd4a1a9859e72d2": {
       "boxes": [],
@@ -6407,9 +6604,19 @@
       "labeled": false
     },
     "81b5bd417186b460d679270687da5a6dc3ed7363ae4892846917d6c0c1c822f8": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.5704247673495888,
+          "y": 0.20972803347280336,
+          "w": 0.06833294257682876,
+          "h": 0.12447698744769872,
+          "scope": "keep",
+          "identity": "Lasse",
+          "tags": []
+        }
+      ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "b6d5558992cd9b8634429d0915579689afb383b48bd82994f05496c044ac7cfd": {
       "boxes": [],
@@ -6512,9 +6719,28 @@
       "labeled": false
     },
     "85b6ecf70477cf95d6a1b672f45169aa314fb329325d4270da2b3808874fb5da": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.4717566728739913,
+          "y": 0.14773432650527624,
+          "w": 0.052348437823298156,
+          "h": 0.1021104903786468,
+          "scope": "keep",
+          "identity": "Moos",
+          "tags": []
+        },
+        {
+          "x": 0.6788744051313884,
+          "y": 0.22098075729360644,
+          "w": 0.05027932960893855,
+          "h": 0.08969584109248914,
+          "scope": "keep",
+          "identity": "Luc",
+          "tags": []
+        }
+      ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "a5a38123cd3a204b140ab6246e907445ae3166d254fb5ffe19b65d77f168ef98": {
       "boxes": [],
@@ -6550,7 +6776,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "8a4680aff2fc807d23f5024b63604b3ca75bc1da23d0d726df1c52c937d794f9": {
       "boxes": [],
@@ -6582,7 +6808,7 @@
       "tags": [
         "no_faces"
       ],
-      "labeled": false
+      "labeled": true
     },
     "d3aa6914d47ed0ada642e66cf23695070f3cad38e4aff1ada211d651fe82f8e8": {
       "boxes": [],
@@ -6660,14 +6886,70 @@
       "labeled": false
     },
     "7fd7cd9bf3b5a8f7183b2e076ecec38616c23f339add20c07d651588b1f61f08": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.19456501226646536,
+          "y": 0.20192489148896017,
+          "w": 0.12738252500471786,
+          "h": 0.19135685978486508,
+          "scope": "keep",
+          "identity": "Epke",
+          "tags": []
+        },
+        {
+          "x": 0.48065672768446877,
+          "y": 0.1530477448575203,
+          "w": 0.11587091904132855,
+          "h": 0.16418192111719193,
+          "scope": "keep",
+          "identity": "Merijn",
+          "tags": []
+        },
+        {
+          "x": 0.7020192489148896,
+          "y": 0.15889790526514436,
+          "w": 0.11530477448575203,
+          "h": 0.1453104359313078,
+          "scope": "keep",
+          "identity": "Julian",
+          "tags": []
+        }
+      ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "7f5bfd102c13b12906b582ee65861dbe55d1ba1c0f28c4a4dae16751b445b5b6": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.16634872186188476,
+          "y": 0.15275446360445596,
+          "w": 0.14212132773750477,
+          "h": 0.13657866625972837,
+          "scope": "keep",
+          "identity": "Feline",
+          "tags": []
+        },
+        {
+          "x": 0.41301030141167494,
+          "y": 0.09980161757973448,
+          "w": 0.1287676459366654,
+          "h": 0.1521440561574851,
+          "scope": "keep",
+          "identity": "Famke",
+          "tags": []
+        },
+        {
+          "x": 0.7117512399847387,
+          "y": 0.2652220357088356,
+          "w": 0.14364746280045784,
+          "h": 0.14558217610254845,
+          "scope": "keep",
+          "identity": "Maud",
+          "tags": []
+        }
+      ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "d9e41078dad2f9ce234ee20dfe1f7d84555b2c8584405cd2b1b5271ed1db20da": {
       "boxes": [],
@@ -6725,7 +7007,7 @@
         }
       ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "f951945afd95e2b95fd561341f8d97c7cdcdf907383f098e76fd4c4714e929a0": {
       "boxes": [],
@@ -6748,9 +7030,19 @@
       "labeled": false
     },
     "80acd05ec3826acc7b90e73b4ac81b1c8647c86de17d46807eb699d874c9b90f": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.43348365276211953,
+          "y": 0.14384488200811663,
+          "w": 0.22829763246899662,
+          "h": 0.24620471967533444,
+          "scope": "keep",
+          "identity": "Simon",
+          "tags": []
+        }
+      ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "ae1cde834c8c3536e4b97a179420ded4dd52ae6f049dc26bde06903fb3674748": {
       "boxes": [],
@@ -6788,14 +7080,70 @@
       "labeled": false
     },
     "81354bba627b0cb7f0a3fea9315756afc8d8cad9dbb35b746046a1898a5198da": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.1643527970600245,
+          "y": 0.20208205756276792,
+          "w": 0.083299305839118,
+          "h": 0.1879975505205144,
+          "scope": "keep",
+          "identity": "Jesse",
+          "tags": []
+        },
+        {
+          "x": 0.4804001633319722,
+          "y": 0.18891610532761788,
+          "w": 0.07839934667211107,
+          "h": 0.16595223515003063,
+          "scope": "keep",
+          "identity": "Lasse",
+          "tags": []
+        },
+        {
+          "x": 0.7574520212331564,
+          "y": 0.23086344151867727,
+          "w": 0.06676194365046959,
+          "h": 0.1653398652786283,
+          "scope": "keep",
+          "identity": "Jens 218",
+          "tags": []
+        }
+      ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "7f5237bcfead3c4217a02dc30763bf783ecfa52a74dd1536854cba952e8e0680": {
-      "boxes": [],
+      "boxes": [
+        {
+          "x": 0.19130257247856267,
+          "y": 0.21592649310872894,
+          "w": 0.08350347080440997,
+          "h": 0.1785604900459418,
+          "scope": "keep",
+          "identity": "Jesse",
+          "tags": []
+        },
+        {
+          "x": 0.4679461004491629,
+          "y": 0.19632465543644717,
+          "w": 0.07839934667211107,
+          "h": 0.17457886676875958,
+          "scope": "keep",
+          "identity": "Lasse",
+          "tags": []
+        },
+        {
+          "x": 0.7760310330747244,
+          "y": 0.28422664624808575,
+          "w": 0.07901184156798693,
+          "h": 0.16937212863705972,
+          "scope": "keep",
+          "identity": "Jens 218",
+          "tags": []
+        }
+      ],
       "tags": [],
-      "labeled": false
+      "labeled": true
     },
     "d8685078d6f141de9150aa13c71a44c1ae8f92d9479a7069cd70df3c874e658d": {
       "boxes": [],
