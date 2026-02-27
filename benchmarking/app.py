@@ -8,10 +8,13 @@ from fastapi.staticfiles import StaticFiles
 from starlette.responses import FileResponse, JSONResponse, RedirectResponse
 
 from benchmarking.photo_index import load_photo_index, get_path_for_hash
-from benchmarking.routes.bib import bib_router
-from benchmarking.routes.benchmark import benchmark_router
-from benchmarking.routes.face import face_router
-from benchmarking.routes.identities import identities_router
+from benchmarking.routes.api.benchmark import api_benchmark_router
+from benchmarking.routes.api.bibs import api_bibs_router
+from benchmarking.routes.api.faces import api_faces_router
+from benchmarking.routes.api.identities import api_identities_router
+from benchmarking.routes.shims import shims_router
+from benchmarking.routes.ui.benchmark import ui_benchmark_router
+from benchmarking.routes.ui.labeling import ui_labeling_router
 from benchmarking.templates_env import TEMPLATES
 
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -24,10 +27,13 @@ def create_app() -> FastAPI:
 
     app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
-    app.include_router(bib_router)
-    app.include_router(face_router)
-    app.include_router(identities_router)
-    app.include_router(benchmark_router)
+    app.include_router(api_bibs_router)
+    app.include_router(api_faces_router)
+    app.include_router(api_identities_router)
+    app.include_router(api_benchmark_router)
+    app.include_router(ui_labeling_router, include_in_schema=False)
+    app.include_router(ui_benchmark_router, include_in_schema=False)
+    app.include_router(shims_router, include_in_schema=False)
 
     # Return 400 for request validation errors (missing/invalid params or body)
     @app.exception_handler(RequestValidationError)

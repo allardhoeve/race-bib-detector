@@ -1,26 +1,26 @@
-"""Benchmark inspection routes."""
+"""Benchmark inspection HTML views and artifact serving."""
 
 import json
 
-from fastapi import APIRouter, Body, HTTPException, Query, Request
-from starlette.responses import FileResponse, RedirectResponse
+from fastapi import APIRouter, HTTPException, Query, Request
+from starlette.responses import FileResponse
 
 from benchmarking.label_utils import filter_results
 from benchmarking.photo_index import load_photo_index
-from benchmarking.runner import list_runs, get_run, RESULTS_DIR
+from benchmarking.runner import RESULTS_DIR, get_run, list_runs
 from benchmarking.templates_env import TEMPLATES
 
-benchmark_router = APIRouter()
+ui_benchmark_router = APIRouter()
 
 
-@benchmark_router.get('/benchmark/', include_in_schema=False)
+@ui_benchmark_router.get('/benchmark/')
 async def benchmark_list(request: Request):
     """List all benchmark runs."""
     runs = list_runs()
     return TEMPLATES.TemplateResponse(request, 'benchmark_list.html', {'runs': runs})
 
 
-@benchmark_router.get('/benchmark/staging/', include_in_schema=False)
+@ui_benchmark_router.get('/benchmark/staging/')
 async def staging(request: Request):
     from benchmarking.completeness import get_all_completeness
     rows = get_all_completeness()
@@ -28,7 +28,7 @@ async def staging(request: Request):
     return TEMPLATES.TemplateResponse(request, 'staging.html', {'rows': rows, 'index': index})
 
 
-@benchmark_router.get('/benchmark/{run_id}/', include_in_schema=False)
+@ui_benchmark_router.get('/benchmark/{run_id}/')
 async def benchmark_inspect(
     run_id: str,
     request: Request,
@@ -89,52 +89,7 @@ async def benchmark_inspect(
     })
 
 
-@benchmark_router.get('/staging/', include_in_schema=False)
-async def staging_redirect(request: Request):
-    """301 shim for backward compatibility."""
-    return RedirectResponse(url=str(request.url_for('staging')), status_code=301)
-
-
-@benchmark_router.post('/api/freeze')
-async def api_freeze(body: dict = Body(default={})):
-    from benchmarking.sets import freeze
-    name = body.get("name", "").strip()
-    description = body.get("description", "")
-    hashes = body.get("hashes", [])
-
-    if not name:
-        raise HTTPException(status_code=400, detail="name is required")
-    if not hashes:
-        raise HTTPException(status_code=400, detail="hashes list is empty")
-
-    index = load_photo_index()
-    flat_index = {h: (paths[0] if isinstance(paths, list) else paths)
-                  for h, paths in index.items() if h in hashes}
-
-    try:
-        snapshot = freeze(
-            name=name,
-            hashes=sorted(flat_index.keys()),
-            index=flat_index,
-            description=description,
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=409, detail=str(e))
-
-    return snapshot.metadata.to_dict()
-
-
-@benchmark_router.get('/artifact/{run_id}/{hash_prefix}/{image_type}', include_in_schema=False)
-async def serve_artifact_redirect(run_id: str, hash_prefix: str, image_type: str, request: Request):
-    """301 shim for backward compatibility."""
-    return RedirectResponse(
-        url=str(request.url_for('serve_artifact', run_id=run_id,
-                                hash_prefix=hash_prefix, image_type=image_type)),
-        status_code=301,
-    )
-
-
-@benchmark_router.get('/media/artifacts/{run_id}/{hash_prefix}/{image_type}', include_in_schema=False)
+@ui_benchmark_router.get('/media/artifacts/{run_id}/{hash_prefix}/{image_type}')
 async def serve_artifact(run_id: str, hash_prefix: str, image_type: str):
     """Serve artifact image from run directory."""
     artifact_dir = RESULTS_DIR / run_id / "images" / hash_prefix

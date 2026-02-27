@@ -1,22 +1,22 @@
-"""Identity management routes."""
+"""Identity management JSON API endpoints."""
 
 from fastapi import APIRouter, Body, HTTPException
 
 from benchmarking.services.identity_service import (
-    list_identities,
     create_identity,
+    list_identities,
     rename_identity_across_gt,
 )
 
-identities_router = APIRouter()
+api_identities_router = APIRouter()
 
 
-@identities_router.get('/api/identities')
+@api_identities_router.get('/api/identities')
 async def get_identities():
     return {'identities': list_identities()}
 
 
-@identities_router.post('/api/identities')
+@api_identities_router.post('/api/identities')
 async def post_identity(body: dict = Body(default={})):
     name = (body.get('name') or '').strip()
     if not name:
@@ -25,13 +25,7 @@ async def post_identity(body: dict = Body(default={})):
     return {'identities': ids}
 
 
-@identities_router.post('/api/rename_identity', include_in_schema=False)
-async def rename_identity_legacy():
-    """Legacy rename endpoint — gone. Use PATCH /api/identities/<name>."""
-    raise HTTPException(status_code=410, detail='Use PATCH /api/identities/<name>')
-
-
-@identities_router.patch('/api/identities/{name}')
+@api_identities_router.patch('/api/identities/{name}')
 async def patch_identity(name: str, body: dict = Body(default={})):
     """Rename an identity across all face GT entries and the identities list."""
     new_name = (body.get('new_name') or '').strip()
