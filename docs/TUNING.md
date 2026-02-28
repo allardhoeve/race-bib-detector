@@ -221,12 +221,11 @@ Scoring is implemented in `benchmarking/scoring.py`. The `FaceScorecard` class c
 TP, FP, and FN across all photos in a benchmark split:
 
 ```python
-@dataclass
-class FaceScorecard:
+class FaceScorecard(BaseModel):
     detection_tp: int
     detection_fp: int
     detection_fn: int
-    # computed: detection_precision, detection_recall, detection_f1
+    # computed_field: detection_precision, detection_recall, detection_f1
 ```
 
 A predicted box counts as a TP only if it overlaps a ground-truth box with IoU ≥ 0.5.
@@ -240,8 +239,7 @@ changing `FACE_DNN_NMS_IOU` does not change the scoring threshold.
 
 ## Running a parameter sweep
 
-See `todo/tasks/task-029-face-parameter-sweep.md` for the planned `bnr benchmark tune`
-command. The sweep iterates over a grid of values defined in a YAML file:
+The `bnr benchmark tune` command iterates over a grid of values defined in a YAML file:
 
 ```yaml
 # benchmarking/tune_configs/face_default.yaml
