@@ -15,7 +15,7 @@ from typing import Any, Literal
 import cv2
 import numpy as np
 
-from pydantic import BaseModel, ConfigDict, Field, field_serializer, field_validator, model_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from config import (
     BENCHMARK_REGRESSION_TOLERANCE,
@@ -184,9 +184,6 @@ class RunMetadata(BaseModel):
 
 class BenchmarkRun(BaseModel):
     """Complete benchmark run results."""
-    # BibScorecard/FaceScorecard/LinkScorecard are still plain dataclasses.
-    # TODO task-037: remove arbitrary_types_allowed once scorecards are Pydantic models.
-    model_config = ConfigDict(arbitrary_types_allowed=True)
 
     metadata: RunMetadata
     metrics: BenchmarkMetrics
@@ -194,47 +191,6 @@ class BenchmarkRun(BaseModel):
     bib_scorecard: BibScorecard | None = None
     face_scorecard: FaceScorecard | None = None
     link_scorecard: LinkScorecard | None = None
-
-    @model_validator(mode="before")
-    @classmethod
-    def _coerce_scorecards(cls, data: Any) -> Any:
-        """Convert scorecard dicts to dataclass instances when loading from JSON.
-
-        BibScorecard, FaceScorecard, and LinkScorecard are still plain dataclasses.
-        TODO task-037: remove once scorecards are migrated to Pydantic.
-        """
-        if isinstance(data, dict):
-            if isinstance(data.get("bib_scorecard"), dict):
-                sc = data["bib_scorecard"]
-                data["bib_scorecard"] = BibScorecard(
-                    detection_tp=sc["detection_tp"],
-                    detection_fp=sc["detection_fp"],
-                    detection_fn=sc["detection_fn"],
-                    ocr_correct=sc["ocr_correct"],
-                    ocr_total=sc["ocr_total"],
-                )
-            if isinstance(data.get("face_scorecard"), dict):
-                sc = data["face_scorecard"]
-                data["face_scorecard"] = FaceScorecard(
-                    detection_tp=sc["detection_tp"],
-                    detection_fp=sc["detection_fp"],
-                    detection_fn=sc["detection_fn"],
-                )
-            if isinstance(data.get("link_scorecard"), dict):
-                data["link_scorecard"] = LinkScorecard.from_dict(data["link_scorecard"])
-        return data
-
-    @field_serializer("bib_scorecard")
-    def _serialize_bib_sc(self, v: BibScorecard | None) -> dict | None:
-        return v.to_dict() if v is not None else None
-
-    @field_serializer("face_scorecard")
-    def _serialize_face_sc(self, v: FaceScorecard | None) -> dict | None:
-        return v.to_dict() if v is not None else None
-
-    @field_serializer("link_scorecard")
-    def _serialize_link_sc(self, v: LinkScorecard | None) -> dict | None:
-        return v.to_dict() if v is not None else None
 
     def save(self, path: Path) -> None:
         """Save benchmark run to JSON file."""

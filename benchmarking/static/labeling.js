@@ -230,7 +230,7 @@ var PhotoCanvas = (function () {
         }
 
         function drawBox(box, mode, isSelected) {
-            var imgRect = _canvas.getImageRect();
+            var imgRect = getImageRect();
             var r = C.boxToCanvasRect(box, imgRect);
             var colorKey = box.scope || (mode === 'bib' ? 'bib' : 'keep');
             var color = C.BOX_COLORS[colorKey] || '#00ff88';
@@ -266,7 +266,7 @@ var PhotoCanvas = (function () {
         }
 
         function drawLinkLine(bibBox, faceBox) {
-            var imgRect = _canvas.getImageRect();
+            var imgRect = getImageRect();
             var btl = C.normalToCanvas(bibBox.x, bibBox.y, imgRect);
             var ftl = C.normalToCanvas(faceBox.x, faceBox.y, imgRect);
             var bc = { x: btl.x + bibBox.w * imgRect.w / 2, y: btl.y + bibBox.h * imgRect.h / 2 };

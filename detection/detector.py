@@ -150,8 +150,6 @@ def detect_bib_numbers(
         all_detections.extend(filtered)
 
     # Also run OCR on full image as fallback (in case region detection missed something)
-    # TODO: Evaluate how much the full-image scan adds to detection results.
-    #       Consider creating a test pipeline to measure detection rate with/without it.
     full_image_detections, full_image_candidates = extract_bib_detections(
         reader, ocr_image, ocr_grayscale,
         confidence_threshold=FULL_IMAGE_CONFIDENCE_THRESHOLD,
