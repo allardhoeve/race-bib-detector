@@ -29,6 +29,7 @@ class PhotoMetadata(BaseModel):
     split: str = ""
     bib_tags: list[str] = Field(default_factory=list)
     face_tags: list[str] = Field(default_factory=list)
+    frozen: str | None = None
 
     @field_validator("split")
     @classmethod
@@ -72,6 +73,17 @@ class PhotoMetadataStore(BaseModel):
 
     def set(self, content_hash: str, meta: PhotoMetadata) -> None:
         self.photos[content_hash] = meta
+
+    def is_frozen(self, content_hash: str) -> str | None:
+        """Return frozen set name if frozen, else None."""
+        meta = self.photos.get(content_hash)
+        if meta:
+            return meta.frozen
+        return None
+
+    def frozen_hashes(self) -> dict[str, str]:
+        """Return {hash: set_name} for all frozen photos."""
+        return {h: m.frozen for h, m in self.photos.items() if m.frozen}
 
     def get_hashes_by_split(self, split: str) -> list[str]:
         """Return hashes for an evaluation split.

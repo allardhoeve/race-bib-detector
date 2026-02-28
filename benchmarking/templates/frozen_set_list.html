@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Frozen Sets{% endblock %}
+{% block extra_styles %}
+        .content {
+            flex: 1;
+            padding: 60px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        h1 {
+            color: #0f9b0f;
+            font-size: 28px;
+        }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+        .card {
+            padding: 20px;
+            border-radius: 8px;
+            background: #16213e;
+            border: 1px solid #0f3460;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .card h2 {
+            font-size: 18px;
+            color: #0f9b0f;
+        }
+        .card p {
+            color: #bbb;
+            font-size: 14px;
+            flex: 1;
+        }
+        .card .meta {
+            font-size: 13px;
+            color: #888;
+            font-variant-numeric: tabular-nums;
+        }
+        .card a {
+            display: inline-block;
+            margin-top: 6px;
+            color: #0f9b0f;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .card a:hover { text-decoration: underline; }
+        .empty-msg {
+            color: #888;
+            font-size: 16px;
+        }
+{% endblock %}
+{% block body %}
+    <div class="header">
+        <div class="nav-info">
+            <span style="color: #0f9b0f; font-weight: bold;">Frozen Sets</span>
+        </div>
+        <a class="nav-link" href="{{ request.url_for('index') }}">&larr; Home</a>
+    </div>
+
+    <div class="content">
+        <h1>Frozen Sets</h1>
+        {% if snapshots %}
+        <div class="cards">
+            {% for snap in snapshots %}
+            <div class="card">
+                <h2>{{ snap.name }}</h2>
+                {% if snap.description %}
+                <p>{{ snap.description }}</p>
+                {% endif %}
+                <span class="meta">{{ snap.photo_count }} photos &middot; {{ snap.created_at[:10] }}</span>
+                <a href="{{ request.url_for('frozen_set_photos', set_name=snap.name) }}">View Photos &rarr;</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-msg">No frozen sets yet. Use the staging page to freeze a benchmark set.</p>
+        {% endif %}
+    </div>
+{% endblock %}

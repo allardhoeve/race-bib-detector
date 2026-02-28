@@ -14,6 +14,7 @@ from benchmarking.routes.api.faces import api_faces_router
 from benchmarking.routes.api.identities import api_identities_router
 from benchmarking.routes.shims import shims_router
 from benchmarking.routes.ui.benchmark import ui_benchmark_router
+from benchmarking.routes.ui.frozen import ui_frozen_router
 from benchmarking.routes.ui.labeling import ui_labeling_router
 from benchmarking.templates_env import TEMPLATES
 
@@ -33,6 +34,7 @@ def create_app() -> FastAPI:
     app.include_router(api_benchmark_router)
     app.include_router(ui_labeling_router, include_in_schema=False)
     app.include_router(ui_benchmark_router, include_in_schema=False)
+    app.include_router(ui_frozen_router, include_in_schema=False)
     app.include_router(shims_router, include_in_schema=False)
 
     # Return 400 for request validation errors (missing/invalid params or body)

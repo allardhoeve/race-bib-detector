@@ -5,6 +5,7 @@ import io
 from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import StreamingResponse
 
+from benchmarking.frozen_check import require_not_frozen
 from benchmarking.ground_truth import FaceBox
 from benchmarking.label_utils import find_hash_by_prefix
 from benchmarking.photo_index import load_photo_index
@@ -41,6 +42,8 @@ async def save_face_label(content_hash: str, request: SaveFaceBoxesRequest):
     full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
     if not full_hash:
         raise HTTPException(status_code=404, detail='Photo not found')
+
+    require_not_frozen(full_hash)
 
     try:
         boxes = [FaceBox.model_validate(b.model_dump()) for b in request.boxes]

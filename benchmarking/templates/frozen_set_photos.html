@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Frozen Set: {{ set_name }}{% endblock %}
+{% block extra_styles %}
+        .content {
+            flex: 1;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+        }
+        h1 {
+            color: #0f9b0f;
+            font-size: 24px;
+        }
+        .meta-info {
+            color: #888;
+            font-size: 14px;
+        }
+        .thumb-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+        }
+        .thumb-item {
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #0f3460;
+            background: #0d0d1a;
+            display: flex;
+            flex-direction: column;
+        }
+        .thumb-item img {
+            width: 100%;
+            aspect-ratio: 1;
+            object-fit: cover;
+        }
+        .thumb-item .hash {
+            padding: 6px 8px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #888;
+        }
+        .thumb-item a {
+            text-decoration: none;
+            color: inherit;
+        }
+        .thumb-item:hover { border-color: #0f9b0f; }
+{% endblock %}
+{% block body %}
+    <div class="header">
+        <div class="nav-info">
+            <span style="color: #0f9b0f; font-weight: bold;">{{ set_name }}</span>
+            <span class="position">{{ snapshot.metadata.photo_count }} photos</span>
+        </div>
+        <a class="nav-link" href="{{ request.url_for('frozen_sets_list') }}">&larr; All Frozen Sets</a>
+    </div>
+
+    <div class="content">
+        <h1>{{ set_name }}</h1>
+        {% if snapshot.metadata.description %}
+        <p class="meta-info">{{ snapshot.metadata.description }}</p>
+        {% endif %}
+        <p class="meta-info">Created {{ snapshot.metadata.created_at[:10] }} &middot; {{ snapshot.metadata.photo_count }} photos</p>
+
+        <div class="thumb-grid">
+            {% for h in snapshot.hashes %}
+            <div class="thumb-item">
+                <a href="{{ request.url_for('frozen_photo_detail', set_name=set_name, content_hash=h[:8]) }}">
+                    <img src="{{ request.url_for('serve_photo', content_hash=h) }}" alt="{{ h[:8] }}" loading="lazy">
+                    <span class="hash">{{ h[:8] }}</span>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+{% endblock %}

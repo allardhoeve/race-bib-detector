@@ -77,6 +77,18 @@ def freeze(
     target = FROZEN_DIR / name
     if target.exists():
         raise ValueError(f"Snapshot already exists: {name!r}")
+
+    # Stamp each photo's metadata with the frozen set name
+    from benchmarking.photo_metadata import load_photo_metadata, save_photo_metadata, PhotoMetadata
+    meta_store = load_photo_metadata()
+    for h in hashes:
+        meta = meta_store.get(h)
+        if meta is None:
+            meta = PhotoMetadata()
+            meta_store.set(h, meta)
+        meta.frozen = name
+    save_photo_metadata(meta_store)
+
     metadata = BenchmarkSnapshotMetadata(
         name=name,
         created_at=datetime.now(timezone.utc).isoformat(),

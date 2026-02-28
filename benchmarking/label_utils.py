@@ -11,6 +11,7 @@ from benchmarking.ground_truth import (
     load_face_ground_truth,
 )
 from benchmarking.photo_index import load_photo_index
+from benchmarking.photo_metadata import load_photo_metadata
 
 
 def _filtered_hashes(filter_type: str, all_hashes: set[str], labeled: set[str]) -> list[str]:
@@ -21,10 +22,16 @@ def _filtered_hashes(filter_type: str, all_hashes: set[str], labeled: set[str]) 
     return sorted(all_hashes)
 
 
+def _exclude_frozen(hashes: set[str]) -> set[str]:
+    """Remove frozen hashes from a set."""
+    frozen = set(load_photo_metadata().frozen_hashes().keys())
+    return hashes - frozen
+
+
 def get_filtered_hashes(filter_type: str) -> list[str]:
-    """Get photo hashes based on bib label filter."""
+    """Get photo hashes based on bib label filter (excludes frozen photos)."""
     index = load_photo_index()
-    all_hashes = set(index.keys())
+    all_hashes = _exclude_frozen(set(index.keys()))
     if filter_type == 'all':
         return sorted(all_hashes)
     gt = load_bib_ground_truth()
@@ -38,9 +45,9 @@ def is_face_labeled(label: FacePhotoLabel) -> bool:
 
 
 def get_filtered_face_hashes(filter_type: str) -> list[str]:
-    """Get photo hashes based on face label filter."""
+    """Get photo hashes based on face label filter (excludes frozen photos)."""
     index = load_photo_index()
-    all_hashes = set(index.keys())
+    all_hashes = _exclude_frozen(set(index.keys()))
     if filter_type == 'all':
         return sorted(all_hashes)
     gt = load_face_ground_truth()

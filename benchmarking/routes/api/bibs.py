@@ -5,6 +5,7 @@ import io
 from fastapi import APIRouter, HTTPException
 from starlette.responses import StreamingResponse
 
+from benchmarking.frozen_check import require_not_frozen
 from benchmarking.ground_truth import BibBox
 from benchmarking.label_utils import find_hash_by_prefix
 from benchmarking.photo_index import load_photo_index
@@ -44,6 +45,8 @@ async def save_bib_label(content_hash: str, request: SaveBibBoxesRequest):
     if not full_hash:
         raise HTTPException(status_code=404, detail='Photo not found')
 
+    require_not_frozen(full_hash)
+
     try:
         boxes = [BibBox.model_validate(b.model_dump()) for b in request.boxes] if request.boxes is not None else None
         bib_service.save_bib_label(
@@ -80,6 +83,13 @@ async def get_associations(content_hash: str) -> AssociationsResponse:
 @api_bibs_router.put('/api/associations/{content_hash}', response_model=AssociationsResponse)
 async def save_associations(content_hash: str, request: SaveAssociationsRequest) -> AssociationsResponse:
     """Save the bib-face links for a photo. Replaces all existing links."""
+    index = load_photo_index()
+    full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
+    if not full_hash:
+        raise HTTPException(status_code=404, detail='Photo not found')
+
+    require_not_frozen(full_hash)
+
     try:
         saved = association_service.set_associations(content_hash, request.links)
     except (TypeError, IndexError, ValueError) as e:

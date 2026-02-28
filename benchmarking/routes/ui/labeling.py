@@ -5,6 +5,7 @@ import random
 from fastapi import APIRouter, HTTPException, Query, Request
 from starlette.responses import RedirectResponse
 
+from benchmarking.frozen_check import is_frozen
 from benchmarking.ground_truth import (
     ALLOWED_FACE_TAGS,
     ALLOWED_TAGS,
@@ -60,6 +61,17 @@ async def bib_photo(
     if not hashes:
         return TEMPLATES.TemplateResponse(request, 'empty.html')
 
+    # Try resolving hash from full index first (for frozen redirect)
+    all_index = load_photo_index()
+    full_hash = find_hash_by_prefix(content_hash, set(all_index.keys()))
+    if full_hash:
+        frozen_set = is_frozen(full_hash)
+        if frozen_set:
+            return RedirectResponse(
+                url=str(request.url_for('frozen_photo_detail', set_name=frozen_set, content_hash=full_hash[:8])),
+                status_code=302,
+            )
+
     full_hash = find_hash_by_prefix(content_hash, hashes)
     if not full_hash:
         raise HTTPException(status_code=404, detail='Photo not found')
@@ -90,7 +102,7 @@ async def bib_photo(
         str(request.url_for('bib_photo', content_hash=hashes[idx + 1][:8])) + f'?filter={filter_type}'
     ) if has_next else None
 
-    all_hashes_sorted = sorted(load_photo_index().keys())
+    all_hashes_sorted = sorted(all_index.keys())
 
     def _bib_is_labeled(h: str) -> bool:
         lbl = bib_gt.get_photo(h)
@@ -149,6 +161,17 @@ async def face_photo(
     if not hashes:
         return TEMPLATES.TemplateResponse(request, 'empty.html')
 
+    # Try resolving hash from full index first (for frozen redirect)
+    all_index = load_photo_index()
+    full_hash = find_hash_by_prefix(content_hash, set(all_index.keys()))
+    if full_hash:
+        frozen_set = is_frozen(full_hash)
+        if frozen_set:
+            return RedirectResponse(
+                url=str(request.url_for('frozen_photo_detail', set_name=frozen_set, content_hash=full_hash[:8])),
+                status_code=302,
+            )
+
     full_hash = find_hash_by_prefix(content_hash, hashes)
     if not full_hash:
         raise HTTPException(status_code=404, detail='Photo not found')
@@ -179,7 +202,7 @@ async def face_photo(
         str(request.url_for('face_photo', content_hash=hashes[idx + 1][:8])) + f'?filter={filter_type}'
     ) if has_next else None
 
-    all_hashes_sorted = sorted(load_photo_index().keys())
+    all_hashes_sorted = sorted(all_index.keys())
 
     def _face_is_labeled(h: str) -> bool:
         fl = face_gt.get_photo(h)
@@ -260,12 +283,23 @@ async def association_photo(
     """Link labeling page: associate bib boxes with face boxes."""
     from benchmarking.ground_truth import load_link_ground_truth
 
+    # Try resolving hash from full index first (for frozen redirect)
+    all_index = load_photo_index()
+    resolved = find_hash_by_prefix(content_hash, set(all_index.keys()))
+    if resolved:
+        frozen_set = is_frozen(resolved)
+        if frozen_set:
+            return RedirectResponse(
+                url=str(request.url_for('frozen_photo_detail', set_name=frozen_set, content_hash=resolved[:8])),
+                status_code=302,
+            )
+
     all_hashes = _get_association_hashes(filter_type)
     full_hash = find_hash_by_prefix(content_hash, all_hashes)
     if not full_hash:
         raise HTTPException(status_code=404, detail='Photo not found or not ready for linking')
 
-    index = load_photo_index()
+    index = all_index
     photo_paths = index[full_hash]
     photo_path = photo_paths[0] if isinstance(photo_paths, list) else photo_paths
 

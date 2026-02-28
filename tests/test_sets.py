@@ -7,12 +7,23 @@ import json
 import pytest
 
 import benchmarking.sets as sets_module
+from benchmarking.photo_metadata import (
+    PhotoMetadata,
+    PhotoMetadataStore,
+    load_photo_metadata,
+    save_photo_metadata,
+)
 from benchmarking.sets import BenchmarkSnapshot, freeze, list_snapshots
 
 
 @pytest.fixture(autouse=True)
 def isolated_frozen_dir(tmp_path, monkeypatch):
     monkeypatch.setattr(sets_module, "FROZEN_DIR", tmp_path / "frozen")
+    # Also isolate photo_metadata.json
+    meta_path = tmp_path / "photo_metadata.json"
+    monkeypatch.setattr(
+        "benchmarking.photo_metadata.get_photo_metadata_path", lambda: meta_path
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -131,3 +142,44 @@ class TestListSnapshots:
         snaps = list_snapshots()
         assert len(snaps) == 1
         assert snaps[0].name == "valid"
+
+
+# ---------------------------------------------------------------------------
+# Freeze stamps PhotoMetadata
+# ---------------------------------------------------------------------------
+
+
+class TestFreezeStampsMetadata:
+    def test_freeze_stamps_photo_metadata(self):
+        freeze(name="v1", hashes=["abc123"], index={"abc123": "a.jpg"})
+        store = load_photo_metadata()
+        meta = store.get("abc123")
+        assert meta is not None
+        assert meta.frozen == "v1"
+
+    def test_refreeze_overwrites(self, tmp_path):
+        """Re-freezing with a different name overwrites the frozen field."""
+        # First freeze
+        freeze(name="v1", hashes=["abc123"], index={"abc123": "a.jpg"})
+        store = load_photo_metadata()
+        assert store.get("abc123").frozen == "v1"
+
+        # Second freeze (different name, must clear existing dir check)
+        freeze(name="v2", hashes=["abc123"], index={"abc123": "a.jpg"})
+        store = load_photo_metadata()
+        assert store.get("abc123").frozen == "v2"
+
+    def test_freeze_preserves_existing_metadata_fields(self):
+        """Freezing should not clobber existing fields like split or tags."""
+        store = PhotoMetadataStore()
+        store.set("abc123", PhotoMetadata(
+            paths=["a.jpg"], split="iteration", bib_tags=["no_bib"],
+        ))
+        save_photo_metadata(store)
+
+        freeze(name="v1", hashes=["abc123"], index={"abc123": "a.jpg"})
+        store = load_photo_metadata()
+        meta = store.get("abc123")
+        assert meta.frozen == "v1"
+        assert meta.split == "iteration"
+        assert meta.bib_tags == ["no_bib"]

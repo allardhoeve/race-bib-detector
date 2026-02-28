@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Frozen: {{ set_name }} - {{ current }} / {{ total }}{% endblock %}
+{% block extra_styles %}
+        .frozen-banner {
+            padding: 8px 20px;
+            background: #2a1a00;
+            border-bottom: 1px solid #4a3000;
+            color: #f0a500;
+            font-size: 13px;
+            text-align: center;
+        }
+        .form-panel {
+            width: 300px;
+            padding: 20px;
+            background: #16213e;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .form-section h3 {
+            margin-bottom: 8px;
+            color: #0f9b0f;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+        .image-panel {
+            position: relative;
+            padding: 0;
+        }
+        .canvas-container {
+            position: absolute;
+            inset: 0;
+        }
+        .canvas-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .canvas-container canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #888;
+            padding: 4px 0;
+        }
+        .stat-value { color: #eee; font-family: monospace; }
+        .hash-display {
+            font-family: monospace;
+            font-size: 11px;
+            color: #666;
+        }
+{% endblock %}
+{% block body %}
+    <div class="header">
+        <div class="nav-info">
+            <button class="nav-btn" {% if not prev_url %}disabled{% endif %}
+                    onclick="{% if prev_url %}window.location='{{ prev_url }}'{% endif %}">
+                &larr; Prev
+            </button>
+            <span class="position">{{ current }} / {{ total }}</span>
+            <button class="nav-btn" {% if not next_url %}disabled{% endif %}
+                    onclick="{% if next_url %}window.location='{{ next_url }}'{% endif %}">
+                Next &rarr;
+            </button>
+        </div>
+        <div class="nav-info">
+            <a class="nav-link" href="{{ request.url_for('frozen_set_photos', set_name=set_name) }}">&larr; {{ set_name }}</a>
+            <a class="nav-link" href="{{ request.url_for('frozen_sets_list') }}">All Sets</a>
+        </div>
+    </div>
+
+    <div class="frozen-banner">
+        Read-only — this photo is in frozen set "{{ set_name }}"
+    </div>
+
+    <div class="main">
+        <div class="image-panel">
+            <div class="canvas-container">
+                <img id="photo" src="{{ request.url_for('serve_photo', content_hash=content_hash) }}" alt="Photo">
+                <canvas id="canvas"></canvas>
+            </div>
+        </div>
+
+        <div class="form-panel">
+            <div class="form-section">
+                <h3>Summary</h3>
+                <div class="stat-row">
+                    <span>Bib boxes</span>
+                    <span class="stat-value">{{ bib_boxes|length }}</span>
+                </div>
+                <div class="stat-row">
+                    <span>Face boxes</span>
+                    <span class="stat-value">{{ face_boxes|length }}</span>
+                </div>
+                <div class="stat-row">
+                    <span>Links</span>
+                    <span class="stat-value">{{ links|length }}</span>
+                </div>
+            </div>
+
+            <div class="hash-display">{{ content_hash[:8] }}...</div>
+        </div>
+    </div>
+
+    <script id="page-data" type="application/json">
+    {
+        "content_hash":  {{ content_hash|tojson }},
+        "bib_boxes":     {{ bib_boxes|tojson }},
+        "face_boxes":    {{ face_boxes|tojson }},
+        "links":         {{ links|tojson }},
+        "readonly":      true
+    }
+    </script>
+    <script>
+    // Minimal read-only renderer: draw boxes and link lines on canvas
+    (function() {
+        const data = JSON.parse(document.getElementById('page-data').textContent);
+        const img = document.getElementById('photo');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        function draw() {
+            const rect = img.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw bib boxes (orange)
+            ctx.strokeStyle = 'rgba(255,140,0,0.85)';
+            ctx.lineWidth = 2;
+            for (const b of data.bib_boxes) {
+                if (b.x != null && b.y != null && b.w != null && b.h != null) {
+                    ctx.strokeRect(b.x * canvas.width, b.y * canvas.height, b.w * canvas.width, b.h * canvas.height);
+                    if (b.number != null) {
+                        ctx.fillStyle = 'rgba(255,140,0,0.85)';
+                        ctx.font = '12px monospace';
+                        ctx.fillText('#' + b.number, b.x * canvas.width + 2, b.y * canvas.height - 4);
+                    }
+                }
+            }
+
+            // Draw face boxes (blue)
+            ctx.strokeStyle = 'rgba(60,120,255,0.85)';
+            ctx.lineWidth = 2;
+            for (const f of data.face_boxes) {
+                if (f.x != null && f.y != null && f.w != null && f.h != null) {
+                    ctx.strokeRect(f.x * canvas.width, f.y * canvas.height, f.w * canvas.width, f.h * canvas.height);
+                    if (f.identity) {
+                        ctx.fillStyle = 'rgba(60,120,255,0.85)';
+                        ctx.font = '11px monospace';
+                        ctx.fillText(f.identity, f.x * canvas.width + 2, (f.y + f.h) * canvas.height + 13);
+                    }
+                }
+            }
+
+            // Draw link lines (green)
+            ctx.strokeStyle = 'rgba(15,155,15,0.7)';
+            ctx.lineWidth = 2;
+            for (const [bi, fi] of data.links) {
+                const b = data.bib_boxes[bi];
+                const f = data.face_boxes[fi];
+                if (b && f && b.x != null && f.x != null) {
+                    const bx = (b.x + b.w / 2) * canvas.width;
+                    const by = (b.y + b.h / 2) * canvas.height;
+                    const fx = (f.x + f.w / 2) * canvas.width;
+                    const fy = (f.y + f.h / 2) * canvas.height;
+                    ctx.beginPath();
+                    ctx.moveTo(bx, by);
+                    ctx.lineTo(fx, fy);
+                    ctx.stroke();
+                }
+            }
+        }
+
+        img.addEventListener('load', draw);
+        window.addEventListener('resize', draw);
+        if (img.complete) draw();
+
+        // Keyboard nav
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'ArrowLeft' && {{ prev_url|tojson }}) window.location = {{ prev_url|tojson }};
+            if (e.key === 'ArrowRight' && {{ next_url|tojson }}) window.location = {{ next_url|tojson }};
+        });
+    })();
+    </script>
+{% endblock %}
