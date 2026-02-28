@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from benchmarking.ground_truth import BibBox, FaceBox
+from config import AUTOLINK_TORSO_BOTTOM, AUTOLINK_TORSO_HALF_WIDTH, AUTOLINK_TORSO_TOP
 
 
 @dataclass
@@ -18,16 +19,16 @@ class AutolinkResult:
 def _torso_region(face_box: FaceBox) -> tuple[float, float, float, float]:
     """Return estimated torso bounding box (x, y, w, h) in normalised [0,1] coords.
 
-    The torso is estimated as the region directly below the face box, roughly
-    1–3× face heights below the face and within ±1 face-width horizontally.
+    Uses empirically-derived multipliers from config (task-042).
+    All offsets are in face-height units from face center.
     """
-    fw = face_box.w
     fh = face_box.h
-    cx = face_box.x + fw / 2
-    ty = face_box.y + fh      # starts at bottom edge of face
-    th = 2 * fh               # extends 2 face-heights downward
-    tw = 2 * fw               # ±1 face-width from centre
-    tx = cx - fw              # = cx - tw/2
+    cx = face_box.x + face_box.w / 2
+    cy = face_box.y + fh / 2
+    ty = cy + AUTOLINK_TORSO_TOP * fh
+    th = (AUTOLINK_TORSO_BOTTOM - AUTOLINK_TORSO_TOP) * fh
+    tw = 2 * AUTOLINK_TORSO_HALF_WIDTH * fh
+    tx = cx - AUTOLINK_TORSO_HALF_WIDTH * fh
     return (tx, ty, tw, th)
 
 

@@ -143,6 +143,25 @@ FACE_CLUSTER_SIMILARITY_HIGH = 0.85
 FACE_CLUSTER_SIMILARITY_MEDIUM = 0.70
 
 # =============================================================================
+# BIB-FACE AUTOLINK
+# =============================================================================
+
+# Torso region heuristic for linking bibs to faces.
+# All values in face-height units, measured from face center.
+# Empirical basis: task-042 analysis of 281 GT links (p5/p95 + margin).
+# To re-derive: venv/bin/python -m benchmarking.link_analysis
+# See docs/TUNING.md § "Bib-face autolink" for interpretation.
+
+# Top of torso search region (face-heights below face center)
+AUTOLINK_TORSO_TOP = 1.0
+
+# Bottom of torso search region (face-heights below face center)
+AUTOLINK_TORSO_BOTTOM = 3.5
+
+# Half-width of torso search region (face-heights from face center, symmetric)
+AUTOLINK_TORSO_HALF_WIDTH = 0.6
+
+# =============================================================================
 # BIB NUMBER VALIDATION
 # =============================================================================
 

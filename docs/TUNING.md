@@ -264,6 +264,77 @@ reporting phantom faces equally.
 
 ---
 
+## Bib-face autolink (torso region)
+
+The autolink predictor (`faces/autolink.py`) uses a spatial heuristic to link detected
+bibs to detected faces. It estimates a "torso region" below each face and checks which
+bib centroids fall inside it.
+
+### Empirical findings (task-042, N=281 linked pairs)
+
+All offsets are measured from the **face center**, normalised by **face height** (for
+aspect-ratio independence).
+
+| Metric | Median | p5 | p95 | Min | Max |
+|---|---|---|---|---|---|
+| Vertical (bib below face) | +2.24 | +1.45 | +2.77 | +1.03 | +3.41 |
+| Horizontal (bib right of face) | +0.07 | −0.14 | +0.33 | −0.49 | +0.58 |
+
+**Horizontal asymmetry**: the slight rightward bias (+0.07 median) is an artefact of
+photographer position — typically on the outside corner of a road turn. For track events
+(counter-clockwise running) the bias would flip. The torso region should therefore remain
+symmetric; the per-event skew is not a stable prior.
+
+**Coverage of current heuristic**: 75.4% of GT links fall inside the old hardcoded
+`_torso_region()` (starts at face bottom edge, 2× face-height downward, ±1 face-width
+horizontal). Misses are mostly bibs that are further below the face than 2.5 fh.
+
+### Running the distance analyser
+
+```
+venv/bin/python -m benchmarking.link_analysis
+```
+
+The script loads the three ground truth files (`bib_ground_truth.json`,
+`face_ground_truth.json`, `bib_face_links.json`), finds every linked (bib, face) pair
+with valid coordinates, and prints:
+
+1. **Offset statistics** — per-pair vertical and horizontal displacement of the bib
+   centroid from the face centroid, normalised by face height. Also Euclidean distance
+   and angle. For each metric: median, mean, stdev, p5/p95, min/max.
+2. **Coverage** — what percentage of GT links fall inside the current `_torso_region()`
+   heuristic (as configured in `config.py`). This is the key number: if it drops below
+   100%, some real links are outside the search region and will be missed by autolink.
+3. **Suggested multipliers** — the p5/p95 envelope, which represents the tightest
+   region that still captures 90% of GT links.
+
+**How to interpret the output:**
+
+- **Coverage < 100%** means the torso region is too tight. Widen `AUTOLINK_TORSO_TOP`
+  (lower value = higher on the body), `AUTOLINK_TORSO_BOTTOM` (higher value = further
+  down), or `AUTOLINK_TORSO_HALF_WIDTH` (wider horizontal search).
+- **Coverage = 100% but autolink has false positives** means the region is too generous.
+  Tighten the values toward the p5/p95 envelope printed in "Suggested multipliers".
+- **Horizontal median far from zero** is expected — it reflects camera angle, which
+  varies per event. The region should stay symmetric because the bias flips depending
+  on which side of the course the photographer stands.
+
+Re-run the analyser after adding more GT links or changing config values to verify
+the effect.
+
+### Config keys
+
+Config key | Default | Unit | Meaning
+--- | --- | --- | ---
+`AUTOLINK_TORSO_TOP` | `1.0` | face-heights | Top of torso region below face center
+`AUTOLINK_TORSO_BOTTOM` | `3.5` | face-heights | Bottom of torso region below face center
+`AUTOLINK_TORSO_HALF_WIDTH` | `0.6` | face-heights | Half-width of torso region from face center
+
+Defaults are set with margin beyond the p5/p95 envelope to avoid clipping edge cases.
+The region is symmetric horizontally because camera angle varies per event.
+
+---
+
 ## Quick reference: what to try if scores are low
 
 | Symptom | Likely cause | What to adjust |
