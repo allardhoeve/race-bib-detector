@@ -210,6 +210,20 @@ async def face_photo(
     })
 
 
+# ---- IDENTITY GALLERY ----------------------------------------------------
+
+@ui_labeling_router.get('/identities/')
+async def identity_gallery(request: Request):
+    """Identity gallery: all faces grouped by identity with linked bibs."""
+    from benchmarking.services.identity_gallery_service import get_identity_gallery
+    groups = get_identity_gallery()
+    return TEMPLATES.TemplateResponse(request, 'identity_gallery.html', {
+        'groups': groups,
+        'total_identities': len(groups),
+        'total_faces': sum(len(g.faces) for g in groups),
+    })
+
+
 # ---- ASSOCIATION LABELING ------------------------------------------------
 
 def _get_association_hashes(filter_type: str) -> list[str]:

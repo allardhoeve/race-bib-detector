@@ -60,6 +60,13 @@
             font-weight: 600;
         }
         .card a:hover { text-decoration: underline; }
+        .section-label {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #666;
+            font-weight: 600;
+        }
 {% endblock %}
 {% block body %}
     <div class="header">
@@ -105,6 +112,16 @@
                 <p>Review completeness across all labeling dimensions and create a frozen
                    benchmark snapshot when all photos are ready.</p>
                 <a href="{{ request.url_for('staging') }}" class="btn">Open Staging</a>
+            </div>
+        </div>
+
+        <span class="section-label">QA Tools</span>
+        <div class="cards">
+            <div class="card">
+                <h2>Identity Gallery</h2>
+                <p>Review all faces grouped by identity with linked bib numbers.
+                   Spot misattributed identities and incorrect face-bib links.</p>
+                <a href="{{ request.url_for('identity_gallery') }}">Open Gallery &rarr;</a>
             </div>
         </div>
     </div>

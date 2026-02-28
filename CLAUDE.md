@@ -1,8 +1,20 @@
 # Claude Code Guidelines
 
+## Running commands
+
+This project uses a local virtualenv. **Always use `venv/bin/python`** — never `python`, `python3`, or `uv run`.
+
+```bash
+# Run tests
+venv/bin/python -m pytest
+
+# Run CLI
+venv/bin/python bnr.py <command>
+```
+
 ## Recording TODOs
 
-TODOs are always written with [ ] syntax so it is clear what is done.
+TODOs are always written with `[ ]` syntax so it is clear what is done.
 
 ## Standards
 

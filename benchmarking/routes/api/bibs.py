@@ -1,6 +1,9 @@
 """Bib and association JSON API endpoints."""
 
+import io
+
 from fastapi import APIRouter, HTTPException
+from starlette.responses import StreamingResponse
 
 from benchmarking.ground_truth import BibBox
 from benchmarking.label_utils import find_hash_by_prefix
@@ -54,6 +57,15 @@ async def save_bib_label(content_hash: str, request: SaveBibBoxesRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
     return {'status': 'ok'}
+
+
+@api_bibs_router.get('/api/bibs/{content_hash}/crop/{box_index}')
+async def bib_crop(content_hash: str, box_index: int):
+    """Return a JPEG crop of a labeled bib box."""
+    jpeg_bytes = bib_service.get_bib_crop_jpeg(content_hash, box_index)
+    if jpeg_bytes is None:
+        raise HTTPException(status_code=404)
+    return StreamingResponse(io.BytesIO(jpeg_bytes), media_type='image/jpeg')
 
 
 @api_bibs_router.get('/api/associations/{content_hash}', response_model=AssociationsResponse)

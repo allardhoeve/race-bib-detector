@@ -1,7 +1,11 @@
 """Business logic for bib photo labeling."""
 
+import io
 import random
+from pathlib import Path
 from typing import TypedDict
+
+from PIL import Image
 
 from benchmarking.ground_truth import (
     BibBox,
@@ -11,8 +15,10 @@ from benchmarking.ground_truth import (
 )
 from benchmarking.ghost import BibSuggestion, load_suggestion_store
 from benchmarking.label_utils import find_hash_by_prefix
-from benchmarking.photo_index import load_photo_index
+from benchmarking.photo_index import load_photo_index, get_path_for_hash
 from config import ITERATION_SPLIT_PROBABILITY
+
+PHOTOS_DIR = Path(__file__).parent.parent.parent / "photos"
 
 
 class BibLabelData(TypedDict):
@@ -78,6 +84,40 @@ def save_bib_label(content_hash: str, boxes: list[BibBox] | None,
     )
     bib_gt.add_photo(label)
     save_bib_ground_truth(bib_gt)
+
+
+def get_bib_crop_jpeg(content_hash: str, box_index: int) -> bytes | None:
+    """Return JPEG bytes of a labeled bib crop, or None if not found."""
+    index = load_photo_index()
+    full_hash = find_hash_by_prefix(content_hash, set(index.keys()))
+    if not full_hash:
+        return None
+
+    bib_gt = load_bib_ground_truth()
+    label = bib_gt.get_photo(full_hash)
+    if not label or box_index < 0 or box_index >= len(label.boxes):
+        return None
+
+    box = label.boxes[box_index]
+    if not box.has_coords:
+        return None
+
+    photo_path = get_path_for_hash(full_hash, PHOTOS_DIR, index)
+    if not photo_path or not photo_path.exists():
+        return None
+
+    img = Image.open(photo_path)
+    w, h = img.size
+    left = int(box.x * w)
+    upper = int(box.y * h)
+    right = int((box.x + box.w) * w)
+    lower = int((box.y + box.h) * h)
+    crop = img.crop((left, upper, right, lower))
+
+    buf = io.BytesIO()
+    crop.save(buf, format='JPEG', quality=85)
+    buf.seek(0)
+    return buf.read()
 
 
 def default_split_for_hash(content_hash: str) -> str:

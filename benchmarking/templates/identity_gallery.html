@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}Identity Gallery{% endblock %}
+{% block extra_styles %}
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px 40px;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 30px;
+        }
+        .page-header h1 {
+            color: #0f9b0f;
+            font-size: 24px;
+        }
+        .page-header .stats {
+            color: #888;
+            font-size: 14px;
+        }
+        .identity-section {
+            margin-bottom: 32px;
+        }
+        .identity-header {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #0f3460;
+            padding-bottom: 6px;
+        }
+        .identity-name {
+            font-size: 18px;
+            font-weight: 600;
+            color: #eee;
+        }
+        .identity-name.anon { color: #f0ad4e; }
+        .identity-name.unassigned { color: #888; font-style: italic; }
+        .identity-count {
+            font-size: 13px;
+            color: #666;
+        }
+        .faces-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .face-card {
+            display: flex;
+            flex-direction: column;
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 6px;
+            overflow: hidden;
+            text-decoration: none;
+            color: #eee;
+            transition: border-color 0.15s;
+        }
+        .face-card:hover {
+            border-color: #0f9b0f;
+        }
+        .face-card .face-crop {
+            display: block;
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+        }
+        .face-card .bib-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2px 4px;
+            background: #0d1a33;
+        }
+        .face-card .bib-crop {
+            display: block;
+            width: 80px;
+            height: auto;
+            object-fit: contain;
+        }
+        .bib-number {
+            font-family: monospace;
+            font-size: 13px;
+            color: #0f9b0f;
+            font-weight: 600;
+            padding: 2px 0;
+        }
+        .rename-btn {
+            background: none;
+            border: none;
+            color: #555;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 0 4px;
+            transition: color 0.15s;
+        }
+        .rename-btn:hover { color: #0f9b0f; }
+        .rename-form {
+            display: inline-flex;
+            align-items: baseline;
+            gap: 6px;
+        }
+        .rename-form input {
+            background: #0d1a33;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            color: #eee;
+            font-size: 16px;
+            font-weight: 600;
+            padding: 2px 6px;
+            outline: none;
+        }
+        .rename-form input:focus { border-color: #0f9b0f; }
+        .rename-form button {
+            background: #0f3460;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            color: #eee;
+            cursor: pointer;
+            font-size: 12px;
+            padding: 2px 8px;
+        }
+        .rename-form button:hover { background: #0f9b0f; }
+        .rename-form .cancel-btn { color: #888; background: none; }
+        .rename-form .cancel-btn:hover { color: #eee; background: none; }
+        .multi-bib-alert {
+            background: #5a3000;
+            border: 1px solid #d4850088;
+            border-radius: 4px;
+            color: #f0ad4e;
+            font-size: 13px;
+            padding: 4px 10px;
+            margin-bottom: 8px;
+        }
+{% endblock %}
+{% block body %}
+    <div class="header">
+        <div class="nav-info">
+            <span style="color: #0f9b0f; font-weight: bold;">Identity Gallery</span>
+        </div>
+        <a class="nav-link" href="{{ request.url_for('index') }}">Home &rarr;</a>
+    </div>
+
+    <div class="content">
+        <div class="page-header">
+            <h1>Identity Gallery</h1>
+            <span class="stats">{{ total_identities }} identities, {{ total_faces }} faces</span>
+        </div>
+
+        {% for group in groups %}
+        <div class="identity-section" id="id-{{ group.name | replace(' ', '-') }}">
+            <div class="identity-header">
+                <span class="identity-name{% if group.name.startswith('anon') %} anon{% elif group.name == 'Unassigned' %} unassigned{% endif %}">{{ group.name }}</span>
+                {% if group.name != 'Unassigned' %}
+                <button class="rename-btn" title="Rename" onclick="startRename(this, '{{ group.name | e }}')">&#9998;</button>
+                {% endif %}
+                <span class="identity-count">{{ group.faces | length }} face{{ 's' if group.faces | length != 1 else '' }}</span>
+            </div>
+            {% if group.distinct_bib_numbers | length > 1 %}
+            <div class="multi-bib-alert">
+                &#9888; Multiple bib numbers: {{ group.distinct_bib_numbers | join(', ') }}
+            </div>
+            {% endif %}
+            <div class="faces-row">
+                {% for face in group.faces %}
+                <a class="face-card" href="{{ request.url_for('association_photo', content_hash=face.content_hash[:8]) }}">
+                    <img class="face-crop" src="{{ request.url_for('face_crop', content_hash=face.content_hash, box_index=face.face_box_index) }}"
+                         alt="Face" loading="lazy">
+                    {% if face.bib_box_index is not none %}
+                    <div class="bib-section">
+                        <img class="bib-crop" src="{{ request.url_for('bib_crop', content_hash=face.content_hash, box_index=face.bib_box_index) }}"
+                             alt="Bib" loading="lazy">
+                        {% if face.bib_number %}<span class="bib-number">{{ face.bib_number }}</span>{% endif %}
+                    </div>
+                    {% endif %}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+    function startRename(btn, oldName) {
+        const header = btn.closest('.identity-header');
+        const nameSpan = header.querySelector('.identity-name');
+        const countSpan = header.querySelector('.identity-count');
+
+        // Hide existing elements
+        nameSpan.style.display = 'none';
+        btn.style.display = 'none';
+
+        // Create inline form
+        const form = document.createElement('form');
+        form.className = 'rename-form';
+        form.innerHTML = `
+            <input type="text" value="${oldName}" autofocus>
+            <button type="submit">Save</button>
+            <button type="button" class="cancel-btn">Cancel</button>
+        `;
+        header.insertBefore(form, countSpan);
+
+        const input = form.querySelector('input');
+        input.select();
+
+        function cancel() {
+            form.remove();
+            nameSpan.style.display = '';
+            btn.style.display = '';
+        }
+
+        form.querySelector('.cancel-btn').addEventListener('click', cancel);
+
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') cancel();
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newName = input.value.trim();
+            if (!newName || newName === oldName) { cancel(); return; }
+
+            input.disabled = true;
+            try {
+                const resp = await fetch(`/api/identities/${encodeURIComponent(oldName)}`, {
+                    method: 'PATCH',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({new_name: newName}),
+                });
+                if (!resp.ok) {
+                    const data = await resp.json();
+                    alert(data.detail || 'Rename failed');
+                    input.disabled = false;
+                    return;
+                }
+                location.reload();
+            } catch (err) {
+                alert('Rename failed: ' + err.message);
+                input.disabled = false;
+            }
+        });
+    }
+    </script>
+{% endblock %}
