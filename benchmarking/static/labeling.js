@@ -1,9 +1,10 @@
 /**
  * Canvas-based labeling UI for bib and face bounding box annotation.
  *
- * Two namespaces:
+ * Three namespaces:
  *   LabelingCore — pure logic (coordinate math, hit testing, box ops). Testable in Node.
- *   LabelingUI   — DOM/canvas interaction. Browser only.
+ *   PhotoCanvas  — shared canvas rendering (drawBox, drawLinkLine, resizeCanvas). Browser only.
+ *   LabelingUI   — DOM/canvas interaction, wraps PhotoCanvas. Browser only.
  */
 
 // =============================================================================
@@ -168,9 +169,20 @@ var LabelingCore = (function () {
         return { x: nx, y: ny, w: box.w, h: box.h };
     }
 
+    var BOX_COLORS = {
+        bib: '#00ff88',
+        not_bib: '#ff4444',
+        bib_obscured: '#ffaa00',
+        bib_clipped: '#88ccff',
+        keep: '#00aaff',
+        exclude: '#ff4444',
+        uncertain: '#888888',
+    };
+
     return {
         HANDLE_RADIUS: HANDLE_RADIUS,
         MIN_BOX_PX: MIN_BOX_PX,
+        BOX_COLORS: BOX_COLORS,
         normalToCanvas: normalToCanvas,
         canvasToNormal: canvasToNormal,
         boxToCanvasRect: boxToCanvasRect,
@@ -189,6 +201,106 @@ var LabelingCore = (function () {
 
 
 // =============================================================================
+// PhotoCanvas — shared canvas rendering (browser only)
+// =============================================================================
+
+var PhotoCanvas = (function () {
+    'use strict';
+    var C = LabelingCore;
+
+    function create(opts) {
+        var imgEl = opts.imgEl;
+        var canvasEl = opts.canvasEl;
+        var ctx = canvasEl.getContext('2d');
+
+        function getImageRect() {
+            if (!imgEl || !imgEl.naturalWidth) return { x: 0, y: 0, w: canvasEl.width, h: canvasEl.height };
+            var cw = canvasEl.width;
+            var ch = canvasEl.height;
+            var iw = imgEl.naturalWidth;
+            var ih = imgEl.naturalHeight;
+            var scale = Math.min(cw / iw, ch / ih);
+            var rw = iw * scale;
+            var rh = ih * scale;
+            return { x: (cw - rw) / 2, y: (ch - rh) / 2, w: rw, h: rh };
+        }
+
+        function clear() {
+            ctx.clearRect(0, 0, canvasEl.width, canvasEl.height);
+        }
+
+        function drawBox(box, mode, isSelected) {
+            var imgRect = _canvas.getImageRect();
+            var r = C.boxToCanvasRect(box, imgRect);
+            var colorKey = box.scope || (mode === 'bib' ? 'bib' : 'keep');
+            var color = C.BOX_COLORS[colorKey] || '#00ff88';
+
+            ctx.strokeStyle = color;
+            ctx.lineWidth = isSelected ? 3 : 2;
+            ctx.setLineDash([]);
+            ctx.strokeRect(r.x, r.y, r.w, r.h);
+
+            var label = mode === 'bib' ? (box.number || '') : (box.identity || box.scope || '');
+            if (mode === 'face' && box.tags && box.tags.length) {
+                label += ' [' + box.tags.join(',') + ']';
+            }
+            if (label) {
+                ctx.font = '12px monospace';
+                var metrics = ctx.measureText(label);
+                var pad = 3;
+                ctx.fillStyle = 'rgba(0,0,0,0.7)';
+                ctx.fillRect(r.x, r.y - 16, metrics.width + pad * 2, 16);
+                ctx.fillStyle = color;
+                ctx.fillText(label, r.x + pad, r.y - 4);
+            }
+
+            if (isSelected) {
+                var handles = C.getHandlePositions(r);
+                ctx.fillStyle = color;
+                for (var i = 0; i < handles.length; i++) {
+                    ctx.beginPath();
+                    ctx.arc(handles[i].x, handles[i].y, C.HANDLE_RADIUS, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+        }
+
+        function drawLinkLine(bibBox, faceBox) {
+            var imgRect = _canvas.getImageRect();
+            var btl = C.normalToCanvas(bibBox.x, bibBox.y, imgRect);
+            var ftl = C.normalToCanvas(faceBox.x, faceBox.y, imgRect);
+            var bc = { x: btl.x + bibBox.w * imgRect.w / 2, y: btl.y + bibBox.h * imgRect.h / 2 };
+            var fc = { x: ftl.x + faceBox.w * imgRect.w / 2, y: ftl.y + faceBox.h * imgRect.h / 2 };
+            ctx.strokeStyle = 'rgba(160, 160, 160, 0.7)';
+            ctx.lineWidth = 1.5;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(bc.x, bc.y);
+            ctx.lineTo(fc.x, fc.y);
+            ctx.stroke();
+        }
+
+        function resizeCanvas() {
+            canvasEl.width = canvasEl.parentElement.clientWidth;
+            canvasEl.height = canvasEl.parentElement.clientHeight;
+        }
+
+        function startResizeObserver(onResize) {
+            var ro = new ResizeObserver(function () {
+                resizeCanvas();
+                onResize();
+            });
+            ro.observe(canvasEl.parentElement);
+        }
+
+        return { getImageRect: getImageRect, clear: clear, drawBox: drawBox, drawLinkLine: drawLinkLine, resizeCanvas: resizeCanvas, startResizeObserver: startResizeObserver, ctx: ctx };
+    }
+
+    return { create: create };
+})();
+
+
+// =============================================================================
 // LabelingUI — DOM/canvas interaction (browser only)
 // =============================================================================
 
@@ -196,6 +308,7 @@ var LabelingUI = (function () {
     'use strict';
 
     var C = LabelingCore;
+    var _canvas;
 
     var state = {
         mode: 'bib',           // 'bib' or 'face'
@@ -222,46 +335,13 @@ var LabelingUI = (function () {
         onBoxSelected: null,
     };
 
-    // --- Image rect calculation (accounts for object-fit: contain) ---
-
-    function getImageRect() {
-        var img = state.imgEl;
-        var canvas = state.canvasEl;
-        if (!img || !img.naturalWidth) return { x: 0, y: 0, w: canvas.width, h: canvas.height };
-
-        var cw = canvas.width;
-        var ch = canvas.height;
-        var iw = img.naturalWidth;
-        var ih = img.naturalHeight;
-
-        var scale = Math.min(cw / iw, ch / ih);
-        var rw = iw * scale;
-        var rh = ih * scale;
-        var rx = (cw - rw) / 2;
-        var ry = (ch - rh) / 2;
-
-        return { x: rx, y: ry, w: rw, h: rh };
-    }
-
     // --- Rendering ---
 
-    var BOX_COLORS = {
-        bib: '#00ff88',
-        not_bib: '#ff4444',
-        bib_obscured: '#ffaa00',
-        bib_clipped: '#88ccff',
-        keep: '#00aaff',
-        exclude: '#ff4444',
-        uncertain: '#888888',
-    };
-
     function render() {
-        var ctx = state.ctx;
-        var canvas = state.canvasEl;
-        if (!ctx) return;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        var imgRect = getImageRect();
+        if (!_canvas) return;
+        var ctx = _canvas.ctx;
+        _canvas.clear();
+        var imgRect = _canvas.getImageRect();
 
         // Draw suggestions (dashed, unmatched only)
         for (var i = 0; i < state.suggestions.length; i++) {
@@ -273,7 +353,7 @@ var LabelingUI = (function () {
         // Draw user boxes
         for (var j = 0; j < state.boxes.length; j++) {
             var isSelected = (j === state.selectedIdx);
-            drawBox(ctx, state.boxes[j], imgRect, isSelected);
+            _canvas.drawBox(state.boxes[j], state.mode, isSelected);
         }
 
         // Draw in-progress drawing
@@ -290,44 +370,6 @@ var LabelingUI = (function () {
             ctx.setLineDash([6, 3]);
             ctx.strokeRect(tl.x, tl.y, w * imgRect.w, h * imgRect.h);
             ctx.setLineDash([]);
-        }
-    }
-
-    function drawBox(ctx, box, imgRect, isSelected) {
-        var r = C.boxToCanvasRect(box, imgRect);
-        var colorKey = box.scope || (state.mode === 'bib' ? 'bib' : 'keep');
-        var color = BOX_COLORS[colorKey] || '#00ff88';
-
-        ctx.strokeStyle = color;
-        ctx.lineWidth = isSelected ? 3 : 2;
-        ctx.setLineDash([]);
-        ctx.strokeRect(r.x, r.y, r.w, r.h);
-
-        // Label
-        var label = state.mode === 'bib' ? (box.number || '') : (box.identity || box.scope || '');
-        if (state.mode === 'face' && box.tags && box.tags.length) {
-            label += ' [' + box.tags.join(',') + ']';
-        }
-        if (label) {
-            ctx.font = '12px monospace';
-            ctx.fillStyle = color;
-            var metrics = ctx.measureText(label);
-            var pad = 3;
-            ctx.fillStyle = 'rgba(0,0,0,0.7)';
-            ctx.fillRect(r.x, r.y - 16, metrics.width + pad * 2, 16);
-            ctx.fillStyle = color;
-            ctx.fillText(label, r.x + pad, r.y - 4);
-        }
-
-        // Handles for selected box
-        if (isSelected) {
-            var handles = C.getHandlePositions(r);
-            ctx.fillStyle = color;
-            for (var i = 0; i < handles.length; i++) {
-                ctx.beginPath();
-                ctx.arc(handles[i].x, handles[i].y, C.HANDLE_RADIUS, 0, Math.PI * 2);
-                ctx.fill();
-            }
         }
     }
 
@@ -360,7 +402,7 @@ var LabelingUI = (function () {
     function onMouseDown(e) {
         if (e.button !== 0) return;
         var pos = getCanvasPos(e);
-        var imgRect = getImageRect();
+        var imgRect = _canvas.getImageRect();
 
         // Check if clicking a handle on selected box
         if (state.selectedIdx >= 0) {
@@ -410,7 +452,7 @@ var LabelingUI = (function () {
 
     function onMouseMove(e) {
         var pos = getCanvasPos(e);
-        var imgRect = getImageRect();
+        var imgRect = _canvas.getImageRect();
         var n = C.canvasToNormal(pos.x, pos.y, imgRect);
 
         if (state.interaction === 'drawing') {
@@ -441,7 +483,7 @@ var LabelingUI = (function () {
     }
 
     function onMouseUp(e) {
-        var imgRect = getImageRect();
+        var imgRect = _canvas.getImageRect();
 
         if (state.interaction === 'drawing' && state.drawStart && state.drawCurrent) {
             var s = state.drawStart;
@@ -546,7 +588,6 @@ var LabelingUI = (function () {
     }
 
     function cycleNextSuggestion() {
-        var imgRect = getImageRect();
         for (var i = 0; i < state.suggestions.length; i++) {
             var sugg = state.suggestions[i];
             if (!C.suggestionOverlaps(sugg, state.boxes)) {
@@ -566,10 +607,7 @@ var LabelingUI = (function () {
     // --- Canvas sizing ---
 
     function resizeCanvas() {
-        var canvas = state.canvasEl;
-        var container = canvas.parentElement;
-        canvas.width = container.clientWidth;
-        canvas.height = container.clientHeight;
+        _canvas.resizeCanvas();
         render();
     }
 
@@ -627,6 +665,8 @@ var LabelingUI = (function () {
         state.canvasEl = opts.canvasEl;
         state.ctx = state.canvasEl.getContext('2d');
 
+        _canvas = PhotoCanvas.create({ imgEl: state.imgEl, canvasEl: state.canvasEl });
+
         // Event listeners
         state.canvasEl.addEventListener('mousedown', onMouseDown);
         state.canvasEl.addEventListener('mousemove', onMouseMove);
@@ -634,10 +674,7 @@ var LabelingUI = (function () {
         document.addEventListener('keydown', onKeyDown);
 
         // Resize observer
-        var ro = new ResizeObserver(function () {
-            resizeCanvas();
-        });
-        ro.observe(state.canvasEl.parentElement);
+        _canvas.startResizeObserver(function () { render(); });
 
         // Initial resize
         resizeCanvas();

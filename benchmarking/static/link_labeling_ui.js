@@ -1,8 +1,8 @@
 /**
  * Link labeling UI — associate bib boxes with face boxes.
  *
- * Uses LabelingCore for coordinate utilities (boxToCanvasRect, hitTestBox,
- * normalToCanvas). No box editing — display is read-only.
+ * Uses PhotoCanvas for scope-aware rendering (drawBox, drawLinkLine).
+ * Uses LabelingCore for click hit-testing (hitTestBox). No box editing — display is read-only.
  */
 
 (function () {
@@ -20,27 +20,11 @@
     var selectedBibIdx = null;
 
     var canvas = document.getElementById('canvas');
-    var ctx = canvas.getContext('2d');
     var img = document.getElementById('photo');
+    var _canvas = PhotoCanvas.create({ imgEl: img, canvasEl: canvas });
 
     // -------------------------------------------------------------------------
-    // Image rect (object-fit: contain accounting)
-    // -------------------------------------------------------------------------
-
-    function getImageRect() {
-        if (!img || !img.naturalWidth) return { x: 0, y: 0, w: canvas.width, h: canvas.height };
-        var cw = canvas.width;
-        var ch = canvas.height;
-        var iw = img.naturalWidth;
-        var ih = img.naturalHeight;
-        var scale = Math.min(cw / iw, ch / ih);
-        var rw = iw * scale;
-        var rh = ih * scale;
-        return { x: (cw - rw) / 2, y: (ch - rh) / 2, w: rw, h: rh };
-    }
-
-    // -------------------------------------------------------------------------
-    // Canvas position from mouse event
+    // Canvas position from mouse event (local — used for click hit-testing)
     // -------------------------------------------------------------------------
 
     function canvasPos(e) {
@@ -49,77 +33,20 @@
     }
 
     // -------------------------------------------------------------------------
-    // Box centre in canvas pixels
-    // -------------------------------------------------------------------------
-
-    function boxCenter(box, imgRect) {
-        var tl = LabelingCore.normalToCanvas(box.x, box.y, imgRect);
-        return {
-            x: tl.x + box.w * imgRect.w / 2,
-            y: tl.y + box.h * imgRect.h / 2,
-        };
-    }
-
-    // -------------------------------------------------------------------------
     // Rendering
     // -------------------------------------------------------------------------
 
     function redraw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        var imgRect = getImageRect();
-
-        // Bib boxes — orange, yellow when selected
+        _canvas.clear();
         bibBoxes.forEach(function (b, i) {
-            var r = LabelingCore.boxToCanvasRect(b, imgRect);
-            ctx.strokeStyle = (i === selectedBibIdx) ? 'yellow' : 'rgba(255, 140, 0, 0.9)';
-            ctx.lineWidth = (i === selectedBibIdx) ? 3 : 2;
-            ctx.strokeRect(r.x, r.y, r.w, r.h);
-
-            // Bib number label
-            var label = b.number || '';
-            if (label) {
-                ctx.font = '12px monospace';
-                var metrics = ctx.measureText(label);
-                var pad = 3;
-                ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                ctx.fillRect(r.x, r.y - 16, metrics.width + pad * 2, 16);
-                ctx.fillStyle = (i === selectedBibIdx) ? 'yellow' : 'rgba(255, 140, 0, 0.9)';
-                ctx.fillText(label, r.x + pad, r.y - 4);
-            }
+            _canvas.drawBox(b, 'bib', i === selectedBibIdx);
         });
-
-        // Face boxes — blue
         faceBoxes.forEach(function (b) {
-            var r = LabelingCore.boxToCanvasRect(b, imgRect);
-            ctx.strokeStyle = 'rgba(60, 120, 255, 0.85)';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(r.x, r.y, r.w, r.h);
-
-            var label = b.identity || '';
-            if (label) {
-                ctx.font = '12px monospace';
-                var metrics = ctx.measureText(label);
-                var pad = 3;
-                ctx.fillStyle = 'rgba(0,0,0,0.7)';
-                ctx.fillRect(r.x, r.y - 16, metrics.width + pad * 2, 16);
-                ctx.fillStyle = 'rgba(60, 120, 255, 0.85)';
-                ctx.fillText(label, r.x + pad, r.y - 4);
-            }
+            _canvas.drawBox(b, 'face', false);
         });
-
-        // Link lines — grey, connecting box centres
-        ctx.strokeStyle = 'rgba(160, 160, 160, 0.7)';
-        ctx.lineWidth = 1.5;
         links.forEach(function (lnk) {
-            var bb = bibBoxes[lnk[0]];
-            var fb = faceBoxes[lnk[1]];
-            if (!bb || !fb) return;
-            var bc = boxCenter(bb, imgRect);
-            var fc = boxCenter(fb, imgRect);
-            ctx.beginPath();
-            ctx.moveTo(bc.x, bc.y);
-            ctx.lineTo(fc.x, fc.y);
-            ctx.stroke();
+            var bb = bibBoxes[lnk[0]], fb = faceBoxes[lnk[1]];
+            if (bb && fb) _canvas.drawLinkLine(bb, fb);
         });
     }
 
@@ -249,7 +176,7 @@
     // -------------------------------------------------------------------------
 
     canvas.addEventListener('click', function (e) {
-        var imgRect = getImageRect();
+        var imgRect = _canvas.getImageRect();
         var pos = canvasPos(e);
 
         // Did the user click a bib box?
@@ -286,15 +213,7 @@
     // Canvas sizing (ResizeObserver)
     // -------------------------------------------------------------------------
 
-    function resizeCanvas() {
-        var container = canvas.parentElement;
-        canvas.width = container.clientWidth;
-        canvas.height = container.clientHeight;
-        redraw();
-    }
-
-    var ro = new ResizeObserver(function () { resizeCanvas(); });
-    ro.observe(canvas.parentElement);
+    _canvas.startResizeObserver(redraw);
 
     // -------------------------------------------------------------------------
     // Keyboard shortcuts
@@ -325,9 +244,10 @@
     updateProcessedUI();
 
     if (img.complete && img.naturalWidth) {
-        resizeCanvas();
+        _canvas.resizeCanvas();
+        redraw();
     } else {
-        img.addEventListener('load', resizeCanvas);
+        img.addEventListener('load', function () { _canvas.resizeCanvas(); redraw(); });
     }
 
 })();
