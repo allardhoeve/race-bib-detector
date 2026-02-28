@@ -125,6 +125,31 @@
         .rename-form button:hover { background: #0f9b0f; }
         .rename-form .cancel-btn { color: #888; background: none; }
         .rename-form .cancel-btn:hover { color: #eee; background: none; }
+        .face-card.frozen {
+            opacity: 0.45;
+            border-color: #0a1a30;
+        }
+        .face-card.frozen:hover {
+            opacity: 0.8;
+            border-color: #0f9b0f;
+        }
+        .filter-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .filter-btn {
+            background: #16213e;
+            border: 1px solid #0f3460;
+            border-radius: 4px;
+            color: #888;
+            cursor: pointer;
+            font-size: 13px;
+            padding: 4px 12px;
+            transition: all 0.15s;
+        }
+        .filter-btn:hover { color: #eee; border-color: #0f9b0f; }
+        .filter-btn.active { color: #0f9b0f; border-color: #0f9b0f; background: #0d2a1a; }
         .multi-bib-alert {
             background: #5a3000;
             border: 1px solid #d4850088;
@@ -146,7 +171,13 @@
     <div class="content">
         <div class="page-header">
             <h1>Identity Gallery</h1>
-            <span class="stats">{{ total_identities }} identities, {{ total_faces }} faces</span>
+            <span class="stats">{{ total_identities }} identities, {{ total_faces }} faces ({{ total_frozen }} frozen, {{ total_new }} new)</span>
+        </div>
+
+        <div class="filter-bar">
+            <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All</button>
+            <button class="filter-btn" data-filter="new" onclick="setFilter('new')">New only</button>
+            <button class="filter-btn" data-filter="frozen" onclick="setFilter('frozen')">Frozen only</button>
         </div>
 
         {% for group in groups %}
@@ -156,7 +187,15 @@
                 {% if group.name != 'Unassigned' %}
                 <button class="rename-btn" title="Rename" onclick="startRename(this, '{{ group.name | e }}')">&#9998;</button>
                 {% endif %}
-                <span class="identity-count">{{ group.faces | length }} face{{ 's' if group.faces | length != 1 else '' }}</span>
+                <span class="identity-count">
+                    {%- if group.frozen_count and group.new_count -%}
+                        {{ group.frozen_count }} frozen, {{ group.new_count }} new
+                    {%- elif group.frozen_count -%}
+                        {{ group.frozen_count }} frozen
+                    {%- else -%}
+                        {{ group.new_count }} new
+                    {%- endif -%}
+                </span>
             </div>
             {% if group.distinct_bib_numbers | length > 1 %}
             <div class="multi-bib-alert">
@@ -165,7 +204,7 @@
             {% endif %}
             <div class="faces-row">
                 {% for face in group.faces %}
-                <a class="face-card" href="{{ request.url_for('association_photo', content_hash=face.content_hash[:8]) }}">
+                <a class="face-card{% if face.frozen %} frozen{% endif %}" data-frozen="{{ 'true' if face.frozen else 'false' }}" href="{{ request.url_for('association_photo', content_hash=face.content_hash[:8]) }}">
                     <img class="face-crop" src="{{ request.url_for('face_crop', content_hash=face.content_hash, box_index=face.face_box_index) }}"
                          alt="Face" loading="lazy">
                     {% if face.bib_box_index is not none %}
@@ -240,6 +279,26 @@
                 alert('Rename failed: ' + err.message);
                 input.disabled = false;
             }
+        });
+    }
+    function setFilter(mode) {
+        document.querySelectorAll('.filter-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.filter === mode);
+        });
+        document.querySelectorAll('.face-card').forEach(card => {
+            const isFrozen = card.dataset.frozen === 'true';
+            if (mode === 'all') {
+                card.style.display = '';
+            } else if (mode === 'new') {
+                card.style.display = isFrozen ? 'none' : '';
+            } else {
+                card.style.display = isFrozen ? '' : 'none';
+            }
+        });
+        // Hide identity sections that have no visible cards
+        document.querySelectorAll('.identity-section').forEach(section => {
+            const visibleCards = section.querySelectorAll('.face-card:not([style*="display: none"])');
+            section.style.display = visibleCards.length === 0 ? 'none' : '';
         });
     }
     </script>

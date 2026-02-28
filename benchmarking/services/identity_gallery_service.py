@@ -9,6 +9,7 @@ from benchmarking.ground_truth import (
     load_face_ground_truth,
     load_link_ground_truth,
 )
+from benchmarking.photo_metadata import load_photo_metadata
 
 
 @dataclass
@@ -19,6 +20,7 @@ class FaceAppearance:
     face_box_index: int
     bib_number: str | None = None
     bib_box_index: int | None = None
+    frozen: bool = False
 
 
 @dataclass
@@ -32,6 +34,14 @@ class IdentityGroup:
     def distinct_bib_numbers(self) -> list[str]:
         """Unique bib numbers across all faces, sorted."""
         return sorted({f.bib_number for f in self.faces if f.bib_number})
+
+    @property
+    def frozen_count(self) -> int:
+        return sum(1 for f in self.faces if f.frozen)
+
+    @property
+    def new_count(self) -> int:
+        return sum(1 for f in self.faces if not f.frozen)
 
 
 def _sort_key(group: IdentityGroup) -> tuple[int, int, str]:
@@ -51,6 +61,7 @@ def get_identity_gallery() -> list[IdentityGroup]:
     face_gt = load_face_ground_truth()
     bib_gt = load_bib_ground_truth()
     link_gt = load_link_ground_truth()
+    frozen_set = set(load_photo_metadata().frozen_hashes())
 
     # Build a lookup: (content_hash, face_index) → (bib_number, bib_box_index)
     bib_for_face: dict[tuple[str, int], tuple[str, int]] = {}
@@ -81,9 +92,14 @@ def get_identity_gallery() -> list[IdentityGroup]:
                 face_box_index=box_index,
                 bib_number=bib_info[0] if bib_info else None,
                 bib_box_index=bib_info[1] if bib_info else None,
+                frozen=content_hash in frozen_set,
             )
             groups.setdefault(identity, []).append(appearance)
 
-    result = [IdentityGroup(name=name, faces=faces) for name, faces in groups.items()]
+    result = []
+    for name, faces in groups.items():
+        # Sort within group: frozen first, then by hash for stability
+        faces.sort(key=lambda f: (not f.frozen, f.content_hash))
+        result.append(IdentityGroup(name=name, faces=faces))
     result.sort(key=_sort_key)
     return result

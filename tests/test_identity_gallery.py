@@ -20,6 +20,7 @@ from benchmarking.ground_truth import (
 )
 from benchmarking.identities import save_identities
 from benchmarking.photo_index import save_photo_index
+from benchmarking.photo_metadata import PhotoMetadata, PhotoMetadataStore, save_photo_metadata
 from benchmarking.services.identity_gallery_service import get_identity_gallery
 
 HASH_A = "a" * 64
@@ -33,20 +34,20 @@ def patch_paths(tmp_path, monkeypatch):
     bib_gt_path = tmp_path / "bib_ground_truth.json"
     face_gt_path = tmp_path / "face_ground_truth.json"
     link_gt_path = tmp_path / "bib_face_links.json"
-    index_path = tmp_path / "photo_index.json"
     suggestions_path = tmp_path / "suggestions.json"
     identities_path = tmp_path / "face_identities.json"
+    photo_metadata_path = tmp_path / "photo_metadata.json"
 
     save_photo_index({
         HASH_A: ["photo_a.jpg"],
         HASH_B: ["photo_b.jpg"],
         HASH_C: ["photo_c.jpg"],
-    }, index_path)
+    }, photo_metadata_path)
 
     monkeypatch.setattr("benchmarking.ground_truth.get_bib_ground_truth_path", lambda: bib_gt_path)
     monkeypatch.setattr("benchmarking.ground_truth.get_face_ground_truth_path", lambda: face_gt_path)
     monkeypatch.setattr("benchmarking.ground_truth.get_link_ground_truth_path", lambda: link_gt_path)
-    monkeypatch.setattr("benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path)
+    monkeypatch.setattr("benchmarking.photo_metadata.get_photo_metadata_path", lambda: photo_metadata_path)
     monkeypatch.setattr("benchmarking.ghost.get_suggestion_store_path", lambda: suggestions_path)
     monkeypatch.setattr("benchmarking.identities.get_identities_path", lambda: identities_path)
 
@@ -238,6 +239,90 @@ class TestGetIdentityGallery:
         """No face data → empty gallery."""
         groups = get_identity_gallery()
         assert groups == []
+
+
+# ---- Frozen indicator tests -----------------------------------------------
+
+
+def _save_frozen_metadata(frozen_hashes: dict[str, str]):
+    """Save a PhotoMetadataStore with given hashes marked frozen."""
+    store = PhotoMetadataStore()
+    for h, set_name in frozen_hashes.items():
+        store.set(h, PhotoMetadata(frozen=set_name))
+    save_photo_metadata(store)
+
+
+class TestFrozenIndicators:
+    def test_face_appearance_frozen_flag_set(self):
+        """Face from a frozen photo gets frozen=True."""
+        _save_frozen_metadata({HASH_A: "batch1"})
+        _save_face_gt({
+            HASH_A: FacePhotoLabel(content_hash=HASH_A, boxes=[
+                _make_face_box(identity="Iva"),
+            ], labeled=True),
+        })
+
+        groups = get_identity_gallery()
+        assert groups[0].faces[0].frozen is True
+
+    def test_face_appearance_unfrozen_flag(self):
+        """Face from a non-frozen photo gets frozen=False."""
+        _save_face_gt({
+            HASH_A: FacePhotoLabel(content_hash=HASH_A, boxes=[
+                _make_face_box(identity="Iva"),
+            ], labeled=True),
+        })
+
+        groups = get_identity_gallery()
+        assert groups[0].faces[0].frozen is False
+
+    def test_identity_group_frozen_count(self):
+        """frozen_count returns number of frozen faces in group."""
+        _save_frozen_metadata({HASH_A: "batch1"})
+        _save_face_gt({
+            HASH_A: FacePhotoLabel(content_hash=HASH_A, boxes=[
+                _make_face_box(identity="Iva"),
+            ], labeled=True),
+            HASH_B: FacePhotoLabel(content_hash=HASH_B, boxes=[
+                _make_face_box(identity="Iva"),
+            ], labeled=True),
+        })
+
+        groups = get_identity_gallery()
+        iva = next(g for g in groups if g.name == "Iva")
+        assert iva.frozen_count == 1
+        assert iva.new_count == 1
+
+    def test_identity_group_new_count(self):
+        """new_count returns number of non-frozen faces in group."""
+        _save_face_gt({
+            HASH_A: FacePhotoLabel(content_hash=HASH_A, boxes=[
+                _make_face_box(identity="Iva"),
+                _make_face_box(identity="Iva"),
+            ], labeled=True),
+        })
+
+        groups = get_identity_gallery()
+        iva = next(g for g in groups if g.name == "Iva")
+        assert iva.frozen_count == 0
+        assert iva.new_count == 2
+
+    def test_faces_sorted_frozen_first(self):
+        """Within a group, frozen faces sort before new ones."""
+        _save_frozen_metadata({HASH_B: "batch1"})
+        _save_face_gt({
+            HASH_A: FacePhotoLabel(content_hash=HASH_A, boxes=[
+                _make_face_box(identity="Iva"),
+            ], labeled=True),
+            HASH_B: FacePhotoLabel(content_hash=HASH_B, boxes=[
+                _make_face_box(identity="Iva"),
+            ], labeled=True),
+        })
+
+        groups = get_identity_gallery()
+        iva = next(g for g in groups if g.name == "Iva")
+        assert iva.faces[0].frozen is True  # HASH_B (frozen) first
+        assert iva.faces[1].frozen is False  # HASH_A (new) second
 
 
 # ---- Endpoint tests -------------------------------------------------------
