@@ -20,6 +20,7 @@ class FaceAppearance:
     face_box_index: int
     bib_number: str | None = None
     bib_box_index: int | None = None
+    bib_scope: str | None = None
     frozen: bool = False
 
 
@@ -64,7 +65,7 @@ def get_identity_gallery() -> list[IdentityGroup]:
     frozen_set = set(load_photo_metadata().frozen_hashes())
 
     # Build a lookup: (content_hash, face_index) → (bib_number, bib_box_index)
-    bib_for_face: dict[tuple[str, int], tuple[str, int]] = {}
+    bib_for_face: dict[tuple[str, int], tuple[str, int, str]] = {}
     for content_hash, links in link_gt.photos.items():
         bib_label = bib_gt.get_photo(content_hash)
         if not bib_label:
@@ -75,6 +76,7 @@ def get_identity_gallery() -> list[IdentityGroup]:
                 bib_for_face[(content_hash, link.face_index)] = (
                     bib_box.number,
                     link.bib_index,
+                    bib_box.scope,
                 )
 
     # Group faces by identity
@@ -92,6 +94,7 @@ def get_identity_gallery() -> list[IdentityGroup]:
                 face_box_index=box_index,
                 bib_number=bib_info[0] if bib_info else None,
                 bib_box_index=bib_info[1] if bib_info else None,
+                bib_scope=bib_info[2] if bib_info else None,
                 frozen=content_hash in frozen_set,
             )
             groups.setdefault(identity, []).append(appearance)

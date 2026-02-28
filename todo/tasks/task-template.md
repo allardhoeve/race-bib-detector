@@ -1,7 +1,6 @@
 # Task NNN: <short title>
 
-<!-- One-line context: which step/area this belongs to and key dependency -->
-Step N from `todo_benchmark.md`. Depends on task-NNN. Independent of task-NNN.
+Depends on task-NNN. Independent of task-NNN.
 
 ## Goal
 
@@ -13,52 +12,73 @@ Step N from `todo_benchmark.md`. Depends on task-NNN. Independent of task-NNN.
 
 ## Context
 
-<!-- Write a short section on the context of the change. Link as much as possible to existing
-     documentation instead of writing long prose. //-->
+<!-- Bullet list of relevant files with one-line descriptions of what each provides.
+     Also note conclusions from previous research to avoid redoing work. -->
 
-<!-- To avoid redoing work and coming to the same or other conclusions, write here short 
-     conclusions on previous research that was done. //-->
-
-<!-- Example: "In task 007 and task 008 we tackle other parts of this task (009). The tasks
-     pertain to the UI and the DB, this task pertains only to something other." //-->
-
-<!-- Example: "In previous research we've shown that connecting such and such module from
-     pip is not a good fit, because of reasons A, B, and C. //-->
-
+- `path/to/file.py` — what it provides or why it's relevant
+- `tests/test_foo.py` — existing test patterns to follow
 
 ## Constraints
 
-<!-- Write down here any constraints on the task. Remove if not necessary. //-->
+<!-- Remove this section if not necessary. -->
 
 ## Design decisions (resolved)
 
-<!-- Remove this section if not applicable -->
+<!-- Remove this section if not applicable. -->
 
 | Question | Decision |
 |----------|----------|
 | … | … |
 
-## Changes: `path/to/file.py`
+## Changes
 
-<!-- List every file that needs to change. One H2 per file. -->
+<!-- Use one H3 per file. Prefix with New: or Modified: -->
 
-### New class / function / constant
+### New: `path/to/new_file.py`
 
 ```python
 # paste representative skeleton or full implementation here
 ```
 
-### Modified: `existing_function()`
+### Modified: `path/to/existing_file.py`
 
-<!-- Describe what changes and why; include before/after snippet if helpful -->
+<!-- Describe what changes and why; include before/after snippet if helpful. -->
 
 ## Tests
+
+<!-- Separate new test files from extensions to existing files. -->
 
 Add `tests/test_<module>.py`:
 
 - `test_basic_case()` — …
 - `test_edge_case()` — …
-- `test_error_path()` — …
+
+Extend `tests/test_<existing>.py`:
+
+- `test_regression_case()` — …
+
+## Verification
+
+<!-- How to confirm the change works beyond automated tests.
+     Include test commands to run during development and any manual checks.
+     Remove this section for pure logic changes where tests suffice. -->
+
+```bash
+venv/bin/python -m pytest tests/test_<module>.py tests/test_<related>.py -v
+```
+
+## Pitfalls
+
+<!-- Known gotchas, ordering constraints, import quirks, or traps discovered during
+     planning. Remove this section if there are none. -->
+
+## Acceptance criteria
+
+<!-- Concrete checklist for "done". Every item should be objectively verifiable. -->
+
+- [ ] All existing tests still pass (`venv/bin/python -m pytest`)
+- [ ] New tests pass
+- [ ] …
 
 ## Scope boundaries
 

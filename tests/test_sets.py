@@ -157,17 +157,14 @@ class TestFreezeStampsMetadata:
         assert meta is not None
         assert meta.frozen == "v1"
 
-    def test_refreeze_overwrites(self, tmp_path):
-        """Re-freezing with a different name overwrites the frozen field."""
-        # First freeze
+    def test_refreeze_rejects_already_frozen(self, tmp_path):
+        """Re-freezing an already-frozen photo raises ValueError."""
         freeze(name="v1", hashes=["abc123"], index={"abc123": "a.jpg"})
         store = load_photo_metadata()
         assert store.get("abc123").frozen == "v1"
 
-        # Second freeze (different name, must clear existing dir check)
-        freeze(name="v2", hashes=["abc123"], index={"abc123": "a.jpg"})
-        store = load_photo_metadata()
-        assert store.get("abc123").frozen == "v2"
+        with pytest.raises(ValueError, match="already frozen"):
+            freeze(name="v2", hashes=["abc123"], index={"abc123": "a.jpg"})
 
     def test_freeze_preserves_existing_metadata_fields(self):
         """Freezing should not clobber existing fields like split or tags."""

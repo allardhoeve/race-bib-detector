@@ -325,19 +325,22 @@ def cmd_freeze(args: argparse.Namespace) -> int:
         print(f"Error: name must be alphanumeric with hyphens/underscores: {name!r}")
         return 1
 
+    from benchmarking.photo_metadata import load_photo_metadata
     index = load_photo_index()
     if not index:
         print("Error: no photos in index. Run 'bnr benchmark scan' first.")
         return 1
+
+    frozen = set(load_photo_metadata().frozen_hashes())
 
     # Flatten list-of-paths to single path per hash
     flat_index = {h: (paths[0] if isinstance(paths, list) else paths)
                   for h, paths in index.items()}
 
     if args.all:
-        hashes = sorted(flat_index.keys())
+        hashes = sorted(h for h in flat_index if h not in frozen)
     else:
-        rows = get_all_completeness()
+        rows = [r for r in get_all_completeness() if r.content_hash not in frozen]
         complete = [r for r in rows if r.is_complete or r.is_known_negative]
         incomplete = [r for r in rows if not r.is_complete and not r.is_known_negative]
 

@@ -23,7 +23,9 @@ async def benchmark_list(request: Request):
 @ui_benchmark_router.get('/benchmark/staging/')
 async def staging(request: Request):
     from benchmarking.completeness import get_all_completeness
-    rows = get_all_completeness()
+    from benchmarking.photo_metadata import load_photo_metadata
+    frozen = set(load_photo_metadata().frozen_hashes())
+    rows = [r for r in get_all_completeness() if r.content_hash not in frozen]
     index = load_photo_index()
     return TEMPLATES.TemplateResponse(request, 'staging.html', {'rows': rows, 'index': index})
 

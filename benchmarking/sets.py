@@ -81,6 +81,11 @@ def freeze(
     # Stamp each photo's metadata with the frozen set name
     from benchmarking.photo_metadata import load_photo_metadata, save_photo_metadata, PhotoMetadata
     meta_store = load_photo_metadata()
+    already_frozen = {h: meta_store.is_frozen(h) for h in hashes if meta_store.is_frozen(h)}
+    if already_frozen:
+        examples = list(already_frozen.items())[:3]
+        detail = ", ".join(f"{h[:8]} ({s})" for h, s in examples)
+        raise ValueError(f"{len(already_frozen)} photo(s) already frozen: {detail}")
     for h in hashes:
         meta = meta_store.get(h)
         if meta is None:

@@ -36,7 +36,6 @@
             font-weight: 600;
             color: #eee;
         }
-        .identity-name.anon { color: #f0ad4e; }
         .identity-name.unassigned { color: #888; font-style: italic; }
         .identity-count {
             font-size: 13px;
@@ -73,7 +72,11 @@
             align-items: center;
             padding: 2px 4px;
             background: #0d1a33;
+            border-top: 2px solid #00ff88;
         }
+        .face-card .bib-section.scope-bib_clipped { border-top-color: #88ccff; }
+        .face-card .bib-section.scope-bib_obscured { border-top-color: #ffaa00; }
+        .face-card .bib-section.scope-not_bib { border-top-color: #ff4444; }
         .face-card .bib-crop {
             display: block;
             width: 80px;
@@ -83,10 +86,13 @@
         .bib-number {
             font-family: monospace;
             font-size: 13px;
-            color: #0f9b0f;
+            color: #00ff88;
             font-weight: 600;
             padding: 2px 0;
         }
+        .bib-number.scope-bib_clipped { color: #88ccff; }
+        .bib-number.scope-bib_obscured { color: #ffaa00; }
+        .bib-number.scope-not_bib { color: #ff4444; }
         .rename-btn {
             background: none;
             border: none;
@@ -183,7 +189,7 @@
         {% for group in groups %}
         <div class="identity-section" id="id-{{ group.name | replace(' ', '-') }}">
             <div class="identity-header">
-                <span class="identity-name{% if group.name.startswith('anon') %} anon{% elif group.name == 'Unassigned' %} unassigned{% endif %}">{{ group.name }}</span>
+                <span class="identity-name{% if group.name == 'Unassigned' %} unassigned{% endif %}">{{ group.name }}</span>
                 {% if group.name != 'Unassigned' %}
                 <button class="rename-btn" title="Rename" onclick="startRename(this, '{{ group.name | e }}')">&#9998;</button>
                 {% endif %}
@@ -208,10 +214,10 @@
                     <img class="face-crop" src="{{ request.url_for('face_crop', content_hash=face.content_hash, box_index=face.face_box_index) }}"
                          alt="Face" loading="lazy">
                     {% if face.bib_box_index is not none %}
-                    <div class="bib-section">
+                    <div class="bib-section{% if face.bib_scope %} scope-{{ face.bib_scope }}{% endif %}">
                         <img class="bib-crop" src="{{ request.url_for('bib_crop', content_hash=face.content_hash, box_index=face.bib_box_index) }}"
                              alt="Bib" loading="lazy">
-                        {% if face.bib_number %}<span class="bib-number">{{ face.bib_number }}</span>{% endif %}
+                        {% if face.bib_number %}<span class="bib-number{% if face.bib_scope %} scope-{{ face.bib_scope }}{% endif %}">{{ face.bib_number }}</span>{% endif %}
                     </div>
                     {% endif %}
                 </a>
