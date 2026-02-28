@@ -106,7 +106,7 @@ class TestPhotoCompleteness:
         """Both labeled, 0 boxes each → is_known_negative=True, is_complete=True."""
         save_bib_ground_truth(_bib_gt_with({HASH_A: []}))
         gt = FaceGroundTruth()
-        gt.add_photo(FacePhotoLabel(content_hash=HASH_A, boxes=[], tags=["no_faces"], labeled=True))
+        gt.add_photo(FacePhotoLabel(content_hash=HASH_A, boxes=[], labeled=True))
         save_face_ground_truth(gt)
         # (No link GT needed)
 

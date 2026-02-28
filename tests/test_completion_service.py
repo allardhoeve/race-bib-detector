@@ -40,13 +40,13 @@ def patch_paths(tmp_path, monkeypatch):
     monkeypatch.setattr("benchmarking.ground_truth.get_bib_ground_truth_path", lambda: bib_path)
     monkeypatch.setattr("benchmarking.ground_truth.get_face_ground_truth_path", lambda: face_path)
     monkeypatch.setattr("benchmarking.ground_truth.get_link_ground_truth_path", lambda: link_path)
-    monkeypatch.setattr("benchmarking.photo_index.get_photo_index_path", lambda: index_path)
+    monkeypatch.setattr("benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path)
 
 
 def _save_index(tmp_path, hashes: list[str]) -> None:
-    import json
+    from benchmarking.photo_index import save_photo_index
     index_path = tmp_path / "photo_index.json"
-    index_path.write_text(json.dumps({h: [f"/photos/{h[:8]}.jpg"] for h in hashes}))
+    save_photo_index({h: [f"/photos/{h[:8]}.jpg"] for h in hashes}, index_path)
 
 
 def _bib_label(h: str, labeled: bool = True) -> BibPhotoLabel:

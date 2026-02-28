@@ -55,13 +55,11 @@ class TestFaceBox:
 
 
 class TestBibPhotoLabel:
-    def test_invalid_tag_raises(self):
-        with pytest.raises(ValueError, match="Invalid bib photo tags"):
-            BibPhotoLabel(content_hash="abc", tags=["not_a_real_tag"])
-
-    def test_invalid_split_raises(self):
-        with pytest.raises(ValueError, match="Invalid split"):
-            BibPhotoLabel(content_hash="abc", split="bogus")
+    def test_extra_fields_ignored(self):
+        """BibPhotoLabel silently ignores old tags/split fields from JSON."""
+        label = BibPhotoLabel(content_hash="abc", tags=["no_bib"], split="full")
+        assert "tags" not in BibPhotoLabel.model_fields
+        assert "split" not in BibPhotoLabel.model_fields
 
     def test_bib_numbers_int(self):
         boxes = [
@@ -138,41 +136,18 @@ class TestFacePhotoLabel:
         label = FacePhotoLabel(content_hash="abc", boxes=boxes)
         assert label.face_count == 2
 
-    def test_invalid_tag_raises(self):
-        with pytest.raises(ValueError, match="Invalid face photo tags"):
-            FacePhotoLabel(content_hash="abc", tags=["not_a_tag"])
-
-    def test_compat_old_photo_tags_still_load(self):
-        """Old per-photo face tags (now per-box) are still accepted during transition."""
-        old_tags = ["face_tiny_faces", "face_blurry_faces", "face_occluded_faces", "face_profile"]
-        for tag in old_tags:
-            label = FacePhotoLabel(content_hash="abc", tags=[tag])
-            assert tag in label.tags
+    def test_extra_tags_field_ignored(self):
+        """FacePhotoLabel silently ignores old tags field from JSON."""
+        label = FacePhotoLabel(content_hash="abc", tags=["no_faces"])
+        assert "tags" not in FacePhotoLabel.model_fields
 
 
 # =============================================================================
-# BibGroundTruth — split logic
+# BibGroundTruth
 # =============================================================================
 
 
 class TestBibGroundTruth:
-    def test_get_by_split_full_returns_all(self):
-        gt = BibGroundTruth()
-        gt.add_photo(BibPhotoLabel(content_hash="a", split="full"))
-        gt.add_photo(BibPhotoLabel(content_hash="b", split="iteration"))
-        gt.add_photo(BibPhotoLabel(content_hash="c", split="full"))
-        # "full" split returns ALL photos
-        assert len(gt.get_by_split("full")) == 3
-
-    def test_get_by_split_iteration(self):
-        gt = BibGroundTruth()
-        gt.add_photo(BibPhotoLabel(content_hash="a", split="full"))
-        gt.add_photo(BibPhotoLabel(content_hash="b", split="iteration"))
-        gt.add_photo(BibPhotoLabel(content_hash="c", split="full"))
-        iteration = gt.get_by_split("iteration")
-        assert len(iteration) == 1
-        assert iteration[0].content_hash == "b"
-
     def test_get_unlabeled_hashes(self):
         gt = BibGroundTruth()
         gt.add_photo(BibPhotoLabel(content_hash="a"))

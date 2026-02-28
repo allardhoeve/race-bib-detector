@@ -24,6 +24,11 @@ from benchmarking.ground_truth import (
 )
 from benchmarking.label_utils import find_hash_by_prefix
 from benchmarking.photo_index import load_photo_index, get_path_for_hash
+from benchmarking.photo_metadata import (
+    PhotoMetadata,
+    load_photo_metadata,
+    save_photo_metadata,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -82,28 +87,38 @@ def get_face_label(content_hash: str) -> FaceLabelData | None:
     photo_sugg = store.get(full_hash)
     suggestions: list[FaceSuggestion] = photo_sugg.faces if photo_sugg else []
 
+    meta_store = load_photo_metadata()
+    meta = meta_store.get(full_hash)
+
     if label:
         return FaceLabelData(
             full_hash=full_hash,
             boxes=label.boxes,
             suggestions=suggestions,
-            tags=label.tags,
+            tags=meta.face_tags if meta else [],
         )
     return FaceLabelData(
         full_hash=full_hash,
         boxes=[],
         suggestions=suggestions,
-        tags=[],
+        tags=meta.face_tags if meta else [],
     )
 
 
 def save_face_label(content_hash: str, boxes: list[FaceBox],
                     tags: list[str]) -> None:
-    """Construct a FacePhotoLabel and persist it."""
+    """Construct a FacePhotoLabel and persist it, plus save tags to PhotoMetadata."""
     face_gt = load_face_ground_truth()
-    label = FacePhotoLabel(content_hash=content_hash, boxes=boxes, tags=tags, labeled=True)
+    label = FacePhotoLabel(content_hash=content_hash, boxes=boxes, labeled=True)
     face_gt.add_photo(label)
     save_face_ground_truth(face_gt)
+
+    # Save face tags to PhotoMetadata
+    meta_store = load_photo_metadata()
+    meta = meta_store.get(content_hash) or PhotoMetadata(paths=[])
+    meta.face_tags = tags
+    meta_store.set(content_hash, meta)
+    save_photo_metadata(meta_store)
 
 
 def get_face_crop_jpeg(content_hash: str, box_index: int) -> bytes | None:

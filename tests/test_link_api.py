@@ -55,7 +55,7 @@ def link_client(tmp_path, monkeypatch):
         "benchmarking.identities.get_identities_path", lambda: identities_path
     )
     monkeypatch.setattr(
-        "benchmarking.photo_index.get_photo_index_path", lambda: index_path
+        "benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path
     )
 
     from benchmarking.app import create_app

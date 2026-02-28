@@ -279,7 +279,7 @@ class TestRunFaceDetection:
 class TestComputePhotoResult:
     def _label(self, bibs):
         from types import SimpleNamespace
-        return SimpleNamespace(bibs=bibs, content_hash="a" * 64, tags=[])
+        return SimpleNamespace(bibs=bibs, content_hash="a" * 64)
 
     def test_all_correct_no_fp_is_pass(self):
         from benchmarking.runner import compute_photo_result

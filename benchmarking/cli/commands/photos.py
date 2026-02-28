@@ -20,6 +20,11 @@ from benchmarking.photo_index import (
     load_photo_index,
     get_path_for_hash,
 )
+from benchmarking.photo_metadata import (
+    PhotoMetadata,
+    load_photo_metadata,
+    save_photo_metadata,
+)
 
 
 def get_photos_dir() -> Path:
@@ -82,14 +87,16 @@ def cmd_stats(args: argparse.Namespace) -> int:
     total_bibs = sum(len(p.bib_numbers_int) for p in bib_gt.photos.values())
     print(f"Total bib annotations: {total_bibs}")
 
+    meta_store = load_photo_metadata()
+
     print("\nBy split:")
     for split in sorted(ALLOWED_SPLITS):
-        count = len(bib_gt.get_by_split(split))
+        count = len(meta_store.get_hashes_by_split(split))
         print(f"  {split}: {count}")
 
     print("\nBy bib tag:")
     for tag in sorted(BIB_PHOTO_TAGS):
-        count = sum(1 for p in bib_gt.photos.values() if tag in p.tags)
+        count = sum(1 for m in meta_store.photos.values() if tag in m.bib_tags)
         if count > 0:
             print(f"  {tag}: {count}")
 
@@ -100,7 +107,7 @@ def cmd_stats(args: argparse.Namespace) -> int:
 
     print("\nBy face photo tag:")
     for tag in sorted(FACE_PHOTO_TAGS):
-        count = sum(1 for p in face_gt.photos.values() if tag in p.tags)
+        count = sum(1 for m in meta_store.photos.values() if tag in m.face_tags)
         if count > 0:
             print(f"  {tag}: {count}")
 
@@ -179,11 +186,14 @@ def cmd_show(args: argparse.Namespace) -> int:
     label = gt.get_photo(content_hash)
     path = get_path_for_hash(content_hash, photos_dir, index)
 
+    meta_store = load_photo_metadata()
+    meta = meta_store.get(content_hash)
+
     print(f"Photo: {content_hash}")
     print(f"Path: {path}")
     print(f"Bibs: {label.bibs if label.bibs else '(none)'}")
-    print(f"Tags: {label.tags if label.tags else '(none)'}")
-    print(f"Split: {label.split}")
+    print(f"Tags: {meta.bib_tags if meta and meta.bib_tags else '(none)'}")
+    print(f"Split: {meta.split if meta else '(unknown)'}")
 
     return 0
 
@@ -242,27 +252,32 @@ def cmd_label(args: argparse.Namespace) -> int:
     if existing:
         if bib_boxes is not None:
             existing.boxes = bib_boxes
-        if tags is not None:
-            existing.tags = tags
-        if args.split:
-            existing.split = args.split
         existing.labeled = True
         label = existing
     else:
         label = BibPhotoLabel(
             content_hash=content_hash,
             boxes=bib_boxes or [],
-            tags=tags or [],
-            split=args.split or "full",
             labeled=True,
         )
         gt.add_photo(label)
 
     save_bib_ground_truth(gt)
+
+    # Save tags and split to PhotoMetadata
+    meta_store = load_photo_metadata()
+    meta = meta_store.get(content_hash) or PhotoMetadata(paths=[])
+    if tags is not None:
+        meta.bib_tags = tags
+    if args.split:
+        meta.split = args.split
+    meta_store.set(content_hash, meta)
+    save_photo_metadata(meta_store)
+
     print(f"Saved label for {content_hash[:8]}...")
     print(f"  Bibs: {label.bibs}")
-    print(f"  Tags: {label.tags}")
-    print(f"  Split: {label.split}")
+    print(f"  Tags: {meta.bib_tags}")
+    print(f"  Split: {meta.split}")
 
     return 0
 

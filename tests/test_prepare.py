@@ -19,6 +19,7 @@ from benchmarking.ground_truth import (
     save_face_ground_truth,
 )
 from benchmarking.photo_index import load_photo_index, save_photo_index
+from benchmarking.photo_metadata import load_photo_metadata
 from benchmarking.scanner import compute_content_hash
 
 
@@ -199,7 +200,6 @@ class TestGroundTruthEntries:
         assert bib_gt.has_photo(hash_val)
         label = bib_gt.get_photo(hash_val)
         assert label.boxes == []
-        assert label.tags == []
         assert label.labeled is False
 
     def test_face_gt_entry_created(self, workspace):
@@ -212,7 +212,6 @@ class TestGroundTruthEntries:
         assert face_gt.has_photo(hash_val)
         label = face_gt.get_photo(hash_val)
         assert label.boxes == []
-        assert label.tags == []
 
     def test_does_not_overwrite_existing_labels(self, workspace):
         """If a photo already has labels, prepare should not overwrite them."""
@@ -224,7 +223,6 @@ class TestGroundTruthEntries:
         bib_gt.add_photo(BibPhotoLabel(
             content_hash=hash_val,
             boxes=[BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42")],
-            tags=["no_bib"],
             labeled=True,
         ))
         save_bib_ground_truth(bib_gt, workspace["bib_gt_path"])
@@ -247,9 +245,10 @@ class TestGroundTruthEntries:
 
         _prepare(workspace)
 
-        bib_gt = load_bib_ground_truth(workspace["bib_gt_path"])
-        label = bib_gt.get_photo(hash_val)
-        assert label.split == "full"
+        meta_store = load_photo_metadata(workspace["index_path"])
+        meta = meta_store.get(hash_val)
+        assert meta is not None
+        assert meta.split == "full"
 
 
 # =============================================================================
@@ -269,7 +268,6 @@ class TestResetLabels:
         bib_gt.add_photo(BibPhotoLabel(
             content_hash=hash_val,
             boxes=[BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42")],
-            tags=["no_bib"],
             labeled=True,
         ))
         save_bib_ground_truth(bib_gt, workspace["bib_gt_path"])
@@ -283,7 +281,6 @@ class TestResetLabels:
         label = bib_gt.get_photo(hash_val)
         assert label.labeled is False
         assert label.boxes == []
-        assert label.tags == []
 
     def test_clears_face_labels(self, workspace):
         from benchmarking.ground_truth import FaceBox
@@ -294,7 +291,6 @@ class TestResetLabels:
         face_gt.add_photo(FacePhotoLabel(
             content_hash=hash_val,
             boxes=[FaceBox(x=0.1, y=0.2, w=0.15, h=0.2, scope="keep")],
-            tags=["face_blurry_faces"],
         ))
         save_face_ground_truth(face_gt, workspace["face_gt_path"])
 
@@ -305,7 +301,6 @@ class TestResetLabels:
         face_gt = load_face_ground_truth(workspace["face_gt_path"])
         label = face_gt.get_photo(hash_val)
         assert label.boxes == []
-        assert label.tags == []
 
     def test_keeps_photos_on_disk(self, workspace):
         _make_image(workspace["photos_dir"] / "existing.jpg", b"keep-me")

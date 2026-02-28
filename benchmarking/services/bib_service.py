@@ -16,6 +16,11 @@ from benchmarking.ground_truth import (
 from benchmarking.ghost import BibSuggestion, load_suggestion_store
 from benchmarking.label_utils import find_hash_by_prefix
 from benchmarking.photo_index import load_photo_index, get_path_for_hash
+from benchmarking.photo_metadata import (
+    PhotoMetadata,
+    load_photo_metadata,
+    save_photo_metadata,
+)
 from config import ITERATION_SPLIT_PROBABILITY
 
 PHOTOS_DIR = Path(__file__).parent.parent.parent / "photos"
@@ -44,21 +49,24 @@ def get_bib_label(content_hash: str) -> BibLabelData | None:
     photo_sugg = store.get(full_hash)
     suggestions: list[BibSuggestion] = photo_sugg.bibs if photo_sugg else []
 
+    meta_store = load_photo_metadata()
+    meta = meta_store.get(full_hash)
+
     if label:
         return BibLabelData(
             full_hash=full_hash,
             boxes=label.boxes,
             suggestions=suggestions,
-            tags=label.tags,
-            split=label.split,
+            tags=meta.bib_tags if meta else [],
+            split=meta.split if meta else "full",
             labeled=label.labeled,
         )
     return BibLabelData(
         full_hash=full_hash,
         boxes=[],
         suggestions=suggestions,
-        tags=[],
-        split='full',
+        tags=meta.bib_tags if meta else [],
+        split=meta.split if meta else "full",
         labeled=False,
     )
 
@@ -66,7 +74,7 @@ def get_bib_label(content_hash: str) -> BibLabelData | None:
 def save_bib_label(content_hash: str, boxes: list[BibBox] | None,
                    bibs_legacy: list[int] | None, tags: list[str],
                    split: str) -> None:
-    """Construct a BibPhotoLabel and persist it."""
+    """Construct a BibPhotoLabel and persist it, plus save tags/split to PhotoMetadata."""
     bib_gt = load_bib_ground_truth()
     if boxes is not None:
         pass  # already validated BibBox objects
@@ -78,12 +86,18 @@ def save_bib_label(content_hash: str, boxes: list[BibBox] | None,
     label = BibPhotoLabel(
         content_hash=content_hash,
         boxes=boxes,
-        tags=tags,
-        split=split,
         labeled=True,
     )
     bib_gt.add_photo(label)
     save_bib_ground_truth(bib_gt)
+
+    # Save tags and split to PhotoMetadata
+    meta_store = load_photo_metadata()
+    meta = meta_store.get(content_hash) or PhotoMetadata(paths=[])
+    meta.bib_tags = tags
+    meta.split = split
+    meta_store.set(content_hash, meta)
+    save_photo_metadata(meta_store)
 
 
 def get_bib_crop_jpeg(content_hash: str, box_index: int) -> bytes | None:
@@ -122,8 +136,8 @@ def get_bib_crop_jpeg(content_hash: str, box_index: int) -> bytes | None:
 
 def default_split_for_hash(content_hash: str) -> str:
     """Return the existing split for a hash, or randomly assign one."""
-    bib_gt = load_bib_ground_truth()
-    label = bib_gt.get_photo(content_hash)
-    if label:
-        return label.split
+    meta_store = load_photo_metadata()
+    meta = meta_store.get(content_hash)
+    if meta and meta.split:
+        return meta.split
     return 'iteration' if random.random() < ITERATION_SPLIT_PROBABILITY else 'full'

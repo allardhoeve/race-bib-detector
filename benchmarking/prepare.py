@@ -26,7 +26,11 @@ from .ground_truth import (
     load_face_ground_truth,
     save_face_ground_truth,
 )
-from .photo_index import save_photo_index
+from .photo_metadata import (
+    PhotoMetadata,
+    load_photo_metadata,
+    save_photo_metadata,
+)
 from .scanner import scan_photos, build_photo_index
 
 
@@ -109,12 +113,12 @@ def prepare_benchmark(
             result.new_hashes.add(content_hash)
             result.copied += 1
 
-    # --- 3. Rebuild photo index ---
+    # --- 3. Rebuild photo index and metadata ---
     new_index = build_photo_index(photos_dir)
-    save_photo_index(new_index, index_path)
+    meta_store = load_photo_metadata(index_path)
     result.total_photos = len(new_index)
 
-    # --- 4. Ensure GT entries exist ---
+    # --- 4. Ensure GT and metadata entries exist ---
     bib_gt = load_bib_ground_truth(bib_gt_path)
     face_gt = load_face_ground_truth(face_gt_path)
 
@@ -124,14 +128,15 @@ def prepare_benchmark(
             bib_gt.add_photo(BibPhotoLabel(
                 content_hash=content_hash,
                 boxes=[],
-                tags=[],
-                split="full",
                 labeled=False,
             ))
             face_gt.add_photo(FacePhotoLabel(
                 content_hash=content_hash,
                 boxes=[],
-                tags=[],
+            ))
+            meta_store.set(content_hash, PhotoMetadata(
+                paths=new_index[content_hash],
+                split="full",
             ))
     else:
         # Only create entries for photos that don't have one yet
@@ -140,19 +145,30 @@ def prepare_benchmark(
                 bib_gt.add_photo(BibPhotoLabel(
                     content_hash=content_hash,
                     boxes=[],
-                    tags=[],
-                    split="full",
                     labeled=False,
                 ))
             if not face_gt.has_photo(content_hash):
                 face_gt.add_photo(FacePhotoLabel(
                     content_hash=content_hash,
                     boxes=[],
-                    tags=[],
                 ))
+            meta = meta_store.get(content_hash)
+            if meta:
+                meta.paths = new_index[content_hash]
+            else:
+                meta_store.set(content_hash, PhotoMetadata(
+                    paths=new_index[content_hash],
+                    split="full",
+                ))
+
+    # Remove metadata entries for hashes no longer in index
+    for h in list(meta_store.photos.keys()):
+        if h not in new_index:
+            del meta_store.photos[h]
 
     save_bib_ground_truth(bib_gt, bib_gt_path)
     save_face_ground_truth(face_gt, face_gt_path)
+    save_photo_metadata(meta_store, index_path)
 
     # --- 5. Ghost labeling ---
     ghost_hashes: list[str] = []

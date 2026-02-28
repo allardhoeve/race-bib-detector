@@ -46,7 +46,7 @@ def patch_paths(tmp_path, monkeypatch):
     monkeypatch.setattr("benchmarking.ground_truth.get_bib_ground_truth_path", lambda: bib_gt_path)
     monkeypatch.setattr("benchmarking.ground_truth.get_face_ground_truth_path", lambda: face_gt_path)
     monkeypatch.setattr("benchmarking.ground_truth.get_link_ground_truth_path", lambda: link_gt_path)
-    monkeypatch.setattr("benchmarking.photo_index.get_photo_index_path", lambda: index_path)
+    monkeypatch.setattr("benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path)
     monkeypatch.setattr("benchmarking.ghost.get_suggestion_store_path", lambda: suggestions_path)
     monkeypatch.setattr("benchmarking.identities.get_identities_path", lambda: identities_path)
 

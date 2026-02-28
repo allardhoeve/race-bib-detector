@@ -12,6 +12,7 @@ from benchmarking.ground_truth import (
     load_bib_ground_truth,
     load_face_ground_truth,
 )
+from benchmarking.photo_metadata import load_photo_metadata
 from benchmarking.label_utils import (
     find_hash_by_prefix,
     find_next_unlabeled_url,
@@ -66,8 +67,10 @@ async def bib_photo(
     bib_gt = load_bib_ground_truth()
     label = bib_gt.get_photo(full_hash)
 
-    if label:
-        default_split = label.split
+    meta_store = load_photo_metadata()
+    meta = meta_store.get(full_hash)
+    if meta and meta.split:
+        default_split = meta.split
     else:
         default_split = 'iteration' if random.random() < ITERATION_SPLIT_PROBABILITY else 'full'
 
@@ -104,7 +107,7 @@ async def bib_photo(
     return TEMPLATES.TemplateResponse(request, 'labeling.html', {
         'content_hash': full_hash,
         'bibs_str': ', '.join(str(b) for b in label.bibs) if label else '',
-        'tags': label.tags if label else [],
+        'tags': meta.bib_tags if meta else [],
         'split': default_split,
         'all_tags': sorted(ALLOWED_TAGS),
         'current': idx + 1,
@@ -151,12 +154,12 @@ async def face_photo(
         raise HTTPException(status_code=404, detail='Photo not found')
 
     face_gt = load_face_ground_truth()
-    bib_gt = load_bib_ground_truth()
     face_label = face_gt.get_photo(full_hash)
-    bib_label = bib_gt.get_photo(full_hash)
 
-    if bib_label:
-        default_split = bib_label.split
+    meta_store = load_photo_metadata()
+    meta = meta_store.get(full_hash)
+    if meta and meta.split:
+        default_split = meta.split
     else:
         default_split = 'iteration' if random.random() < ITERATION_SPLIT_PROBABILITY else 'full'
 
@@ -193,7 +196,7 @@ async def face_photo(
     return TEMPLATES.TemplateResponse(request, 'face_labeling.html', {
         'content_hash': full_hash,
         'face_count': face_label.face_count if face_label else None,
-        'face_tags': face_label.tags if face_label else [],
+        'face_tags': meta.face_tags if meta else [],
         'split': default_split,
         'all_face_tags': sorted(ALLOWED_FACE_TAGS),
         'face_box_tags': sorted(FACE_BOX_TAGS),

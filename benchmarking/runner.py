@@ -48,6 +48,7 @@ from .ground_truth import (
     LinkGroundTruth,
 )
 from .photo_index import load_photo_index, get_path_for_hash
+from .photo_metadata import PhotoMetadataStore, load_photo_metadata
 from .scoring import score_bibs, score_faces, score_links, BibScorecard, FaceScorecard, LinkScorecard
 
 logger = logging.getLogger(__name__)
@@ -266,6 +267,7 @@ def compute_photo_result(
     label: BibPhotoLabel,
     detected_bibs: list[int],
     detection_time_ms: float,
+    tags: list[str] | None = None,
 ) -> PhotoResult:
     """Compute per-photo detection status and TP/FP/FN counts.
 
@@ -304,7 +306,7 @@ def compute_photo_result(
         fn=fn,
         status=status,
         detection_time_ms=detection_time_ms,
-        tags=label.tags,
+        tags=tags or [],
     )
 
 
@@ -360,14 +362,16 @@ def _run_bib_detection(
     image_data: bytes,
     label: BibPhotoLabel,
     artifact_dir: str,
+    tags: list[str] | None = None,
 ) -> tuple[PhotoResult, list[BibBox], tuple[int, int]]:
     """Run bib OCR on one photo; return result, normalised bib boxes, and image dims.
 
     Args:
         reader: EasyOCR Reader instance.
         image_data: Raw bytes of the image.
-        label: BibPhotoLabel carrying content_hash, expected boxes, and tags.
+        label: BibPhotoLabel carrying content_hash and expected boxes.
         artifact_dir: Directory path for debug artifact images.
+        tags: Photo-level bib tags from PhotoMetadata.
 
     Returns:
         photo_result: Per-photo status and TP/FP/FN counts.
@@ -386,7 +390,7 @@ def _run_bib_detection(
         except ValueError:
             pass
 
-    photo_result = compute_photo_result(label, detected_bibs, detect_time_ms)
+    photo_result = compute_photo_result(label, detected_bibs, detect_time_ms, tags=tags)
     photo_result.artifact_paths = result.artifact_paths
     photo_result.preprocess_metadata = result.preprocess_metadata
 
@@ -445,6 +449,7 @@ def _run_detection_loop(
     face_backend: FaceBackend | None = None,
     face_gt: FaceGroundTruth | None = None,
     link_gt: LinkGroundTruth | None = None,
+    meta_store: PhotoMetadataStore | None = None,
 ) -> tuple[list[PhotoResult], BibScorecard, FaceScorecard | None, LinkScorecard | None]:
     """Run detection on all photos; return results and aggregate IoU scorecards.
 
@@ -480,8 +485,13 @@ def _run_detection_loop(
         photo_artifact_dir = str(images_dir / label.content_hash[:16])
 
         # Phase 1: Bib OCR
+        photo_tags: list[str] = []
+        if meta_store is not None:
+            meta = meta_store.get(label.content_hash)
+            if meta:
+                photo_tags = meta.bib_tags
         photo_result, pred_bib_boxes, (img_w, img_h) = _run_bib_detection(
-            reader, image_data, label, photo_artifact_dir
+            reader, image_data, label, photo_artifact_dir, tags=photo_tags
         )
         photo_results.append(photo_result)
 
@@ -639,7 +649,9 @@ def run_benchmark(
 
     gt = load_bib_ground_truth()
     index = load_photo_index()
-    photos = gt.get_by_split(split)
+    meta_store = load_photo_metadata()
+    split_hashes = meta_store.get_hashes_by_split(split)
+    photos = [gt.get_photo(h) or BibPhotoLabel(content_hash=h) for h in split_hashes if gt.has_photo(h) or h in index]
     _validate_inputs(gt, index, photos, split)
 
     if verbose:
@@ -662,7 +674,7 @@ def run_benchmark(
         logger.warning("Face backend unavailable — face scoring skipped: %s", exc)
 
     photo_results, bib_scorecard, face_scorecard, link_scorecard = _run_detection_loop(
-        reader, photos, index, images_dir, verbose, face_backend, face_gt, link_gt
+        reader, photos, index, images_dir, verbose, face_backend, face_gt, link_gt, meta_store
     )
     metrics = compute_metrics(photo_results)
     metadata = _build_run_metadata(run_id, split, note, start_time)

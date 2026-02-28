@@ -48,7 +48,7 @@ def app_client(tmp_path, monkeypatch):
         "benchmarking.identities.get_identities_path", lambda: identities_path
     )
     monkeypatch.setattr(
-        "benchmarking.photo_index.get_photo_index_path", lambda: index_path
+        "benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path
     )
 
     from benchmarking.app import create_app
@@ -510,7 +510,7 @@ def crop_client(tmp_path, monkeypatch):
         "benchmarking.identities.get_identities_path", lambda: identities_path
     )
     monkeypatch.setattr(
-        "benchmarking.photo_index.get_photo_index_path", lambda: index_path
+        "benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path
     )
     monkeypatch.setattr("benchmarking.services.face_service.PHOTOS_DIR", photos_dir)
 
@@ -656,7 +656,7 @@ def freeze_client(tmp_path, monkeypatch):
         "benchmarking.identities.get_identities_path", lambda: identities_path
     )
     monkeypatch.setattr(
-        "benchmarking.photo_index.get_photo_index_path", lambda: index_path
+        "benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path
     )
     monkeypatch.setattr("benchmarking.sets.FROZEN_DIR", frozen_dir)
 

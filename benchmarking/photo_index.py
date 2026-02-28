@@ -1,54 +1,65 @@
-"""Photo index management - maps content hashes to file paths."""
+"""Photo index management - maps content hashes to file paths.
+
+This module is a compatibility wrapper that delegates to
+:mod:`benchmarking.photo_metadata`.  The 15+ consumers of
+``load_photo_index()`` continue working unchanged.
+"""
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
+from .photo_metadata import (
+    PhotoMetadata,
+    get_photo_metadata_path,
+    load_photo_metadata,
+    save_photo_metadata,
+)
 from .scanner import build_photo_index
 
 
 def get_photo_index_path() -> Path:
-    """Get the default photo index file path."""
-    return Path(__file__).parent / "photo_index.json"
+    """Get the default photo metadata file path (compat alias)."""
+    return get_photo_metadata_path()
 
 
 def load_photo_index(path: Path | None = None) -> dict[str, list[str]]:
-    """Load photo index from JSON file.
+    """Load photo index from metadata file.
 
     Args:
-        path: Path to JSON file (defaults to benchmarking/photo_index.json)
+        path: Path to JSON file (defaults to benchmarking/photo_metadata.json)
 
     Returns:
         Dict mapping content_hash -> list of relative file paths
     """
-    if path is None:
-        path = get_photo_index_path()
-
-    if not path.exists():
-        return {}
-
-    with open(path, "r") as f:
-        return json.load(f)
+    store = load_photo_metadata(path)
+    return {h: m.paths for h, m in store.photos.items()}
 
 
 def save_photo_index(
     index: dict[str, list[str]],
     path: Path | None = None,
 ) -> None:
-    """Save photo index to JSON file.
+    """Save photo index into the metadata file.
+
+    Loads existing metadata, updates paths only, and saves.
 
     Args:
         index: Dict mapping content_hash -> list of relative file paths
-        path: Path to JSON file (defaults to benchmarking/photo_index.json)
+        path: Path to JSON file (defaults to benchmarking/photo_metadata.json)
     """
-    if path is None:
-        path = get_photo_index_path()
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-
-    with open(path, "w") as f:
-        json.dump(index, f, indent=2)
+    store = load_photo_metadata(path)
+    for h, paths in index.items():
+        meta = store.get(h)
+        if meta:
+            meta.paths = paths
+        else:
+            store.set(h, PhotoMetadata(paths=paths))
+    # Remove entries whose hash is no longer in the index
+    for h in list(store.photos.keys()):
+        if h not in index:
+            del store.photos[h]
+    save_photo_metadata(store, path)
 
 
 def update_photo_index(

@@ -15,7 +15,7 @@ def patch_paths(tmp_path, monkeypatch):
     index_path = tmp_path / "photo_index.json"
     save_photo_index({HASH_A: ["photo_a.jpg"]}, index_path)
     monkeypatch.setattr("benchmarking.ground_truth.get_link_ground_truth_path", lambda: link_gt_path)
-    monkeypatch.setattr("benchmarking.photo_index.get_photo_index_path", lambda: index_path)
+    monkeypatch.setattr("benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path)
 
 
 def test_get_associations_not_found():

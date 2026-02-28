@@ -116,33 +116,14 @@ class BibPhotoLabel(BaseModel):
     Attributes:
         content_hash: SHA256 content hash (canonical photo identity).
         boxes: Bib bounding boxes with numbers and scopes.
-        tags: Photo-level condition descriptors (from ``BIB_PHOTO_TAGS``).
-        split: Which evaluation split this photo belongs to.
         labeled: True once a human has reviewed this photo's bibs.
     """
 
     content_hash: str
     boxes: list[BibBox] = Field(default_factory=list)
-    tags: list[str] = Field(default_factory=list)
-    split: str = "full"
     labeled: bool = False
 
     model_config = ConfigDict(extra="ignore")
-
-    @field_validator("tags")
-    @classmethod
-    def _validate_tags(cls, v: list[str]) -> list[str]:
-        invalid = set(v) - BIB_PHOTO_TAGS
-        if invalid:
-            raise ValueError(f"Invalid bib photo tags: {invalid}")
-        return v
-
-    @field_validator("split")
-    @classmethod
-    def _validate_split(cls, v: str) -> str:
-        if v not in ALLOWED_SPLITS:
-            raise ValueError(f"Invalid split: {v!r}")
-        return v
 
     @property
     def bib_numbers_int(self) -> list[int]:
@@ -188,16 +169,6 @@ class BibGroundTruth:
             del self.photos[content_hash]
             return True
         return False
-
-    def get_by_split(self, split: Split) -> list[BibPhotoLabel]:
-        """Get photos for an evaluation split.
-
-        ``"full"`` returns ALL photos; ``"iteration"`` returns only those
-        explicitly marked as iteration.
-        """
-        if split == "full":
-            return list(self.photos.values())
-        return [p for p in self.photos.values() if p.split == split]
 
     def get_unlabeled_hashes(self, all_hashes: set[str]) -> set[str]:
         return all_hashes - set(self.photos.keys())
@@ -280,20 +251,9 @@ class FacePhotoLabel(BaseModel):
 
     content_hash: str
     boxes: list[FaceBox] = Field(default_factory=list)
-    tags: list[str] = Field(default_factory=list)
     labeled: bool = False  # True once a human has explicitly saved face labels for this photo
 
     model_config = ConfigDict(extra="ignore")
-
-    @field_validator("tags", mode="before")
-    @classmethod
-    def _migrate_and_validate_tags(cls, v: list[str]) -> list[str]:
-        # Migrate legacy photo tag name
-        v = ["no_faces" if t == "face_no_faces" else t for t in v]
-        invalid = set(v) - _FACE_PHOTO_TAGS_COMPAT
-        if invalid:
-            raise ValueError(f"Invalid face photo tags: {invalid}")
-        return v
 
     @property
     def face_count(self) -> int:
@@ -497,23 +457,13 @@ def migrate_from_legacy(
         bib_gt.add_photo(BibPhotoLabel(
             content_hash=content_hash,
             boxes=bib_boxes,
-            tags=bib_tags,
-            split=photo.get("split", "full"),
             labeled=photo.get("bib_labeled", False),
         ))
 
         # --- face side ---
-        # Collect face tags from legacy face_tags field, plus any
-        # face-related tags that were in the old bib tags list
-        face_tags = list(photo.get("face_tags", []))
-        for t in photo.get("tags", []):
-            if t in _FACE_PHOTO_TAGS_COMPAT and t not in face_tags:
-                face_tags.append(t)
-
         face_gt.add_photo(FacePhotoLabel(
             content_hash=content_hash,
             boxes=[],  # No face boxes in legacy data
-            tags=face_tags,
         ))
 
     return bib_gt, face_gt

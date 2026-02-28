@@ -38,7 +38,7 @@ def test_rename_identity_updates_gt_boxes():
     identity_service.create_identity("Alice")
 
     box = FaceBox(x=0.1, y=0.1, w=0.2, h=0.2, scope="keep", identity="Alice")
-    label = FacePhotoLabel(content_hash=HASH_A, boxes=[box], tags=[])
+    label = FacePhotoLabel(content_hash=HASH_A, boxes=[box])
     face_gt_empty = __import__("benchmarking.ground_truth", fromlist=["load_face_ground_truth"]).load_face_ground_truth()
     face_gt_empty.add_photo(label)
     save_face_ground_truth(face_gt_empty)

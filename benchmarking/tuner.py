@@ -18,8 +18,9 @@ from pathlib import Path
 import cv2
 import numpy as np
 
-from benchmarking.ground_truth import FaceBox, load_bib_ground_truth, load_face_ground_truth
+from benchmarking.ground_truth import BibPhotoLabel, FaceBox, load_bib_ground_truth, load_face_ground_truth
 from benchmarking.photo_index import get_path_for_hash, load_photo_index
+from benchmarking.photo_metadata import load_photo_metadata
 from benchmarking.scoring import FaceScorecard, score_faces
 from faces.backend import get_face_backend_with_overrides
 from geometry import bbox_to_rect
@@ -104,7 +105,9 @@ def run_face_sweep(
     bib_gt = load_bib_ground_truth()
     face_gt = load_face_ground_truth()
     index = load_photo_index()
-    photos = bib_gt.get_by_split(split)
+    meta_store = load_photo_metadata()
+    split_hashes = meta_store.get_hashes_by_split(split)
+    photos = [bib_gt.get_photo(h) or BibPhotoLabel(content_hash=h) for h in split_hashes if bib_gt.has_photo(h) or h in index]
 
     param_names = list(param_grid.keys())
     value_lists = [param_grid[name] for name in param_names]
