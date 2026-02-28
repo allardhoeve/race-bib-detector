@@ -96,7 +96,7 @@ async function save() {
 
         if (response.ok) {
             showStatus('Saved!', false);
-            setTimeout(() => navigate('next'), 300);
+            setTimeout(() => navigate(PAGE_DATA.nextUnlabeledUrl || PAGE_DATA.nextUrl), 300);
         } else {
             const err = await response.json();
             showStatus('Error: ' + err.error, true);
@@ -118,8 +118,8 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'n') { e.preventDefault(); toggleTag('no_bib'); return; }
     if (e.key === 'b') { e.preventDefault(); toggleTag('blurry_bib'); return; }
 
-    if (e.key === 'ArrowLeft') navigate('prev');
-    else if (e.key === 'ArrowRight') navigate('next');
+    if (e.key === 'ArrowLeft') navigate(PAGE_DATA.prevUrl);
+    else if (e.key === 'ArrowRight') navigate(PAGE_DATA.nextUrl);
     else if (e.key === 'Enter') { e.preventDefault(); save(); }
 });
 
