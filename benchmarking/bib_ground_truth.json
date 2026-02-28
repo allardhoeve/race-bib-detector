@@ -5483,9 +5483,11 @@
     },
     "80acd05ec3826acc7b90e73b4ac81b1c8647c86de17d46807eb699d874c9b90f": {
       "boxes": [],
-      "tags": [],
+      "tags": [
+        "no_bib"
+      ],
       "split": "full",
-      "labeled": false
+      "labeled": true
     },
     "ae1cde834c8c3536e4b97a179420ded4dd52ae6f049dc26bde06903fb3674748": {
       "boxes": [],
