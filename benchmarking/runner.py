@@ -17,6 +17,7 @@ import numpy as np
 
 from pydantic import BaseModel, Field, field_serializer, field_validator
 
+import config
 from config import (
     BENCHMARK_REGRESSION_TOLERANCE,
     FACE_BACKEND,
@@ -446,6 +447,60 @@ def _run_face_detection(face_backend: FaceBackend, image_data: bytes) -> list[Fa
     return pred_face_boxes
 
 
+def _assign_face_clusters(
+    photo_results: list[PhotoResult],
+    image_cache: dict[str, bytes],
+    distance_threshold: float | None = None,
+) -> None:
+    """Embed predicted faces and assign cluster IDs in-place."""
+    from faces.embedder import get_face_embedder
+    from faces.clustering import _cluster_embeddings
+
+    embedder = get_face_embedder()
+    all_embeddings: list[np.ndarray] = []
+    face_refs: list[tuple[int, int]] = []  # (photo_idx, face_idx)
+
+    for p_idx, result in enumerate(photo_results):
+        if not result.pred_face_boxes:
+            continue
+        image_data = image_cache.get(result.content_hash)
+        if not image_data:
+            continue
+        img_array = cv2.imdecode(
+            np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR
+        )
+        if img_array is None:
+            continue
+        image_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
+        h, w = image_rgb.shape[:2]
+        bboxes = []
+        for f_idx, fbox in enumerate(result.pred_face_boxes):
+            if fbox.x is None or fbox.w is None:
+                continue
+            x1 = int(fbox.x * w)
+            y1 = int(fbox.y * h)
+            x2 = int((fbox.x + fbox.w) * w)
+            y2 = int((fbox.y + fbox.h) * h)
+            bboxes.append(((x1, y1), (x2, y1), (x2, y2), (x1, y2)))
+            face_refs.append((p_idx, f_idx))
+
+        if bboxes:
+            embeddings = embedder.embed(image_rgb, bboxes)
+            all_embeddings.extend(embeddings)
+
+    if not all_embeddings:
+        return
+
+    emb_matrix = np.stack(all_embeddings).astype(np.float32)
+    threshold = distance_threshold if distance_threshold is not None else config.FACE_CLUSTER_DISTANCE_THRESHOLD
+    clusters = _cluster_embeddings(emb_matrix, threshold)
+
+    for cluster_id, indices in enumerate(clusters):
+        for idx in indices:
+            p_idx, f_idx = face_refs[idx]
+            photo_results[p_idx].pred_face_boxes[f_idx].cluster_id = cluster_id
+
+
 def _run_detection_loop(
     reader,
     photos: list,
@@ -476,6 +531,7 @@ def _run_detection_loop(
     bib_tp = bib_fp = bib_fn = bib_ocr_correct = bib_ocr_total = 0
     face_tp = face_fp = face_fn = 0
     link_tp = link_fp = link_fn = 0
+    image_cache: dict[str, bytes] = {}
 
     for i, label in enumerate(photos):
         path = get_path_for_hash(label.content_hash, PHOTOS_DIR, index)
@@ -488,6 +544,8 @@ def _run_detection_loop(
             continue
 
         image_data = path.read_bytes()
+        if face_backend is not None:
+            image_cache[label.content_hash] = image_data
         photo_artifact_dir = str(images_dir / label.content_hash[:16])
 
         # Phase 1: Bib OCR
@@ -552,6 +610,10 @@ def _run_detection_loop(
                 photo_result.status, photo_result.expected_bibs,
                 photo_result.detected_bibs, face_info, photo_result.detection_time_ms,
             )
+
+    # Post-processing: embed + cluster predicted faces (task-051)
+    if face_backend is not None:
+        _assign_face_clusters(photo_results, image_cache)
 
     bib_scorecard = BibScorecard(
         detection_tp=bib_tp,

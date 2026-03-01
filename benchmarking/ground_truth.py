@@ -211,6 +211,7 @@ class FaceBox(BaseModel):
     scope: str = "keep"
     identity: str | None = None
     tags: list[str] = Field(default_factory=list)
+    cluster_id: int | None = None
 
     model_config = ConfigDict(extra="ignore")
 

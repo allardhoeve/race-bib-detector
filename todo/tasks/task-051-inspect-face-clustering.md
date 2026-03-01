@@ -150,11 +150,11 @@ venv/bin/python -m pytest tests/test_face_clustering_runner.py tests/test_pydant
 
 ## Acceptance criteria
 
-- [ ] All existing tests still pass (`venv/bin/python -m pytest`)
-- [ ] New tests pass
-- [ ] `FaceBox` has optional `cluster_id` field (default `None`)
-- [ ] After a benchmark run with face detection, predicted face boxes have `cluster_id` set
-- [ ] Faces with similar embeddings share a `cluster_id`
+- [x] All existing tests still pass (`venv/bin/python -m pytest`)
+- [x] New tests pass
+- [x] `FaceBox` has optional `cluster_id` field (default `None`)
+- [x] After a benchmark run with face detection, predicted face boxes have `cluster_id` set
+- [x] Faces with similar embeddings share a `cluster_id`
 
 ## Scope boundaries
 
