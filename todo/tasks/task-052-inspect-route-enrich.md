@@ -86,12 +86,12 @@ venv/bin/python -m pytest tests/benchmarking/ -v -k inspect
 
 ## Acceptance criteria
 
-- [ ] All existing tests still pass (`venv/bin/python -m pytest`)
-- [ ] New tests pass
-- [ ] Inspect page JSON includes `pred_bib_boxes` and `gt_bib_boxes` when present
-- [ ] Inspect page JSON includes `pred_face_boxes` and `gt_face_boxes` when present
-- [ ] Old runs (without box data) still render correctly — no JS errors
-- [ ] Link GT data included per photo when available
+- [x] All existing tests still pass (`venv/bin/python -m pytest`)
+- [x] New tests pass
+- [x] Inspect page JSON includes `pred_bib_boxes` and `gt_bib_boxes` when present
+- [x] Inspect page JSON includes `pred_face_boxes` and `gt_face_boxes` when present
+- [x] Old runs (without box data) still render correctly — no JS errors
+- [x] Link GT data included per photo when available
 
 ## Scope boundaries
 

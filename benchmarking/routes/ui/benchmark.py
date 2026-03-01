@@ -5,6 +5,7 @@ import json
 from fastapi import APIRouter, HTTPException, Query, Request
 from starlette.responses import FileResponse
 
+from benchmarking.ground_truth import load_link_ground_truth
 from benchmarking.label_utils import filter_results
 from benchmarking.photo_index import load_photo_index
 from benchmarking.runner import RESULTS_DIR, get_run, list_runs
@@ -56,19 +57,25 @@ async def benchmark_inspect(
 
     idx = max(0, min(idx, len(filtered) - 1))
 
-    photo_results_json = json.dumps([{
-        'content_hash': r.content_hash,
-        'expected_bibs': r.expected_bibs,
-        'detected_bibs': r.detected_bibs,
-        'tp': r.tp,
-        'fp': r.fp,
-        'fn': r.fn,
-        'status': r.status,
-        'detection_time_ms': r.detection_time_ms,
-        'tags': r.tags,
-        'artifact_paths': r.artifact_paths,
-        'preprocess_metadata': r.preprocess_metadata,
-    } for r in filtered])
+    link_gt = load_link_ground_truth()
+
+    results_for_json = []
+    for r in filtered:
+        result_data = r.model_dump(
+            include={
+                'content_hash', 'expected_bibs', 'detected_bibs',
+                'tp', 'fp', 'fn', 'status', 'detection_time_ms',
+                'tags', 'artifact_paths', 'preprocess_metadata',
+                'pred_bib_boxes', 'pred_face_boxes',
+                'gt_bib_boxes', 'gt_face_boxes',
+            },
+            exclude_none=True,
+        )
+        gt_links = link_gt.get_links(r.content_hash)
+        result_data['gt_links'] = [lnk.model_dump() for lnk in gt_links]
+        results_for_json.append(result_data)
+
+    photo_results_json = json.dumps(results_for_json)
 
     all_runs = list_runs()
 
