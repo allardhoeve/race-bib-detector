@@ -69,6 +69,8 @@ async def benchmark_inspect(
                 'pred_bib_boxes', 'pred_face_boxes',
                 'gt_bib_boxes', 'gt_face_boxes',
                 'pred_links',
+                'bib_scorecard', 'face_scorecard', 'link_scorecard',
+                'face_detection_time_ms',
             },
             exclude_none=True,
         )

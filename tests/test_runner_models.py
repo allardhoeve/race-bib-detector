@@ -9,6 +9,7 @@ import pytest
 
 from benchmarking.ground_truth import BibBox, BibFaceLink, FaceBox
 from benchmarking.runner import FacePipelineConfig, PhotoResult, PipelineConfig, RunMetadata
+from benchmarking.scoring import BibScorecard, FaceScorecard, LinkScorecard
 
 
 # =============================================================================
@@ -210,3 +211,67 @@ class TestPhotoResultBoxFields:
         assert len(reloaded.pred_links) == 2
         assert reloaded.pred_links[0].bib_index == 0
         assert reloaded.pred_links[1].face_index == 0
+
+
+class TestPhotoResultScorecards:
+    def test_scorecards_default_none(self):
+        pr = PhotoResult(**_photo_result_dict())
+        assert pr.bib_scorecard is None
+        assert pr.face_scorecard is None
+        assert pr.link_scorecard is None
+        assert pr.face_detection_time_ms is None
+
+    def test_with_scorecards_roundtrip(self):
+        bib_sc = BibScorecard(detection_tp=2, detection_fp=0, detection_fn=1, ocr_correct=2, ocr_total=2)
+        face_sc = FaceScorecard(detection_tp=1, detection_fp=1, detection_fn=0)
+        link_sc = LinkScorecard(link_tp=1, link_fp=0, link_fn=0, gt_link_count=1)
+        pr = PhotoResult(**_photo_result_dict(
+            bib_scorecard=bib_sc,
+            face_scorecard=face_sc,
+            link_scorecard=link_sc,
+            face_detection_time_ms=42.5,
+        ))
+        d = pr.model_dump()
+        assert d["bib_scorecard"]["detection_tp"] == 2
+        assert d["bib_scorecard"]["ocr_correct"] == 2
+        assert d["face_scorecard"]["detection_tp"] == 1
+        assert d["link_scorecard"]["link_tp"] == 1
+        assert d["face_detection_time_ms"] == 42.5
+        reloaded = PhotoResult(**d)
+        assert reloaded.bib_scorecard.detection_tp == 2
+        assert reloaded.face_scorecard.detection_fp == 1
+        assert reloaded.link_scorecard.gt_link_count == 1
+        assert reloaded.face_detection_time_ms == 42.5
+
+    def test_backward_compat_old_run_without_scorecards(self):
+        old_dict = _photo_result_dict()
+        assert "bib_scorecard" not in old_dict
+        pr = PhotoResult(**old_dict)
+        assert pr.bib_scorecard is None
+        assert pr.face_scorecard is None
+        assert pr.link_scorecard is None
+        assert pr.face_detection_time_ms is None
+
+
+class TestBoxConfidence:
+    def test_bib_box_confidence_optional(self):
+        box = BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42")
+        assert box.confidence is None
+        box_with = BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42", confidence=0.85)
+        assert box_with.confidence == 0.85
+
+    def test_face_box_confidence_optional(self):
+        box = FaceBox(x=0.1, y=0.2, w=0.3, h=0.4, scope="keep")
+        assert box.confidence is None
+        box_with = FaceBox(x=0.1, y=0.2, w=0.3, h=0.4, scope="keep", confidence=0.9)
+        assert box_with.confidence == 0.9
+
+    def test_confidence_excluded_when_none(self):
+        box = BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42")
+        d = box.model_dump(exclude_none=True)
+        assert "confidence" not in d
+
+    def test_confidence_included_when_set(self):
+        box = BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42", confidence=0.85)
+        d = box.model_dump(exclude_none=True)
+        assert d["confidence"] == 0.85

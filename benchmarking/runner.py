@@ -90,6 +90,11 @@ class PhotoResult(BaseModel):
     gt_face_boxes: list[FaceBox] | None = None
     # Predicted bib↔face links from autolink (task-060)
     pred_links: list[BibFaceLink] | None = None
+    # Per-photo IoU scorecards (task-061)
+    bib_scorecard: BibScorecard | None = None
+    face_scorecard: FaceScorecard | None = None
+    link_scorecard: LinkScorecard | None = None
+    face_detection_time_ms: float | None = None
 
 
 class BenchmarkMetrics(BaseModel):
@@ -413,31 +418,34 @@ def _run_bib_detection(
                 x=x1 / img_w, y=y1 / img_h,
                 w=(x2 - x1) / img_w, h=(y2 - y1) / img_h,
                 number=det.bib_number,
+                confidence=det.confidence,
             ))
 
     return photo_result, pred_bib_boxes, (img_w, img_h)
 
 
-def _run_face_detection(face_backend: FaceBackend, image_data: bytes) -> list[FaceBox]:
-    """Decode image and run face detection; return normalised FaceBox list.
+def _run_face_detection(face_backend: FaceBackend, image_data: bytes) -> tuple[list[FaceBox], float]:
+    """Decode image and run face detection; return normalised FaceBox list and timing.
 
     Args:
         face_backend: Face detection backend to use.
         image_data: Raw bytes of the image.
 
     Returns:
-        Predicted face boxes in normalised [0, 1] coordinates, filtered to
-        candidates that passed the backend's threshold. Returns [] if the image
-        cannot be decoded (cv2.imdecode returns None).
+        Tuple of (pred_face_boxes, detection_time_ms). Predicted face boxes are
+        in normalised [0, 1] coordinates, filtered to candidates that passed the
+        backend's threshold. Returns ([], 0.0) if the image cannot be decoded.
     """
     if not image_data:
-        return []
+        return [], 0.0
     img_array = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
     if img_array is None:
-        return []
+        return [], 0.0
     image_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
     face_h, face_w = image_rgb.shape[:2]
+    start = time.time()
     face_candidates = face_backend.detect_face_candidates(image_rgb)
+    elapsed_ms = (time.time() - start) * 1000
     pred_face_boxes: list[FaceBox] = []
     for cand in face_candidates:
         if not cand.passed:
@@ -446,8 +454,9 @@ def _run_face_detection(face_backend: FaceBackend, image_data: bytes) -> list[Fa
         pred_face_boxes.append(FaceBox(
             x=x1 / face_w, y=y1 / face_h,
             w=(x2 - x1) / face_w, h=(y2 - y1) / face_h,
+            confidence=cand.confidence,
         ))
-    return pred_face_boxes
+    return pred_face_boxes, elapsed_ms
 
 
 def _assign_face_clusters(
@@ -565,6 +574,7 @@ def _run_detection_loop(
         # Phase 2: Bib IoU scoring (only when original image dimensions are valid)
         if img_w > 0 and img_h > 0:
             photo_sc = score_bibs(pred_bib_boxes, label.boxes)
+            photo_result.bib_scorecard = photo_sc
             bib_tp += photo_sc.detection_tp
             bib_fp += photo_sc.detection_fp
             bib_fn += photo_sc.detection_fn
@@ -581,8 +591,10 @@ def _run_detection_loop(
         if face_backend is not None and face_gt is not None:
             photo_face_label = face_gt.get_photo(label.content_hash)
             gt_face_boxes = photo_face_label.boxes if photo_face_label else []
-            pred_face_boxes = _run_face_detection(face_backend, image_data)
+            pred_face_boxes, face_time_ms = _run_face_detection(face_backend, image_data)
+            photo_result.face_detection_time_ms = face_time_ms
             photo_face_sc = score_faces(pred_face_boxes, gt_face_boxes)
+            photo_result.face_scorecard = photo_face_sc
             face_tp += photo_face_sc.detection_tp
             face_fp += photo_face_sc.detection_fp
             face_fn += photo_face_sc.detection_fn
@@ -605,6 +617,7 @@ def _run_detection_loop(
                 gt_face_boxes=photo_face_label.boxes,
                 gt_links=link_gt.get_links(label.content_hash),
             )
+            photo_result.link_scorecard = photo_link_sc
             link_tp += photo_link_sc.link_tp
             link_fp += photo_link_sc.link_fp
             link_fn += photo_link_sc.link_fn

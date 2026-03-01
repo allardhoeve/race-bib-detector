@@ -103,7 +103,33 @@ function updateDetails() {
     document.getElementById('detectedBibs').innerHTML = detectedHtml;
 
     document.getElementById('detailCounts').textContent = `${result.tp} / ${result.fp} / ${result.fn}`;
-    document.getElementById('detailTime').textContent = `${result.detection_time_ms.toFixed(0)}ms`;
+
+    // Bib IoU scorecard
+    const bibSc = result.bib_scorecard;
+    if (bibSc) {
+        document.getElementById('detailBibIoU').textContent =
+            `${bibSc.detection_tp}/${bibSc.detection_fp}/${bibSc.detection_fn} OCR ${bibSc.ocr_correct}/${bibSc.ocr_total}`;
+    } else {
+        document.getElementById('detailBibIoU').textContent = '—';
+    }
+
+    // Face IoU scorecard
+    const faceSc = result.face_scorecard;
+    const faceIoUItem = document.getElementById('faceIoUItem');
+    if (faceSc) {
+        faceIoUItem.style.display = '';
+        document.getElementById('detailFaceIoU').textContent =
+            `${faceSc.detection_tp}/${faceSc.detection_fp}/${faceSc.detection_fn}`;
+    } else {
+        faceIoUItem.style.display = 'none';
+    }
+
+    // Timing
+    let timeText = `${result.detection_time_ms.toFixed(0)}ms`;
+    if (result.face_detection_time_ms != null) {
+        timeText += ` + face ${result.face_detection_time_ms.toFixed(0)}ms`;
+    }
+    document.getElementById('detailTime').textContent = timeText;
 
     const tagsHtml = result.tags.map(tag => `<span class="tag">${tag}</span>`).join('') || '<span style="color:#666">none</span>';
     document.getElementById('detailTags').innerHTML = tagsHtml;

@@ -86,6 +86,7 @@ class BibBox(BaseModel):
     h: float
     number: str = ""
     scope: str = "bib"
+    confidence: float | None = None  # OCR confidence (predictions only)
 
     model_config = ConfigDict(extra="ignore")
 
@@ -212,6 +213,7 @@ class FaceBox(BaseModel):
     identity: str | None = None
     tags: list[str] = Field(default_factory=list)
     cluster_id: int | None = None
+    confidence: float | None = None  # detection confidence (predictions only)
 
     model_config = ConfigDict(extra="ignore")
 

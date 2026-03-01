@@ -242,7 +242,7 @@ class TestRunFaceDetection:
         from benchmarking.runner import _run_face_detection
 
         image_data = _make_png_image(tmp_path).read_bytes()
-        pred_boxes = _run_face_detection(FakeFaceBackend(), image_data)
+        pred_boxes, elapsed_ms = _run_face_detection(FakeFaceBackend(), image_data)
 
         assert len(pred_boxes) == 1
         # FakeFaceBackend: rect_to_bbox(10,10,40,40) -> [10,10->50,50] in 100x100
@@ -250,11 +250,22 @@ class TestRunFaceDetection:
         assert abs(pred_boxes[0].y - 0.1) < 1e-6
         assert abs(pred_boxes[0].w - 0.4) < 1e-6
         assert abs(pred_boxes[0].h - 0.4) < 1e-6
+        assert elapsed_ms >= 0
+
+    def test_face_box_has_confidence(self, tmp_path):
+        """Predicted FaceBox carries confidence from FaceCandidate."""
+        from benchmarking.runner import _run_face_detection
+
+        image_data = _make_png_image(tmp_path).read_bytes()
+        pred_boxes, _ = _run_face_detection(FakeFaceBackend(), image_data)
+        assert pred_boxes[0].confidence == 0.9
 
     def test_corrupt_image_returns_empty_list(self):
-        """Undecodable bytes -> returns [] without raising."""
+        """Undecodable bytes -> returns ([], 0.0) without raising."""
         from benchmarking.runner import _run_face_detection
-        assert _run_face_detection(FakeFaceBackend(), b"") == []
+        boxes, elapsed = _run_face_detection(FakeFaceBackend(), b"")
+        assert boxes == []
+        assert elapsed == 0.0
 
     def test_failed_candidates_excluded(self, tmp_path):
         """Candidates with passed=False are not included."""
@@ -271,7 +282,8 @@ class TestRunFaceDetection:
                 )]
 
         image_data = _make_png_image(tmp_path).read_bytes()
-        assert _run_face_detection(FailingBackend(), image_data) == []
+        boxes, _ = _run_face_detection(FailingBackend(), image_data)
+        assert boxes == []
 
 
 # =============================================================================
@@ -530,3 +542,92 @@ class TestPredLinks:
         assert isinstance(pr.pred_links[0], BibFaceLink)
         assert pr.pred_links[0].bib_index == 0
         assert pr.pred_links[0].face_index == 0
+
+
+class TestScorecardAndConfidence:
+    """Per-photo scorecards and confidence fields are populated (task-061)."""
+
+    def test_bib_box_has_confidence(self, tmp_path):
+        """Predicted bib boxes carry confidence from Detection."""
+        from detection.types import Detection, DetectionResult
+        from benchmarking.runner import _run_bib_detection
+
+        label = BibPhotoLabel(
+            content_hash="e" * 64,
+            boxes=[BibBox(x=0.1, y=0.1, w=0.2, h=0.2, number="42")],
+        )
+        fake_det = Detection(
+            bib_number="42",
+            bbox=rect_to_bbox(10, 10, 20, 20),
+            confidence=0.85,
+            source_candidate=None,
+        )
+        fake_result = DetectionResult(
+            detections=[fake_det],
+            all_candidates=[],
+            ocr_grayscale=np.zeros((100, 100), dtype=np.uint8),
+            original_dimensions=(100, 100),
+            ocr_dimensions=(100, 100),
+            scale_factor=1.0,
+        )
+
+        with patch("benchmarking.runner.detect_bib_numbers", return_value=fake_result):
+            _, pred_boxes, _ = _run_bib_detection(
+                reader=None, image_data=b"fake", label=label, artifact_dir="/tmp/art"
+            )
+
+        assert len(pred_boxes) == 1
+        assert pred_boxes[0].confidence == 0.85
+
+    def test_photo_result_has_scorecards(self, tmp_path):
+        """bib_scorecard, face_scorecard, and face_detection_time_ms are populated."""
+        from detection.types import Detection, DetectionResult
+
+        content_hash = "e" * 64
+        _make_png_image(tmp_path)
+
+        fake_det = Detection(
+            bib_number="42",
+            bbox=rect_to_bbox(10, 10, 20, 20),
+            confidence=0.9,
+            source_candidate=None,
+        )
+        fake_result = DetectionResult(
+            detections=[fake_det],
+            all_candidates=[],
+            ocr_grayscale=np.zeros((100, 100), dtype=np.uint8),
+            original_dimensions=(100, 100),
+            ocr_dimensions=(100, 100),
+            scale_factor=1.0,
+        )
+
+        index = {content_hash: ["photo.png"]}
+        bib_label = BibPhotoLabel(
+            content_hash=content_hash,
+            boxes=[BibBox(x=0.1, y=0.1, w=0.2, h=0.2, number="42")],
+        )
+        face_gt = FaceGroundTruth()
+        face_gt.add_photo(FacePhotoLabel(
+            content_hash=content_hash,
+            boxes=[FaceBox(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
+        ))
+
+        with patch("benchmarking.runner.detect_bib_numbers", return_value=fake_result), \
+             patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
+            results, _, _, _ = _run_detection_loop(
+                reader=None,
+                photos=[bib_label],
+                index=index,
+                images_dir=tmp_path / "images",
+                verbose=False,
+                face_backend=FakeFaceBackend(),
+                face_gt=face_gt,
+            )
+
+        pr = results[0]
+        assert pr.bib_scorecard is not None
+        assert pr.bib_scorecard.detection_tp >= 0
+        assert pr.face_scorecard is not None
+        assert pr.face_scorecard.detection_tp >= 0
+        assert pr.face_detection_time_ms is not None
+        assert pr.face_detection_time_ms >= 0
