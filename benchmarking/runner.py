@@ -631,10 +631,11 @@ def _run_detection_loop(
             status_icon = {"PASS": "✓", "PARTIAL": "◐", "MISS": "✗"}[photo_result.status]
             face_info = f" faces={len(pred_face_boxes)}" if pred_face_boxes else ""
             logger.info(
-                "  [%s/%s] %s %-7s exp=%s det=%s%s (%.0fms)",
+                "  [%s/%s] %s %-7s exp=%s det=%s%s (%.0fms) %s",
                 i + 1, len(photos), status_icon,
                 photo_result.status, photo_result.expected_bibs,
                 photo_result.detected_bibs, face_info, photo_result.detection_time_ms,
+                label.content_hash[:8],
             )
 
     # Post-processing: embed + cluster predicted faces (task-051)
@@ -725,6 +726,32 @@ def _build_run_metadata(
     )
 
 
+def _select_photo_hashes(
+    split: str,
+    meta_store,
+    frozen_set: str | None,
+) -> list[str]:
+    """Choose which photo hashes to run and in what order.
+
+    Photo ordering contract: when running against a frozen set, the
+    returned list follows snapshot.hashes order so that photo index
+    [N/total] in runner output matches #N in the frozen-set gallery
+    (/frozen/{set_name}/).  Both the runner and the gallery template
+    must use snapshot.hashes as the single source of order.
+
+    When --split is not "full", only the intersection of the frozen set
+    and the split is returned, but still in snapshot order.
+    """
+    if frozen_set is not None:
+        from .sets import BenchmarkSnapshot
+        snapshot = BenchmarkSnapshot.load(frozen_set)
+        if split == "full":
+            return list(snapshot.hashes)
+        allowed = set(meta_store.get_hashes_by_split(split))
+        return [h for h in snapshot.hashes if h in allowed]
+    return meta_store.get_hashes_by_split(split)
+
+
 def run_benchmark(
     split: str = "full",
     verbose: bool = True,
@@ -758,13 +785,7 @@ def run_benchmark(
     gt = load_bib_ground_truth()
     index = load_photo_index()
     meta_store = load_photo_metadata()
-    split_hashes = meta_store.get_hashes_by_split(split)
-
-    if frozen_set is not None:
-        from .sets import BenchmarkSnapshot
-        snapshot = BenchmarkSnapshot.load(frozen_set)
-        allowed = set(snapshot.hashes)
-        split_hashes = [h for h in split_hashes if h in allowed]
+    split_hashes = _select_photo_hashes(split, meta_store, frozen_set)
 
     photos = [gt.get_photo(h) or BibPhotoLabel(content_hash=h) for h in split_hashes if gt.has_photo(h) or h in index]
     _validate_inputs(gt, index, photos, split)

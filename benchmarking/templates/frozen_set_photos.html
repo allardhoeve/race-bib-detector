@@ -35,11 +35,17 @@
             aspect-ratio: 1;
             object-fit: cover;
         }
-        .thumb-item .hash {
+        .thumb-item .caption {
             padding: 6px 8px;
             font-family: monospace;
             font-size: 11px;
             color: #888;
+            display: flex;
+            justify-content: space-between;
+        }
+        .thumb-item .photo-num {
+            color: #0f9b0f;
+            font-weight: bold;
         }
         .thumb-item a {
             text-decoration: none;
@@ -63,12 +69,15 @@
         {% endif %}
         <p class="meta-info">Created {{ snapshot.metadata.created_at[:10] }} &middot; {{ snapshot.metadata.photo_count }} photos</p>
 
+        {# Photo ordering contract: iterate snapshot.hashes so that #N here
+           matches [N/total] in the benchmark runner log.  Both use
+           snapshot.hashes as the single source of order. #}
         <div class="thumb-grid">
             {% for h in snapshot.hashes %}
             <div class="thumb-item">
                 <a href="{{ request.url_for('frozen_photo_detail', set_name=set_name, content_hash=h[:8]) }}">
                     <img src="{{ request.url_for('serve_photo', content_hash=h) }}" alt="{{ h[:8] }}" loading="lazy">
-                    <span class="hash">{{ h[:8] }}</span>
+                    <span class="caption"><span class="photo-num">#{{ loop.index }}</span> {{ h[:8] }}</span>
                 </a>
             </div>
             {% endfor %}
