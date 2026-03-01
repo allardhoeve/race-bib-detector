@@ -71,10 +71,10 @@ venv/bin/python -m pytest tests/test_runner_models.py -v
 
 ## Acceptance criteria
 
-- [ ] All existing tests still pass (`venv/bin/python -m pytest`)
-- [ ] New tests pass
-- [ ] `PhotoResult` accepts `None` (default) or `list[BibBox]`/`list[FaceBox]` for the four new fields
-- [ ] Existing run JSON files load without error (backward compatibility)
+- [x] All existing tests still pass (`venv/bin/python -m pytest`)
+- [x] New tests pass
+- [x] `PhotoResult` accepts `None` (default) or `list[BibBox]`/`list[FaceBox]` for the four new fields
+- [x] Existing run JSON files load without error (backward compatibility)
 
 ## Scope boundaries
 

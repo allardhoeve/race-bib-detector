@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import pytest
 
-from benchmarking.runner import FacePipelineConfig, PipelineConfig, RunMetadata
+from benchmarking.ground_truth import BibBox, FaceBox
+from benchmarking.runner import FacePipelineConfig, PhotoResult, PipelineConfig, RunMetadata
 
 
 # =============================================================================
@@ -136,3 +137,59 @@ class TestRunMetadataRoundTrip:
         meta = RunMetadata.model_validate(_base_meta_dict(note="experiment v2"))
         d = meta.model_dump(exclude_none=True)
         assert d["note"] == "experiment v2"
+
+
+# =============================================================================
+# PhotoResult — prediction + GT box fields (task-049)
+# =============================================================================
+
+
+def _photo_result_dict(**overrides) -> dict:
+    base = {
+        "content_hash": "abcd1234",
+        "expected_bibs": [1, 2],
+        "detected_bibs": [1],
+        "tp": 1,
+        "fp": 0,
+        "fn": 1,
+        "status": "PARTIAL",
+        "detection_time_ms": 123.4,
+    }
+    return {**base, **overrides}
+
+
+class TestPhotoResultBoxFields:
+    def test_box_fields_default_none(self):
+        pr = PhotoResult(**_photo_result_dict())
+        assert pr.pred_bib_boxes is None
+        assert pr.pred_face_boxes is None
+        assert pr.gt_bib_boxes is None
+        assert pr.gt_face_boxes is None
+
+    def test_with_boxes_roundtrip(self):
+        bib_boxes = [BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42", scope="bib")]
+        face_boxes = [FaceBox(x=0.5, y=0.6, w=0.1, h=0.1, scope="keep")]
+        pr = PhotoResult(**_photo_result_dict(
+            pred_bib_boxes=bib_boxes,
+            pred_face_boxes=face_boxes,
+            gt_bib_boxes=bib_boxes,
+            gt_face_boxes=face_boxes,
+        ))
+        d = pr.model_dump()
+        reloaded = PhotoResult(**d)
+        assert len(reloaded.pred_bib_boxes) == 1
+        assert reloaded.pred_bib_boxes[0].number == "42"
+        assert len(reloaded.pred_face_boxes) == 1
+        assert reloaded.pred_face_boxes[0].scope == "keep"
+        assert len(reloaded.gt_bib_boxes) == 1
+        assert len(reloaded.gt_face_boxes) == 1
+
+    def test_backward_compat_old_dict_without_box_fields(self):
+        old_dict = _photo_result_dict()
+        # Simulate old JSON that never had these fields
+        assert "pred_bib_boxes" not in old_dict
+        pr = PhotoResult(**old_dict)
+        assert pr.pred_bib_boxes is None
+        assert pr.pred_face_boxes is None
+        assert pr.gt_bib_boxes is None
+        assert pr.gt_face_boxes is None

@@ -81,6 +81,11 @@ class PhotoResult(BaseModel):
     tags: list[str] = Field(default_factory=list)
     artifact_paths: dict[str, str] = Field(default_factory=dict)
     preprocess_metadata: dict[str, Any] = Field(default_factory=dict)
+    # Prediction + GT boxes for inspect overlay (task-049)
+    pred_bib_boxes: list[BibBox] | None = None
+    pred_face_boxes: list[FaceBox] | None = None
+    gt_bib_boxes: list[BibBox] | None = None
+    gt_face_boxes: list[FaceBox] | None = None
 
 
 class BenchmarkMetrics(BaseModel):
