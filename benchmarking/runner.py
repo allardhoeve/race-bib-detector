@@ -180,6 +180,7 @@ class RunMetadata(BaseModel):
     total_runtime_seconds: float
     pipeline_config: PipelineConfig | None = None
     face_pipeline_config: FacePipelineConfig | None = None
+    frozen_set: str | None = None
     note: str | None = None
 
 
@@ -530,11 +531,12 @@ def _run_detection_loop(
 
         if verbose:
             status_icon = {"PASS": "✓", "PARTIAL": "◐", "MISS": "✗"}[photo_result.status]
+            face_info = f" faces={len(pred_face_boxes)}" if pred_face_boxes else ""
             logger.info(
-                "  [%s/%s] %s %-7s exp=%s det=%s (%.0fms)",
+                "  [%s/%s] %s %-7s exp=%s det=%s%s (%.0fms)",
                 i + 1, len(photos), status_icon,
                 photo_result.status, photo_result.expected_bibs,
-                photo_result.detected_bibs, photo_result.detection_time_ms,
+                photo_result.detected_bibs, face_info, photo_result.detection_time_ms,
             )
 
     bib_scorecard = BibScorecard(
@@ -568,6 +570,7 @@ def _build_run_metadata(
     split: str,
     note: str | None,
     start_time: float,
+    frozen_set: str | None = None,
 ) -> RunMetadata:
     """Capture environment and pipeline configuration into RunMetadata.
 
@@ -615,6 +618,7 @@ def _build_run_metadata(
         total_runtime_seconds=total_runtime,
         pipeline_config=pipeline_config,
         face_pipeline_config=face_pipeline_config,
+        frozen_set=frozen_set,
         note=note,
     )
 
@@ -623,6 +627,7 @@ def run_benchmark(
     split: str = "full",
     verbose: bool = True,
     note: str | None = None,
+    frozen_set: str | None = None,
 ) -> BenchmarkRun:
     """Run benchmark on the specified split.
 
@@ -638,6 +643,7 @@ def run_benchmark(
         split: Which split to run ("iteration" or "full").
         verbose: Whether to log per-photo progress.
         note: Optional free-text annotation stored in run metadata.
+        frozen_set: Optional frozen set name to restrict photos to.
 
     Returns:
         BenchmarkRun with all results and metadata, also saved to disk.
@@ -651,11 +657,19 @@ def run_benchmark(
     index = load_photo_index()
     meta_store = load_photo_metadata()
     split_hashes = meta_store.get_hashes_by_split(split)
+
+    if frozen_set is not None:
+        from .sets import BenchmarkSnapshot
+        snapshot = BenchmarkSnapshot.load(frozen_set)
+        allowed = set(snapshot.hashes)
+        split_hashes = [h for h in split_hashes if h in allowed]
+
     photos = [gt.get_photo(h) or BibPhotoLabel(content_hash=h) for h in split_hashes if gt.has_photo(h) or h in index]
     _validate_inputs(gt, index, photos, split)
 
     if verbose:
-        logger.info("Running benchmark on %s photos (split: %s)", len(photos), split)
+        set_label = f", set: {frozen_set}" if frozen_set else ""
+        logger.info("Running benchmark on %s photos (split: %s%s)", len(photos), split, set_label)
         logger.info("Run ID: %s", run_id)
 
     if verbose:
@@ -677,7 +691,7 @@ def run_benchmark(
         reader, photos, index, images_dir, verbose, face_backend, face_gt, link_gt, meta_store
     )
     metrics = compute_metrics(photo_results)
-    metadata = _build_run_metadata(run_id, split, note, start_time)
+    metadata = _build_run_metadata(run_id, split, note, start_time, frozen_set=frozen_set)
 
     benchmark_run = BenchmarkRun(
         metadata=metadata,
@@ -810,6 +824,7 @@ def list_runs() -> list[dict]:
                 run_info["passes"] = run.metadata.face_pipeline_config.summary_passes()
             else:
                 run_info["passes"] = "unknown"
+            run_info["frozen_set"] = run.metadata.frozen_set
             run_info["note"] = run.metadata.note
             runs.append(run_info)
         except Exception:

@@ -45,6 +45,7 @@ def cmd_benchmark_run(args: argparse.Namespace) -> int:
         split="full" if args.full else "iteration",
         quiet=args.quiet,
         note=args.note,
+        frozen_set=args.frozen_set,
         update_baseline=False,
     )
     return cmd_benchmark(bench_args)
@@ -60,6 +61,12 @@ def cmd_benchmark_list(args: argparse.Namespace) -> int:
     """List benchmark runs."""
     from benchmarking.cli import cmd_benchmark_list
     return cmd_benchmark_list(args)
+
+
+def cmd_benchmark_delete(args: argparse.Namespace) -> int:
+    """Delete specific benchmark runs."""
+    from benchmarking.cli import cmd_benchmark_delete
+    return cmd_benchmark_delete(args)
 
 
 def cmd_benchmark_clean(args: argparse.Namespace) -> int:
@@ -164,6 +171,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Suppress per-photo output",
     )
     bench_run.add_argument(
+        "-S", "--set",
+        dest="frozen_set",
+        metavar="NAME",
+        help="Only run against photos in this frozen set",
+    )
+    bench_run.add_argument(
         "--note", "--comment",
         dest="note",
         help="Optional note to attach to the benchmark run",
@@ -210,6 +223,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Skip confirmation prompt",
     )
     bench_clean.set_defaults(_cmd=cmd_benchmark_clean)
+
+    bench_delete = benchmark_subparsers.add_parser(
+        "delete",
+        help="Delete specific benchmark runs by ID",
+    )
+    bench_delete.add_argument(
+        "run_ids",
+        nargs="+",
+        metavar="RUN_ID",
+        help="One or more run IDs (or prefixes) to delete",
+    )
+    bench_delete.add_argument(
+        "-f", "--force",
+        action="store_true",
+        help="Skip confirmation prompt",
+    )
+    bench_delete.set_defaults(_cmd=cmd_benchmark_delete)
 
     bench_baseline = benchmark_subparsers.add_parser(
         "baseline",

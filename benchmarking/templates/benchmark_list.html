@@ -78,6 +78,7 @@
                     <th>Run ID</th>
                     <th>Date</th>
                     <th>Split</th>
+                    <th>Set</th>
                     <th>Photos</th>
                     <th>Precision</th>
                     <th>Recall</th>
@@ -99,6 +100,7 @@
                     </td>
                     <td>{{ run.timestamp[:10] }}</td>
                     <td>{{ run.split }}</td>
+                    <td>{{ run.frozen_set or '' }}</td>
                     <td class="metric">{{ run.total_photos }}</td>
                     <td class="metric">{{ "%.1f%%"|format(run.precision * 100) }}</td>
                     <td class="metric">{{ "%.1f%%"|format(run.recall * 100) }}</td>

@@ -12,6 +12,7 @@
     // shared helpers in labeling.js (navigate, etc.)
     window.PAGE_DATA = JSON.parse(document.getElementById('page-data').textContent);
     var contentHash = PAGE_DATA.content_hash;
+    var readonly = !!PAGE_DATA.readonly;
 
     var bibBoxes = PAGE_DATA.bib_boxes;
     var faceBoxes = PAGE_DATA.face_boxes;
@@ -157,6 +158,7 @@
     // Navigate to url, flushing any pending save first.
     function navigate(url) {
         if (!url) return;
+        if (readonly) { window.location.href = url; return; }
         if (hasPendingChanges) {
             clearTimeout(saveTimer);
             hasPendingChanges = false;
@@ -175,6 +177,7 @@
     // Click handling
     // -------------------------------------------------------------------------
 
+    if (!readonly) {
     canvas.addEventListener('click', function (e) {
         var imgRect = _canvas.getImageRect();
         var pos = canvasPos(e);
@@ -208,6 +211,7 @@
         selectedBibIdx = null;
         redraw();
     });
+    }
 
     // -------------------------------------------------------------------------
     // Canvas sizing (ResizeObserver)
@@ -224,7 +228,7 @@
 
         if (e.key === 'ArrowLeft') { navigate(PAGE_DATA.prevUrl); }
         else if (e.key === 'ArrowRight') { navigate(PAGE_DATA.nextUrl); }
-        else if (e.key === 'n' || e.key === 'Enter') {
+        else if (!readonly && (e.key === 'n' || e.key === 'Enter')) {
             e.preventDefault();
             onSaveDoneBtn();
         }
@@ -235,13 +239,13 @@
     // -------------------------------------------------------------------------
 
     var noLinksBtn = document.getElementById('noLinksBtn');
-    if (noLinksBtn) noLinksBtn.addEventListener('click', onSaveDoneBtn);
+    if (noLinksBtn && !readonly) noLinksBtn.addEventListener('click', onSaveDoneBtn);
 
     // -------------------------------------------------------------------------
     // Initial draw (after image loads)
     // -------------------------------------------------------------------------
 
-    updateProcessedUI();
+    if (!readonly) updateProcessedUI();
 
     if (img.complete && img.naturalWidth) {
         _canvas.resizeCanvas();

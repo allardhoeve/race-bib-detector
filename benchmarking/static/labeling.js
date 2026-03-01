@@ -714,6 +714,7 @@ function setSplit(split) {
 
 function showStatus(message, isError) {
     const status = document.getElementById('status');
+    if (!status) return;
     status.textContent = message;
     status.className = 'status ' + (isError ? 'error' : 'success');
     status.style.display = 'block';

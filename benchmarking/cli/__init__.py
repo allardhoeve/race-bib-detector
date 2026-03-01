@@ -24,6 +24,7 @@ from benchmarking.cli.commands.benchmark import (
     cmd_benchmark_inspect,
     cmd_benchmark_list,
     cmd_benchmark_clean,
+    cmd_benchmark_delete,
     cmd_set_baseline,
     cmd_freeze,
     cmd_frozen_list,
@@ -71,6 +72,12 @@ def build_parser() -> argparse.ArgumentParser:
     benchmark_parser.add_argument(
         "-q", "--quiet", action="store_true",
         help="Suppress per-photo output"
+    )
+    benchmark_parser.add_argument(
+        "-S", "--set",
+        dest="frozen_set",
+        metavar="NAME",
+        help="Only run against photos in this frozen set",
     )
     benchmark_parser.add_argument(
         "--note", "--comment",

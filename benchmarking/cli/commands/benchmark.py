@@ -18,8 +18,10 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     split = args.split or "iteration"
     verbose = not args.quiet
 
+    frozen_set = getattr(args, "frozen_set", None)
+
     try:
-        run = run_benchmark(split=split, verbose=verbose, note=args.note)
+        run = run_benchmark(split=split, verbose=verbose, note=args.note, frozen_set=frozen_set)
     except ValueError as e:
         print(f"Error: {e}")
         return 1
@@ -31,6 +33,8 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
 
     m = run.metrics
     print(f"\nSplit: {split}")
+    if run.metadata.frozen_set:
+        print(f"Set: {run.metadata.frozen_set}")
     print(f"Photos: {m.total_photos}")
     print(f"Runtime: {run.metadata.total_runtime_seconds:.1f}s")
     if run.metadata.note:
@@ -163,22 +167,83 @@ def cmd_benchmark_list(args: argparse.Namespace) -> int:
         return 0
 
     # Print header
-    print(f"{'ID':<10} {'Date':<12} {'Split':<10} {'P':>6} {'R':>6} {'F1':>6} {'Commit':<10} {'Pipeline':<20} {'Passes':<25} {'Note'}")
-    print("-" * 145)
+    print(f"{'ID':<10} {'Date':<12} {'Split':<10} {'Set':<12} {'P':>6} {'R':>6} {'F1':>6} {'Commit':<10} {'Pipeline':<20} {'Passes':<25} {'Note'}")
+    print("-" * 157)
 
     for run in runs:
         baseline_marker = " (baseline)" if run.get("is_baseline") else ""
         date = run["timestamp"][:10]
         pipeline = run.get("pipeline", "unknown")
         passes = run.get("passes", "unknown")
+        frozen_set = run.get("frozen_set") or ""
         note = run.get("note") or ""
         print(
-            f"{run['run_id']:<10} {date:<12} {run['split']:<10} "
+            f"{run['run_id']:<10} {date:<12} {run['split']:<10} {frozen_set:<12} "
             f"{run['precision']:>5.1%} {run['recall']:>5.1%} {run['f1']:>5.1%} "
             f"{run['git_commit']:<10} {pipeline:<20} {passes:<25}{baseline_marker} {note}"
         )
 
     print(f"\nTotal: {len(runs)} runs")
+    return 0
+
+
+def cmd_benchmark_delete(args: argparse.Namespace) -> int:
+    """Delete specific benchmark runs by ID."""
+    import shutil
+    from pathlib import Path
+    from benchmarking.runner import list_runs, load_baseline, RESULTS_DIR
+
+    run_ids: list[str] = args.run_ids
+    runs = {r["run_id"]: r for r in list_runs()}
+    baseline = load_baseline()
+    baseline_id = baseline.metadata.run_id if baseline else None
+
+    # Resolve IDs (support prefix matching)
+    resolved = []
+    for rid in run_ids:
+        matches = [k for k in runs if k.startswith(rid)]
+        if len(matches) == 0:
+            print(f"Error: no run matching '{rid}'")
+            return 1
+        if len(matches) > 1:
+            print(f"Error: '{rid}' is ambiguous, matches: {', '.join(matches)}")
+            return 1
+        resolved.append(matches[0])
+
+    # Show what will be deleted
+    print(f"The following {len(resolved)} run(s) will be deleted:\n")
+    total_size = 0.0
+    for rid in resolved:
+        info = runs[rid]
+        run_dir = RESULTS_DIR / rid
+        size = sum(f.stat().st_size for f in run_dir.rglob("*") if f.is_file())
+        size_mb = size / (1024 * 1024)
+        baseline_marker = " (baseline)" if rid == baseline_id else ""
+        print(f"  {rid}  {info['timestamp'][:10]}  {info['split']:<10}  {size_mb:.1f}MB{baseline_marker}")
+        total_size += size_mb
+
+    print(f"\nTotal: {total_size:.1f}MB")
+
+    if baseline_id in resolved and not args.force:
+        print("\nWarning: this includes the baseline run!")
+
+    # Confirm unless --force
+    if not args.force:
+        response = input("\nProceed with deletion? [y/N] ").strip().lower()
+        if response != "y":
+            print("Aborted.")
+            return 0
+
+    # Delete
+    deleted_count = 0
+    for rid in resolved:
+        run_dir = RESULTS_DIR / rid
+        if run_dir.exists():
+            shutil.rmtree(run_dir)
+            deleted_count += 1
+            print(f"  Deleted: {rid}")
+
+    print(f"\nDeleted {deleted_count} run(s), freed {total_size:.1f}MB")
     return 0
 
 

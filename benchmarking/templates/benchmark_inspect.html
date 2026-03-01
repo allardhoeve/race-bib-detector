@@ -131,6 +131,12 @@
                     <span class="metric-label">Passes:</span>
                     <span class="metric-value">{{ passes_summary }}</span>
                 </span>
+                {% if run.metadata.frozen_set %}
+                <span class="metric pipeline-info">
+                    <span class="metric-label">Set:</span>
+                    <span class="metric-value">{{ run.metadata.frozen_set }}</span>
+                </span>
+                {% endif %}
                 {% if run.metadata.note %}
                 <span class="metric note-info">
                     <span class="metric-label">Note:</span>
