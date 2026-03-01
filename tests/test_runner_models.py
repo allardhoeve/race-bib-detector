@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from benchmarking.ground_truth import BibBox, FaceBox
+from benchmarking.ground_truth import BibBox, BibFaceLink, FaceBox
 from benchmarking.runner import FacePipelineConfig, PhotoResult, PipelineConfig, RunMetadata
 
 
@@ -193,3 +193,20 @@ class TestPhotoResultBoxFields:
         assert pr.pred_face_boxes is None
         assert pr.gt_bib_boxes is None
         assert pr.gt_face_boxes is None
+
+    def test_pred_links_default_none(self):
+        pr = PhotoResult(**_photo_result_dict())
+        assert pr.pred_links is None
+
+    def test_pred_links_serialization(self):
+        links = [BibFaceLink(bib_index=0, face_index=1), BibFaceLink(bib_index=2, face_index=0)]
+        pr = PhotoResult(**_photo_result_dict(pred_links=links))
+        d = pr.model_dump()
+        assert d["pred_links"] == [
+            {"bib_index": 0, "face_index": 1},
+            {"bib_index": 2, "face_index": 0},
+        ]
+        reloaded = PhotoResult(**d)
+        assert len(reloaded.pred_links) == 2
+        assert reloaded.pred_links[0].bib_index == 0
+        assert reloaded.pred_links[1].face_index == 0

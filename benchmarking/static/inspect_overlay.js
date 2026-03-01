@@ -116,6 +116,9 @@ class InspectOverlay {
     if (this.options.showLinks && data.gt_links && data.gt_bib_boxes && data.gt_face_boxes) {
       this._drawLinks(data.gt_links, data.gt_bib_boxes, data.gt_face_boxes, bounds);
     }
+    if (this.options.showLinks && this.options.showPred && data.pred_links && data.pred_bib_boxes && data.pred_face_boxes) {
+      this._drawPredLinks(data.pred_links, data.pred_bib_boxes, data.pred_face_boxes, bounds);
+    }
   }
 
   _drawBox(box, bounds, color, dashed, label, scope) {
@@ -191,5 +194,32 @@ class InspectOverlay {
     }
     ctx.globalAlpha = 1.0;
     ctx.setLineDash([]);
+  }
+
+  _drawPredLinks(links, bibBoxes, faceBoxes, bounds) {
+    const ctx = this.ctx;
+    const { renderW, renderH, offsetX, offsetY } = bounds;
+    ctx.strokeStyle = '#06b6d4';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 0.7;
+
+    for (const link of links) {
+      const bib = bibBoxes[link.bib_index];
+      const face = faceBoxes[link.face_index];
+      if (!bib || !face) continue;
+      if (bib.x == null || face.x == null) continue;
+
+      const bx = (bib.x + bib.w / 2) * renderW + offsetX;
+      const by = (bib.y + bib.h / 2) * renderH + offsetY;
+      const fx = (face.x + face.w / 2) * renderW + offsetX;
+      const fy = (face.y + face.h / 2) * renderH + offsetY;
+
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(fx, fy);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1.0;
   }
 }

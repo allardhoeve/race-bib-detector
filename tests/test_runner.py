@@ -11,10 +11,12 @@ import pytest
 
 from benchmarking.ground_truth import (
     BibBox,
+    BibFaceLink,
     BibPhotoLabel,
     FaceBox,
     FaceGroundTruth,
     FacePhotoLabel,
+    LinkGroundTruth,
 )
 from benchmarking.runner import _run_detection_loop
 from faces.types import FaceCandidate, FaceModelInfo
@@ -466,3 +468,65 @@ class TestDetectionLoopStoresBoxes:
         assert pr.pred_face_boxes == []
         # gt_face_boxes is None when no face GT label exists
         assert pr.gt_face_boxes is None
+
+
+class TestPredLinks:
+    """pred_links is populated when autolink runs (task-060)."""
+
+    def test_photo_result_has_pred_links(self, tmp_path):
+        """Single bib + single face → predict_links produces one link pair."""
+        from detection.types import Detection, DetectionResult
+
+        content_hash = "d" * 64
+        img_path = _make_png_image(tmp_path)
+
+        # Bib detection returning one bib at [10,50,30,20] in 100x100 image
+        fake_det = Detection(
+            bib_number="42",
+            bbox=rect_to_bbox(10, 50, 30, 20),  # pixel rect [10,50->40,70]
+            confidence=0.9,
+            source_candidate=None,
+        )
+        fake_result = DetectionResult(
+            detections=[fake_det],
+            all_candidates=[],
+            ocr_grayscale=np.zeros((100, 100), dtype=np.uint8),
+            original_dimensions=(100, 100),
+            ocr_dimensions=(100, 100),
+            scale_factor=1.0,
+        )
+
+        index = {content_hash: ["photo.png"]}
+        bib_label = BibPhotoLabel(
+            content_hash=content_hash,
+            boxes=[BibBox(x=0.1, y=0.5, w=0.3, h=0.2, number="42")],
+        )
+
+        face_gt = FaceGroundTruth()
+        face_gt.add_photo(FacePhotoLabel(
+            content_hash=content_hash,
+            boxes=[FaceBox(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
+        ))
+
+        link_gt = LinkGroundTruth()
+        link_gt.set_links(content_hash, [BibFaceLink(bib_index=0, face_index=0)])
+
+        with patch("benchmarking.runner.detect_bib_numbers", return_value=fake_result), \
+             patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
+            results, _, _, _ = _run_detection_loop(
+                reader=None,
+                photos=[bib_label],
+                index=index,
+                images_dir=tmp_path / "images",
+                verbose=False,
+                face_backend=FakeFaceBackend(),
+                face_gt=face_gt,
+                link_gt=link_gt,
+            )
+
+        pr = results[0]
+        assert pr.pred_links is not None
+        assert len(pr.pred_links) == 1
+        assert isinstance(pr.pred_links[0], BibFaceLink)
+        assert pr.pred_links[0].bib_index == 0
+        assert pr.pred_links[0].face_index == 0

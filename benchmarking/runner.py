@@ -43,6 +43,7 @@ from .ground_truth import (
     load_face_ground_truth,
     load_link_ground_truth,
     BibBox,
+    BibFaceLink,
     BibPhotoLabel,
     FaceGroundTruth,
     FaceBox,
@@ -87,6 +88,8 @@ class PhotoResult(BaseModel):
     pred_face_boxes: list[FaceBox] | None = None
     gt_bib_boxes: list[BibBox] | None = None
     gt_face_boxes: list[FaceBox] | None = None
+    # Predicted bib↔face links from autolink (task-060)
+    pred_links: list[BibFaceLink] | None = None
 
 
 class BenchmarkMetrics(BaseModel):
@@ -586,6 +589,16 @@ def _run_detection_loop(
 
         if link_gt is not None and photo_face_label is not None:
             autolink = predict_links(pred_bib_boxes, pred_face_boxes)
+            # Persist predicted links as index pairs (task-060)
+            pred_link_list = []
+            for bib_box, face_box in autolink.pairs:
+                try:
+                    bi = pred_bib_boxes.index(bib_box)
+                    fi = pred_face_boxes.index(face_box)
+                    pred_link_list.append(BibFaceLink(bib_index=bi, face_index=fi))
+                except ValueError:
+                    pass  # box not in list (shouldn't happen)
+            photo_result.pred_links = pred_link_list
             photo_link_sc = score_links(
                 predicted_pairs=autolink.pairs,
                 gt_bib_boxes=label.boxes,

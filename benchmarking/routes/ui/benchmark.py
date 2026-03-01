@@ -68,6 +68,7 @@ async def benchmark_inspect(
                 'tags', 'artifact_paths', 'preprocess_metadata',
                 'pred_bib_boxes', 'pred_face_boxes',
                 'gt_bib_boxes', 'gt_face_boxes',
+                'pred_links',
             },
             exclude_none=True,
         )
