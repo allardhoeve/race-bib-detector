@@ -3,18 +3,20 @@
 Unified CLI for the Bib Number Recognizer.
 
 Usage:
-    bnr serve                    # Launch photo viewer website (port 30001)
-    bnr scan <path>              # Scan local directory or file for bib numbers
-    bnr album list               # List albums and photo counts
-    bnr album forget <album_id>  # Forget an album (DB only)
-    bnr faces cluster --album X  # Cluster face embeddings for an album
-    bnr benchmark prepare <path> # Import photos into benchmark set
-    bnr benchmark run            # Run benchmark on iteration split
-    bnr benchmark run --full     # Run benchmark on all photos
-    bnr benchmark ui             # Launch benchmark web UI (labels + inspection)
-    bnr benchmark list           # List saved benchmark runs
-    bnr benchmark clean          # Clean old benchmark runs
-    bnr benchmark baseline       # Update baseline if metrics improved
+    bnr serve                         # Launch photo viewer website (port 30001)
+    bnr scan <path>                   # Scan local directory or file for bib numbers
+    bnr album list                    # List albums and photo counts
+    bnr album forget <album_id>       # Forget an album (DB only)
+    bnr faces cluster --album X       # Cluster face embeddings for an album
+    bnr benchmark prepare <path>      # Import photos into benchmark set
+    bnr benchmark run                 # Run benchmark on iteration split
+    bnr benchmark run -s full         # Run benchmark on all photos
+    bnr benchmark ui                  # Launch benchmark web UI (labels + inspection)
+    bnr benchmark list                # List saved benchmark runs
+    bnr benchmark clean               # Clean old benchmark runs
+    bnr benchmark baseline            # Update baseline if metrics improved
+    bnr benchmark tune                # Sweep face detection parameters
+    bnr benchmark inspect             # Show URL to inspect latest run
 """
 
 import argparse
@@ -37,78 +39,13 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_benchmark_run(args: argparse.Namespace) -> int:
-    """Run benchmark."""
-    from benchmarking.cli import cmd_benchmark
-
-    bench_args = argparse.Namespace(
-        split="full" if args.full else "iteration",
-        quiet=args.quiet,
-        note=args.note,
-        frozen_set=args.frozen_set,
-        update_baseline=False,
-    )
-    return cmd_benchmark(bench_args)
-
-
-def cmd_benchmark_ui(args: argparse.Namespace) -> int:
-    """Launch benchmark web UI."""
-    from benchmarking.web_app import main
-    return main([])
-
-
-def cmd_benchmark_list(args: argparse.Namespace) -> int:
-    """List benchmark runs."""
-    from benchmarking.cli import cmd_benchmark_list
-    return cmd_benchmark_list(args)
-
-
-def cmd_benchmark_delete(args: argparse.Namespace) -> int:
-    """Delete specific benchmark runs."""
-    from benchmarking.cli import cmd_benchmark_delete
-    return cmd_benchmark_delete(args)
-
-
-def cmd_benchmark_clean(args: argparse.Namespace) -> int:
-    """Clean old benchmark runs."""
-    from benchmarking.cli import cmd_benchmark_clean
-    return cmd_benchmark_clean(args)
-
-
-def cmd_benchmark_baseline(args: argparse.Namespace) -> int:
-    """Update baseline if metrics improved."""
-    from benchmarking.cli import cmd_update_baseline
-    return cmd_update_baseline(args)
-
-
-def cmd_benchmark_prepare(args: argparse.Namespace) -> int:
-    """Prepare benchmark photos from a source directory."""
-    from benchmarking.cli import cmd_prepare
-    return cmd_prepare(args)
-
-
-def cmd_benchmark_scan(args: argparse.Namespace) -> int:
-    """Scan photos directory for benchmark."""
-    from benchmarking.cli import cmd_scan
-    return cmd_scan(args)
-
-
-def cmd_benchmark_stats(args: argparse.Namespace) -> int:
-    """Show benchmark statistics."""
-    from benchmarking.cli import cmd_stats
-    return cmd_stats(args)
-
-
-def cmd_benchmark_freeze(args: argparse.Namespace) -> int:
-    """Create a frozen snapshot of the current benchmark photo set."""
-    from benchmarking.cli import cmd_freeze
-    return cmd_freeze(args)
-
-
-def cmd_benchmark_frozen_list(args: argparse.Namespace) -> int:
-    """List all frozen benchmark snapshots."""
-    from benchmarking.cli import cmd_frozen_list
-    return cmd_frozen_list(args)
+def _lazy_cmd(module_path: str, func_name: str):
+    """Return a function that lazily imports and calls a command function."""
+    def _wrapper(args: argparse.Namespace) -> int:
+        import importlib
+        mod = importlib.import_module(module_path)
+        return getattr(mod, func_name)(args)
+    return _wrapper
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -126,6 +63,8 @@ def build_parser() -> argparse.ArgumentParser:
     serve_parser.set_defaults(_cmd=cmd_serve)
 
     add_scan_subparser(subparsers)
+
+    # ---- benchmark subcommands ------------------------------------------------
 
     benchmark_parser = subparsers.add_parser(
         "benchmark",
@@ -154,16 +93,17 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Clear all labels (keep photos)",
     )
-    bench_prepare.set_defaults(_cmd=cmd_benchmark_prepare)
+    bench_prepare.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.photos", "cmd_prepare"))
 
     bench_run = benchmark_subparsers.add_parser(
         "run",
         help="Run benchmark",
     )
     bench_run.add_argument(
-        "--full",
-        action="store_true",
-        help="Run on all photos (default: iteration split for fast feedback)",
+        "-s", "--split",
+        choices=["iteration", "full"],
+        default="iteration",
+        help="Which split to run (default: iteration)",
     )
     bench_run.add_argument(
         "-q", "--quiet",
@@ -181,19 +121,19 @@ def build_parser() -> argparse.ArgumentParser:
         dest="note",
         help="Optional note to attach to the benchmark run",
     )
-    bench_run.set_defaults(_cmd=cmd_benchmark_run)
+    bench_run.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.benchmark", "cmd_benchmark"))
 
     bench_ui = benchmark_subparsers.add_parser(
         "ui",
         help="Launch web UI for labeling and inspection (port 30002)",
     )
-    bench_ui.set_defaults(_cmd=cmd_benchmark_ui)
+    bench_ui.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.photos", "cmd_ui"))
 
     bench_list = benchmark_subparsers.add_parser(
         "list",
         help="List saved benchmark runs",
     )
-    bench_list.set_defaults(_cmd=cmd_benchmark_list)
+    bench_list.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.benchmark", "cmd_benchmark_list"))
 
     bench_clean = benchmark_subparsers.add_parser(
         "clean",
@@ -222,7 +162,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip confirmation prompt",
     )
-    bench_clean.set_defaults(_cmd=cmd_benchmark_clean)
+    bench_clean.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.benchmark", "cmd_benchmark_clean"))
 
     bench_delete = benchmark_subparsers.add_parser(
         "delete",
@@ -239,7 +179,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip confirmation prompt",
     )
-    bench_delete.set_defaults(_cmd=cmd_benchmark_delete)
+    bench_delete.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.benchmark", "cmd_benchmark_delete"))
 
     bench_baseline = benchmark_subparsers.add_parser(
         "baseline",
@@ -250,19 +190,19 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Update without prompting",
     )
-    bench_baseline.set_defaults(_cmd=cmd_benchmark_baseline)
+    bench_baseline.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.benchmark", "cmd_set_baseline"))
 
     bench_scan = benchmark_subparsers.add_parser(
         "scan",
         help="Scan photos directory and update index",
     )
-    bench_scan.set_defaults(_cmd=cmd_benchmark_scan)
+    bench_scan.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.photos", "cmd_scan"))
 
     bench_stats = benchmark_subparsers.add_parser(
         "stats",
         help="Show labeling statistics",
     )
-    bench_stats.set_defaults(_cmd=cmd_benchmark_stats)
+    bench_stats.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.photos", "cmd_stats"))
 
     bench_freeze = benchmark_subparsers.add_parser(
         "freeze",
@@ -280,13 +220,61 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Include photos that are not fully labeled in all dimensions",
     )
-    bench_freeze.set_defaults(_cmd=cmd_benchmark_freeze)
+    bench_freeze.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.benchmark", "cmd_freeze"))
 
     bench_frozen_list = benchmark_subparsers.add_parser(
         "frozen-list",
         help="List all frozen snapshots",
     )
-    bench_frozen_list.set_defaults(_cmd=cmd_benchmark_frozen_list)
+    bench_frozen_list.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.benchmark", "cmd_frozen_list"))
+
+    bench_tune = benchmark_subparsers.add_parser(
+        "tune",
+        help="Sweep face detection parameters and print ranked results",
+    )
+    bench_tune.add_argument(
+        "--config",
+        metavar="YAML",
+        help="Path to tune config YAML (e.g. benchmarking/tune_configs/face_default.yaml)",
+    )
+    bench_tune.add_argument(
+        "--params",
+        nargs="+",
+        metavar="KEY=v1,v2",
+        help="Inline param grid (e.g. FACE_DNN_CONFIDENCE_MIN=0.2,0.3,0.4)",
+    )
+    bench_tune.add_argument(
+        "-s", "--split",
+        choices=["iteration", "full"],
+        default=None,
+        help="Photo split to evaluate on (overrides config)",
+    )
+    bench_tune.add_argument(
+        "--metric",
+        choices=["face_f1", "face_recall", "face_precision"],
+        default=None,
+        help="Metric to rank by (overrides config)",
+    )
+    bench_tune.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        help="Suppress per-combo progress output",
+    )
+    bench_tune.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.tune", "cmd_tune"))
+
+    bench_inspect = benchmark_subparsers.add_parser(
+        "inspect",
+        help="Show URL to inspect a benchmark run",
+    )
+    bench_inspect.add_argument(
+        "run_id",
+        nargs="?",
+        default=None,
+        help="Run ID to inspect (defaults to latest)",
+    )
+    bench_inspect.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.benchmark", "cmd_benchmark_inspect"))
+
+    # ---- other top-level subcommands ------------------------------------------
 
     add_album_subparser(subparsers)
     add_cache_subparser(subparsers)

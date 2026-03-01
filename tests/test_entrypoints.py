@@ -8,7 +8,6 @@ ENTRYPOINTS = [
     "list_detections",
     "web_viewer",
     "web.app",
-    "benchmarking.cli",
     "benchmarking.web_app",
 ]
 
