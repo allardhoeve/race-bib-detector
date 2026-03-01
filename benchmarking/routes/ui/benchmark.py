@@ -101,7 +101,15 @@ async def benchmark_inspect(
 @ui_benchmark_router.get('/media/artifacts/{run_id}/{hash_prefix}/{image_type}')
 async def serve_artifact(run_id: str, hash_prefix: str, image_type: str):
     """Serve artifact image from run directory."""
-    artifact_dir = RESULTS_DIR / run_id / "images" / hash_prefix
+    images_dir = RESULTS_DIR / run_id / "images"
+    # Support short hash prefixes: find the matching directory
+    artifact_dir = images_dir / hash_prefix
+    if not artifact_dir.is_dir():
+        matches = [d for d in images_dir.iterdir() if d.name.startswith(hash_prefix)]
+        if len(matches) == 1:
+            artifact_dir = matches[0]
+        else:
+            raise HTTPException(status_code=404)
 
     filename_map = {
         'original': 'original.jpg',
