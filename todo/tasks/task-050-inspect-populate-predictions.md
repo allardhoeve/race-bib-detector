@@ -67,10 +67,10 @@ venv/bin/python bnr.py benchmark run -s iteration
 
 ## Acceptance criteria
 
-- [ ] All existing tests still pass (`venv/bin/python -m pytest`)
-- [ ] New tests pass
-- [ ] After a benchmark run, the run JSON contains `pred_bib_boxes` and `gt_bib_boxes` in each `photo_results` entry
-- [ ] When face detection is enabled, `pred_face_boxes` and `gt_face_boxes` are also populated
+- [x] All existing tests still pass (`venv/bin/python -m pytest`)
+- [x] New tests pass
+- [x] After a benchmark run, the run JSON contains `pred_bib_boxes` and `gt_bib_boxes` in each `photo_results` entry
+- [x] When face detection is enabled, `pred_face_boxes` and `gt_face_boxes` are also populated
 
 ## Scope boundaries
 

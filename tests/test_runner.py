@@ -10,6 +10,7 @@ import numpy as np
 import pytest
 
 from benchmarking.ground_truth import (
+    BibBox,
     BibPhotoLabel,
     FaceBox,
     FaceGroundTruth,
@@ -400,3 +401,68 @@ class TestCompareToBaseline:
         monkeypatch.setattr(r, "BASELINE_PATH", tmp_path / "none.json")
         j, d = compare_to_baseline(_make_run_for_cmp(0.8, 0.8))
         assert j == "NO_CHANGE" and "reason" in d
+
+
+# =============================================================================
+# Detection loop stores prediction + GT boxes on PhotoResult (task-050)
+# =============================================================================
+
+
+class TestDetectionLoopStoresBoxes:
+    """Verify _run_detection_loop populates the pred/gt box fields on PhotoResult."""
+
+    def _run_loop(self, tmp_path, face_backend=None, face_gt=None):
+        content_hash = "d" * 64
+        _make_png_image(tmp_path)
+        index = {content_hash: ["photo.png"]}
+
+        gt_bib_boxes = [BibBox(x=0.1, y=0.1, w=0.2, h=0.2, number="42")]
+        bib_label = BibPhotoLabel(
+            content_hash=content_hash,
+            boxes=gt_bib_boxes,
+        )
+
+        with patch("benchmarking.runner.detect_bib_numbers") as mock_det, \
+             patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
+            mock_det.return_value = _fake_bib_result()
+            results, _, _, _ = _run_detection_loop(
+                reader=None,
+                photos=[bib_label],
+                index=index,
+                images_dir=tmp_path / "images",
+                verbose=False,
+                face_backend=face_backend,
+                face_gt=face_gt,
+            )
+        return results[0], gt_bib_boxes
+
+    def test_stores_pred_bib_boxes(self, tmp_path):
+        pr, _ = self._run_loop(tmp_path)
+        assert pr.pred_bib_boxes is not None
+        assert isinstance(pr.pred_bib_boxes, list)
+
+    def test_stores_gt_bib_boxes(self, tmp_path):
+        pr, gt_bib_boxes = self._run_loop(tmp_path)
+        assert pr.gt_bib_boxes is not None
+        assert len(pr.gt_bib_boxes) == 1
+        assert pr.gt_bib_boxes[0].number == "42"
+
+    def test_stores_face_boxes_with_backend(self, tmp_path):
+        content_hash = "d" * 64
+        face_gt = FaceGroundTruth()
+        face_gt.add_photo(FacePhotoLabel(
+            content_hash=content_hash,
+            boxes=[FaceBox(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
+        ))
+        pr, _ = self._run_loop(tmp_path, face_backend=FakeFaceBackend(), face_gt=face_gt)
+        assert pr.pred_face_boxes is not None
+        assert len(pr.pred_face_boxes) >= 1
+        assert pr.gt_face_boxes is not None
+        assert len(pr.gt_face_boxes) == 1
+
+    def test_face_boxes_without_backend(self, tmp_path):
+        pr, _ = self._run_loop(tmp_path)
+        # pred_face_boxes is [] (empty list, not None) when no face backend
+        assert pr.pred_face_boxes == []
+        # gt_face_boxes is None when no face GT label exists
+        assert pr.gt_face_boxes is None

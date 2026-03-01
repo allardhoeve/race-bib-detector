@@ -510,6 +510,10 @@ def _run_detection_loop(
             bib_ocr_correct += photo_sc.ocr_correct
             bib_ocr_total += photo_sc.ocr_total
 
+        # Store prediction + GT bib boxes on result (task-050)
+        photo_result.pred_bib_boxes = pred_bib_boxes
+        photo_result.gt_bib_boxes = label.boxes
+
         # Phase 3: Face detection + scoring (optional)
         pred_face_boxes: list[FaceBox] = []
         photo_face_label = None
@@ -533,6 +537,11 @@ def _run_detection_loop(
             link_tp += photo_link_sc.link_tp
             link_fp += photo_link_sc.link_fp
             link_fn += photo_link_sc.link_fn
+
+        # Store prediction + GT face boxes on result (task-050)
+        photo_result.pred_face_boxes = pred_face_boxes
+        if photo_face_label is not None:
+            photo_result.gt_face_boxes = photo_face_label.boxes
 
         if verbose:
             status_icon = {"PASS": "✓", "PARTIAL": "◐", "MISS": "✗"}[photo_result.status]
