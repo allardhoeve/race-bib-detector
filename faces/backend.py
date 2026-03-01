@@ -119,11 +119,16 @@ class OpenCVDnnSsdFaceBackend:
 
     proto_path: str = config.FACE_DNN_PROTO_PATH
     model_path: str = config.FACE_DNN_MODEL_PATH
+    input_size: tuple[int, int] | None = None
     confidence_min: float | None = None
     nms_iou: float | None = None
     fallback_confidence_min: float | None = None
 
     def __post_init__(self) -> None:
+        if self.input_size is None:
+            self.input_size = config.FACE_DNN_INPUT_SIZE
+        if isinstance(self.input_size, list):
+            self.input_size = tuple(self.input_size)
         if self.confidence_min is None:
             self.confidence_min = config.FACE_DNN_CONFIDENCE_MIN
         if self.nms_iou is None:
@@ -153,7 +158,7 @@ class OpenCVDnnSsdFaceBackend:
         blob = cv2.dnn.blobFromImage(
             image,
             scalefactor=config.FACE_DNN_SCALE,
-            size=config.FACE_DNN_INPUT_SIZE,
+            size=self.input_size,
             mean=config.FACE_DNN_MEAN,
             swapRB=config.FACE_DNN_SWAP_RB,
             crop=False,

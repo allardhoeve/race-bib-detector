@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 # Map from config-level YAML parameter names to OpenCVDnnSsdFaceBackend field names.
 _PARAM_TO_BACKEND_KWARG: dict[str, str] = {
+    "FACE_DNN_INPUT_SIZE": "input_size",
     "FACE_DNN_CONFIDENCE_MIN": "confidence_min",
     "FACE_DNN_NMS_IOU": "nms_iou",
     "FACE_DNN_FALLBACK_CONFIDENCE_MIN": "fallback_confidence_min",

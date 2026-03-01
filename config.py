@@ -113,7 +113,7 @@ FACE_DETECTION_EYE_MIN_SIZE = (15, 15)
 
 FACE_DNN_PROTO_PATH = "faces/models/opencv_dnn_ssd/deploy.prototxt"
 FACE_DNN_MODEL_PATH = "faces/models/opencv_dnn_ssd/res10_300x300_ssd_iter_140000.caffemodel"
-FACE_DNN_INPUT_SIZE = (300, 300)
+FACE_DNN_INPUT_SIZE = (500, 500)
 FACE_DNN_MEAN = (104.0, 177.0, 123.0)
 FACE_DNN_SCALE = 1.0
 FACE_DNN_SWAP_RB = False

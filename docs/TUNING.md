@@ -34,10 +34,11 @@ a set of hand-crafted features ("Haar features"). Less accurate than a neural ne
 but requires no GPU and no deep-learning model file.
 
 **DNN SSD — Deep Neural Network, Single Shot Detector**
-The primary face detector. A pre-trained convolutional neural network (ResNet-10 backbone,
-300×300 input) that detects faces in a single forward pass without a separate region
-proposal step. More accurate than Haar, especially on partially occluded or low-contrast
-faces.
+The primary face detector. A pre-trained convolutional neural network (ResNet-10 backbone)
+that detects faces in a single forward pass without a separate region proposal step.
+More accurate than Haar, especially on partially occluded or low-contrast faces.
+The input image is resized to a fixed resolution (see `FACE_DNN_INPUT_SIZE`) before
+the forward pass — this resolution directly controls how much detail the network sees.
 
 ### Scoring metrics
 
@@ -69,10 +70,42 @@ because optimising only precision or only recall produces degenerate solutions
 
 Config key | Default | Location
 --- | --- | ---
+`FACE_DNN_INPUT_SIZE` | `(300, 300)` | `config.py`
 `FACE_DNN_CONFIDENCE_MIN` | `0.3` | `config.py`
 `FACE_DNN_NMS_IOU` | `0.4` | `config.py`
 `FACE_DNN_FALLBACK_CONFIDENCE_MIN` | `0.15` | `config.py`
 `FACE_DNN_FALLBACK_MAX` | `2` | `config.py`
+
+### `FACE_DNN_INPUT_SIZE`
+
+The resolution the input image is resized to before the DNN forward pass. The network
+always operates at this fixed size regardless of the original photo dimensions.
+
+**Smaller value** (e.g. 300×300) → faces in wide group shots become very few pixels,
+the network cannot distinguish them from background noise. Fast.
+
+**Larger value** (e.g. 500×500) → more pixel detail preserved, the network can detect
+smaller and more distant faces. Slower, and at very large sizes (800+) the model starts
+hallucinating faces on textures it was never trained to see at that scale.
+
+This is often the **single most impactful parameter** for face recall. Confidence and
+NMS thresholds are downstream filters — if the network never sees a face because the
+input was too small, no threshold adjustment will recover it.
+
+Typical sweep range: 300 – 800 (square). Values must be a `(width, height)` tuple.
+
+#### Tuning results (2026-03-01, iteration split, 112 photos)
+
+| Input size | Precision | Recall | F1 |
+|---|---|---|---|
+| 300×300 | 91.8% | 76.1% | 83.2% |
+| 400×400 | 85.7% | 85.2% | **85.5%** |
+| 500×500 | 79.9% | 90.3% | 84.8% |
+| 600×600 | 78.4% | 90.9% | 84.2% |
+| 800×800 | 64.6% | 89.2% | 74.9% |
+
+400×400 is the sweet spot: +9pp recall over 300×300 for a modest precision drop.
+Going beyond 500 gains little recall but precision degrades significantly.
 
 ### `FACE_DNN_CONFIDENCE_MIN`
 
@@ -199,7 +232,8 @@ discarded as duplicates. Prevents the same face from appearing twice in the outp
 The parameters are applied in this order during a single photo scan:
 
 ```
-DNN forward pass
+Resize image to FACE_DNN_INPUT_SIZE
+  → DNN forward pass
   → filter by FACE_DNN_CONFIDENCE_MIN
   → NMS with FACE_DNN_NMS_IOU
   → if no boxes: second pass at FACE_DNN_FALLBACK_CONFIDENCE_MIN (cap: FACE_DNN_FALLBACK_MAX)
@@ -339,10 +373,90 @@ The region is symmetric horizontally because camera angle varies per event.
 
 | Symptom | Likely cause | What to adjust |
 |---|---|---|
+| Many missed faces (low recall) | Input too small for the model to see faces | Increase `FACE_DNN_INPUT_SIZE` |
 | Many missed faces (low recall) | Threshold too high | Lower `FACE_DNN_CONFIDENCE_MIN` |
+| Many ghost faces (low precision) | Input too large, model hallucinates | Decrease `FACE_DNN_INPUT_SIZE` |
 | Many ghost faces (low precision) | Threshold too low | Raise `FACE_DNN_CONFIDENCE_MIN` |
 | Duplicate boxes on same face | NMS too permissive | Lower `FACE_DNN_NMS_IOU` |
 | Adjacent faces suppressing each other | NMS too aggressive | Raise `FACE_DNN_NMS_IOU` |
 | Faces missed in group shots | Haar not triggering | Lower `FACE_FALLBACK_MIN_FACE_COUNT` |
 | Haar adding too many ghosts | Haar too sensitive | Raise `FACE_DETECTION_MIN_NEIGHBORS` |
 | Small/distant faces missed | Min size too large | Lower `FACE_DETECTION_MIN_SIZE` |
+
+---
+
+## How to run a tuning session
+
+This walkthrough uses the `FACE_DNN_INPUT_SIZE` sweep as a concrete example.
+
+### Step 1: Create a sweep config
+
+Create a YAML file in `benchmarking/tune_configs/` defining the parameter grid:
+
+```yaml
+# benchmarking/tune_configs/face_input_size.yaml
+params:
+  FACE_DNN_INPUT_SIZE:
+    - [300, 300]
+    - [400, 400]
+    - [500, 500]
+    - [600, 600]
+    - [800, 800]
+split: iteration
+metric: face_f1
+```
+
+- **`params`**: each key is a config-level parameter name (see `_PARAM_TO_BACKEND_KWARG`
+  in `benchmarking/tuner.py` for the mapping to backend constructor fields). Values are
+  lists — the sweeper tries every combination (cartesian product).
+- **`split`**: which labeled photo set to evaluate on. Use `iteration` for fast feedback,
+  `full` to validate the final choice.
+- **`metric`**: the metric to sort results by (`face_f1`, `face_recall`, `face_precision`).
+
+### Step 2: Run the sweep
+
+```bash
+venv/bin/python bnr.py benchmark tune --config benchmarking/tune_configs/face_input_size.yaml
+```
+
+Or use inline parameters for a quick one-off (works for scalar values, not tuples):
+
+```bash
+venv/bin/python bnr.py benchmark tune --params FACE_DNN_CONFIDENCE_MIN=0.2,0.3,0.4
+```
+
+The output is a ranked table showing precision, recall, and F1 for each combination.
+
+### Step 3: Interpret the results
+
+Look at the full table, not just the top-ranked row. Consider:
+
+- **Is recall or precision more important for your use case?** For photo retrieval,
+  a false-positive face is cheap (won't match anyone's selfie) but a false-negative
+  means a runner can't find their photos.
+- **Is the spread meaningful?** If all combinations score within 1–2pp, the parameter
+  doesn't matter and you should look elsewhere.
+- **Watch for cliffs.** A smooth degradation is fine; a sudden drop (e.g. 800×800
+  precision falling to 64%) means you've exceeded the model's operating range.
+
+### Step 4: Apply the winning value
+
+Edit `config.py` with the chosen value:
+
+```python
+FACE_DNN_INPUT_SIZE = (400, 400)   # was (300, 300)
+```
+
+### Step 5: Validate on the full split
+
+Run a full benchmark to confirm the improvement holds across all labeled photos:
+
+```bash
+venv/bin/python bnr.py benchmark run --split full
+```
+
+Compare against the previous baseline. If results are better, set the new baseline:
+
+```bash
+venv/bin/python bnr.py benchmark set-baseline
+```
