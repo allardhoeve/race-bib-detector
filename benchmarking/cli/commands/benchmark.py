@@ -124,7 +124,7 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
                 print("JUDGEMENT: ➖ NO CHANGE")
             print("=" * 60)
         else:
-            print("\nNo baseline exists. Run 'bnr benchmark set-baseline' to create one.")
+            print("\nNo baseline exists. Run 'bnr benchmark baseline' to create one.")
     else:
         print("\n(Baseline comparison only available for 'full' split)")
 

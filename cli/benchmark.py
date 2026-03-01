@@ -142,6 +142,12 @@ def add_benchmark_subparser(subparsers: argparse._SubParsersAction) -> None:
         help="Update baseline if metrics improved",
     )
     bench_baseline.add_argument(
+        "run_id",
+        nargs="?",
+        default=None,
+        help="Run ID to set as baseline (default: latest run)",
+    )
+    bench_baseline.add_argument(
         "-f", "--force",
         action="store_true",
         help="Update without prompting",
