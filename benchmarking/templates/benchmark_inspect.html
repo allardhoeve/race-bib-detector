@@ -151,6 +151,32 @@
         .overlay-controls input[type="checkbox"] {
             accent-color: #0f9b0f;
         }
+        .overlay-legend {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+            font-size: 11px;
+            color: #777;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .legend-swatch {
+            display: inline-block;
+            width: 14px;
+            height: 10px;
+            border-radius: 2px;
+        }
+        .legend-swatch.dashed {
+            background: none;
+            border-width: 1.5px;
+            border-style: dashed;
+        }
+        .legend-swatch.solid {
+            border: none;
+        }
 {% endblock %}
 {% block body %}
     <div class="header">
@@ -242,6 +268,14 @@
                 <label><input type="checkbox" id="show-gt" checked> GT</label>
                 <label><input type="checkbox" id="show-pred" checked> Predictions</label>
                 <label><input type="checkbox" id="show-links" checked> Links</label>
+                <div class="overlay-legend">
+                    <span class="legend-item"><span class="legend-swatch solid" style="background:#22c55e;"></span>Pred bib (TP)</span>
+                    <span class="legend-item"><span class="legend-swatch solid" style="background:#ef4444;"></span>Pred bib (FP)</span>
+                    <span class="legend-item"><span class="legend-swatch dashed" style="border-color:#3b82f6;"></span>GT bib</span>
+                    <span class="legend-item"><span class="legend-swatch solid" style="background:#14b8a6;"></span>Pred face</span>
+                    <span class="legend-item"><span class="legend-swatch dashed" style="border-color:#8b5cf6;"></span>GT face</span>
+                    <span class="legend-item"><span class="legend-swatch dashed" style="border-color:#f59e0b;"></span>GT link</span>
+                </div>
             </div>
 
             <div class="image-panel">

@@ -133,7 +133,7 @@ class InspectOverlay {
     ctx.setLineDash(dashed ? [6, 3] : []);
     ctx.strokeRect(x, y, bw, bh);
 
-    // Draw label background + text above box
+    // Draw label: GT (dashed) below the box, predictions (solid) above
     const parts = [];
     if (label) parts.push(label);
     if (scope && scope !== 'bib' && scope !== 'keep') parts.push(scope);
@@ -143,8 +143,15 @@ class InspectOverlay {
       ctx.font = '11px monospace';
       const textW = ctx.measureText(text).width + 6;
       const textH = 15;
-      const labelY = y - textH;
-      const drawY = labelY < 0 ? y : labelY;
+      let drawY;
+      if (dashed) {
+        // GT label below box
+        drawY = y + bh;
+      } else {
+        // Prediction label above box
+        drawY = y - textH;
+        if (drawY < 0) drawY = y;
+      }
 
       ctx.fillStyle = color;
       ctx.globalAlpha = 0.85;
