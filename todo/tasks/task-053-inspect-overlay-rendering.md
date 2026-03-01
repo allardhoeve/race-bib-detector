@@ -190,15 +190,15 @@ venv/bin/python bnr.py benchmark ui
 
 ## Acceptance criteria
 
-- [ ] All existing tests still pass (`venv/bin/python -m pytest`)
-- [ ] Canvas overlay renders over inspect page photo
-- [ ] GT bib boxes drawn as blue dashed rectangles with number labels
-- [ ] Predicted bib boxes drawn as green (TP) or red (FP) solid rectangles
-- [ ] Face boxes drawn when face detection data is present
-- [ ] Toggle checkboxes control visibility of each box category
-- [ ] Link lines connect linked bib↔face GT pairs
-- [ ] Overlay resizes correctly when window resizes
-- [ ] Old runs (without box data) show no overlay, no JS errors
+- [x] All existing tests still pass (`venv/bin/python -m pytest`)
+- [x] Canvas overlay renders over inspect page photo
+- [x] GT bib boxes drawn as blue dashed rectangles with number labels
+- [x] Predicted bib boxes drawn as green (TP) or red (FP) solid rectangles
+- [x] Face boxes drawn when face detection data is present
+- [x] Toggle checkboxes control visibility of each box category
+- [x] Link lines connect linked bib↔face GT pairs
+- [x] Overlay resizes correctly when window resizes
+- [x] Old runs (without box data) show no overlay, no JS errors
 
 ## Scope boundaries
 

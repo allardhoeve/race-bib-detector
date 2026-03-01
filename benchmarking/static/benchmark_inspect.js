@@ -127,6 +127,7 @@ function updateImage() {
             .replace('TYPE', currentImageType);
     }
     document.getElementById('mainImage').src = imagePath;
+    updateOverlay();
 }
 
 function showImage(imageType) {
@@ -161,6 +162,47 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// --- Overlay setup (task-053) ---
+let overlay = null;
+
+function initOverlay() {
+    const imgEl = document.getElementById('mainImage');
+    const canvasEl = document.getElementById('box-overlay');
+    if (!imgEl || !canvasEl || typeof InspectOverlay === 'undefined') return;
+
+    overlay = new InspectOverlay(imgEl, canvasEl);
+
+    // Wire toggle checkboxes
+    const toggleMap = {
+        'show-bib-boxes': 'showBibBoxes',
+        'show-face-boxes': 'showFaceBoxes',
+        'show-gt': 'showGT',
+        'show-pred': 'showPred',
+        'show-links': 'showLinks',
+    };
+    for (const [elId, optKey] of Object.entries(toggleMap)) {
+        const el = document.getElementById(elId);
+        if (el) {
+            el.addEventListener('change', () => {
+                overlay.options[optKey] = el.checked;
+                overlay.draw();
+            });
+        }
+    }
+}
+
+function updateOverlay() {
+    if (!overlay) return;
+    // Only show overlay on the original image tab
+    const showOverlay = currentImageType === 'original';
+    overlay.canvas.style.display = showOverlay ? '' : 'none';
+    document.getElementById('overlayControls').style.display = showOverlay ? '' : 'none';
+    if (showOverlay) {
+        overlay.setPhotoData(photoResults[currentIdx]);
+    }
+}
+
+initOverlay();
 updateTabs();
 updateDetails();
 updateImage();

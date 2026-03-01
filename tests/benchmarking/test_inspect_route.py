@@ -184,3 +184,31 @@ class TestInspectJsonBoxFields:
         resp = client.get("/benchmark/test1234/")
         data = _extract_photo_results_json(resp.text)
         assert data[0]["gt_links"] == []
+
+
+class TestInspectOverlayAssets:
+    def test_template_includes_overlay_script(self, client, tmp_path):
+        pr = _make_photo_result()
+        _save_run(tmp_path, _make_run([pr]))
+
+        resp = client.get("/benchmark/test1234/")
+        assert resp.status_code == 200
+        assert "inspect_overlay.js" in resp.text
+
+    def test_template_includes_overlay_canvas(self, client, tmp_path):
+        pr = _make_photo_result()
+        _save_run(tmp_path, _make_run([pr]))
+
+        resp = client.get("/benchmark/test1234/")
+        assert 'id="box-overlay"' in resp.text
+
+    def test_template_includes_overlay_controls(self, client, tmp_path):
+        pr = _make_photo_result()
+        _save_run(tmp_path, _make_run([pr]))
+
+        resp = client.get("/benchmark/test1234/")
+        assert 'id="show-bib-boxes"' in resp.text
+        assert 'id="show-face-boxes"' in resp.text
+        assert 'id="show-gt"' in resp.text
+        assert 'id="show-pred"' in resp.text
+        assert 'id="show-links"' in resp.text

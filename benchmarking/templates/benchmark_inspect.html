@@ -96,6 +96,44 @@
             border-radius: 3px;
             font-size: 11px;
         }
+        .overlay-container {
+            position: relative;
+            display: inline-block;
+            max-width: 100%;
+            max-height: 100%;
+        }
+        .overlay-container img {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        #box-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        .overlay-controls {
+            display: flex;
+            gap: 12px;
+            padding: 6px 20px;
+            background: #0d0d1a;
+            border-bottom: 1px solid #0f3460;
+            font-size: 12px;
+            color: #888;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .overlay-controls label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+        .overlay-controls input[type="checkbox"] {
+            accent-color: #0f9b0f;
+        }
 {% endblock %}
 {% block body %}
     <div class="header">
@@ -180,8 +218,20 @@
                 <!-- Tabs are dynamically generated based on available artifacts -->
             </div>
 
+            <div class="overlay-controls" id="overlayControls">
+                <span style="color: #555;">Overlay:</span>
+                <label><input type="checkbox" id="show-bib-boxes" checked> Bibs</label>
+                <label><input type="checkbox" id="show-face-boxes" checked> Faces</label>
+                <label><input type="checkbox" id="show-gt" checked> GT</label>
+                <label><input type="checkbox" id="show-pred" checked> Predictions</label>
+                <label><input type="checkbox" id="show-links" checked> Links</label>
+            </div>
+
             <div class="image-panel">
-                <img id="mainImage" src="" alt="Photo">
+                <div class="overlay-container">
+                    <img id="mainImage" src="" alt="Photo">
+                    <canvas id="box-overlay"></canvas>
+                </div>
             </div>
 
             <div class="details-panel">
@@ -234,5 +284,6 @@
         benchmarkListUrl:    '{{ request.url_for("benchmark_list") }}'
       };
     </script>
+    <script src="{{ request.url_for('static', path='inspect_overlay.js') }}"></script>
     <script src="{{ request.url_for('static', path='benchmark_inspect.js') }}"></script>
 {% endblock %}
