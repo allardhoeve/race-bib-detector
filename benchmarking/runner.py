@@ -70,6 +70,21 @@ Status = Literal["PASS", "PARTIAL", "MISS"]
 Judgement = Literal["IMPROVED", "REGRESSED", "NO_CHANGE"]
 
 
+class BibCandidateSummary(BaseModel):
+    """Serialisable summary of a BibCandidate from the detection pipeline."""
+    x: float
+    y: float
+    w: float
+    h: float
+    area: int
+    aspect_ratio: float
+    median_brightness: float
+    mean_brightness: float
+    relative_area: float
+    passed: bool
+    rejection_reason: str | None = None
+
+
 class PhotoResult(BaseModel):
     """Result of running detection on a single photo."""
     content_hash: str
@@ -95,6 +110,8 @@ class PhotoResult(BaseModel):
     face_scorecard: FaceScorecard | None = None
     link_scorecard: LinkScorecard | None = None
     face_detection_time_ms: float | None = None
+    # Bib candidate diagnostics (task-062)
+    bib_candidates: list[BibCandidateSummary] | None = None
 
 
 class BenchmarkMetrics(BaseModel):
@@ -420,6 +437,23 @@ def _run_bib_detection(
                 number=det.bib_number,
                 confidence=det.confidence,
             ))
+        sf = result.scale_factor
+        photo_result.bib_candidates = [
+            BibCandidateSummary(
+                x=(c.x * sf) / img_w,
+                y=(c.y * sf) / img_h,
+                w=(c.w * sf) / img_w,
+                h=(c.h * sf) / img_h,
+                area=c.area,
+                aspect_ratio=c.aspect_ratio,
+                median_brightness=c.median_brightness,
+                mean_brightness=c.mean_brightness,
+                relative_area=c.relative_area,
+                passed=c.passed,
+                rejection_reason=c.rejection_reason,
+            )
+            for c in result.all_candidates
+        ]
 
     return photo_result, pred_bib_boxes, (img_w, img_h)
 

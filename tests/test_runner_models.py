@@ -8,7 +8,7 @@ from __future__ import annotations
 import pytest
 
 from benchmarking.ground_truth import BibBox, BibFaceLink, FaceBox
-from benchmarking.runner import FacePipelineConfig, PhotoResult, PipelineConfig, RunMetadata
+from benchmarking.runner import BibCandidateSummary, FacePipelineConfig, PhotoResult, PipelineConfig, RunMetadata
 from benchmarking.scoring import BibScorecard, FaceScorecard, LinkScorecard
 
 
@@ -275,3 +275,59 @@ class TestBoxConfidence:
         box = BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42", confidence=0.85)
         d = box.model_dump(exclude_none=True)
         assert d["confidence"] == 0.85
+
+
+# =============================================================================
+# BibCandidateSummary — round-trip and PhotoResult integration (task-062)
+# =============================================================================
+
+
+def _candidate_dict(**overrides) -> dict:
+    base = {
+        "x": 0.12, "y": 0.34, "w": 0.05, "h": 0.08,
+        "area": 4200, "aspect_ratio": 1.6,
+        "median_brightness": 220.0, "mean_brightness": 215.5,
+        "relative_area": 0.003, "passed": True,
+        "rejection_reason": None,
+    }
+    return {**base, **overrides}
+
+
+class TestBibCandidateSummary:
+    def test_round_trip(self):
+        cs = BibCandidateSummary(**_candidate_dict())
+        d = cs.model_dump()
+        reloaded = BibCandidateSummary.model_validate(d)
+        assert reloaded.x == cs.x
+        assert reloaded.area == 4200
+        assert reloaded.passed is True
+        assert reloaded.rejection_reason is None
+
+    def test_rejected_candidate_preserves_reason(self):
+        cs = BibCandidateSummary(**_candidate_dict(
+            passed=False, rejection_reason="too_small",
+        ))
+        d = cs.model_dump()
+        reloaded = BibCandidateSummary.model_validate(d)
+        assert reloaded.passed is False
+        assert reloaded.rejection_reason == "too_small"
+
+
+class TestPhotoResultBibCandidates:
+    def test_with_candidates_round_trip(self):
+        candidates = [
+            BibCandidateSummary(**_candidate_dict()),
+            BibCandidateSummary(**_candidate_dict(passed=False, rejection_reason="low_contrast")),
+        ]
+        pr = PhotoResult(**_photo_result_dict(bib_candidates=candidates))
+        d = pr.model_dump()
+        reloaded = PhotoResult.model_validate(d)
+        assert len(reloaded.bib_candidates) == 2
+        assert reloaded.bib_candidates[0].passed is True
+        assert reloaded.bib_candidates[1].rejection_reason == "low_contrast"
+
+    def test_without_candidates_backward_compat(self):
+        old_dict = _photo_result_dict()
+        assert "bib_candidates" not in old_dict
+        pr = PhotoResult.model_validate(old_dict)
+        assert pr.bib_candidates is None
