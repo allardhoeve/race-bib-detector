@@ -327,5 +327,20 @@ def cmd_prepare(args: argparse.Namespace) -> int:
 
 def cmd_ui(args: argparse.Namespace) -> int:
     """Launch the unified web UI (labels + benchmark inspection)."""
-    from benchmarking.web_app import main as web_main
-    return web_main()
+    import logging
+    import uvicorn
+    from benchmarking.photo_index import load_photo_index
+
+    logger = logging.getLogger(__name__)
+
+    index = load_photo_index()
+    if not index:
+        logger.error("No photo index found. Run 'bnr benchmark scan' first.")
+        return 1
+
+    logger.info("Starting Benchmark Web UI...")
+    logger.info("Found %s photos in index", len(index))
+    logger.info("Open http://localhost:30002 in your browser")
+    logger.info("Press Ctrl+C to stop")
+    uvicorn.run("benchmarking.app:app", host="localhost", port=30002, reload=False)
+    return 0
