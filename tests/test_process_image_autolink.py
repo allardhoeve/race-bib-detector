@@ -13,7 +13,7 @@ import db
 from detection.types import Detection, DetectionResult
 from faces.types import FaceCandidate, FaceModelInfo
 from geometry import rect_to_bbox
-from scan.pipeline import process_image
+from scan.persist import process_image
 
 
 _FAKE_MODEL = FaceModelInfo(name="fake", version="0", embedding_dim=128)
@@ -91,8 +91,8 @@ class TestProcessImageAutolink:
             return _orig(image_data, **kwargs)
 
         # Patch embedder to avoid loading real model
-        monkeypatch.setattr("scan.pipeline.get_face_embedder", lambda: FakeEmbedder())
-        monkeypatch.setattr("scan.pipeline.run_single_photo", patched_run_single_photo)
+        monkeypatch.setattr("scan.persist.get_face_embedder", lambda: FakeEmbedder())
+        monkeypatch.setattr("scan.persist.run_single_photo", patched_run_single_photo)
 
         bibs_count, faces_count = process_image(
             reader="fake_reader",  # detect_fn injected via patched run_single_photo

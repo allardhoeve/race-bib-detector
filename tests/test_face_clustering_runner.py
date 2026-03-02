@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 import pytest
 
-from pipeline_types import FaceBox
+from pipeline.types import FaceBox
 from benchmarking.runner import PhotoResult, _assign_face_clusters
 
 

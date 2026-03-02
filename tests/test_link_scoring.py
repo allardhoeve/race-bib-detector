@@ -2,7 +2,7 @@
 
 import pytest
 
-from pipeline_types import BibBox, BibFaceLink, FaceBox
+from pipeline.types import BibBox, BibFaceLink, FaceBox
 from benchmarking.scoring import LinkScorecard, score_links
 
 

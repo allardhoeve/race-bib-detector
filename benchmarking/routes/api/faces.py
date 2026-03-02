@@ -39,7 +39,7 @@ from benchmarking.schemas import (
     IdentitySuggestionsResponse,
     SaveFaceBoxesRequest,
 )
-from pipeline_types import FaceBox
+from pipeline.types import FaceBox
 
 logger = logging.getLogger(__name__)
 

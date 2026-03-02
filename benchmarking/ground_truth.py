@@ -14,9 +14,9 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-# Re-export shared types from pipeline_types (canonical location).
+# Re-export shared types from pipeline.types (canonical location).
 # All existing importers continue to work via these re-exports.
-from pipeline_types import (  # noqa: F401
+from pipeline.types import (  # noqa: F401
     BibBox,
     FaceBox,
     BibFaceLink,

@@ -20,7 +20,7 @@ from benchmarking.ground_truth import (
     load_link_ground_truth,
 )
 from config import AUTOLINK_TORSO_BOTTOM, AUTOLINK_TORSO_HALF_WIDTH, AUTOLINK_TORSO_TOP
-from pipeline_types import _torso_region
+from pipeline.types import _torso_region
 
 
 def _box_center(box: BibBox | FaceBox) -> tuple[float, float]:

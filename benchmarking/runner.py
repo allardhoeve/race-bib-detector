@@ -36,7 +36,7 @@ from warnings_utils import suppress_torch_mps_pin_memory_warning
 from faces import FaceBackend, get_face_backend
 
 from pipeline import run_single_photo
-from pipeline_types import predict_links
+from pipeline.types import predict_links
 
 from .ground_truth import (
     load_bib_ground_truth,

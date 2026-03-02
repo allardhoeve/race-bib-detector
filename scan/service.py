@@ -9,7 +9,7 @@ from pathlib import Path
 import db
 from sources import scan_local_images
 
-from .pipeline import ImageInfo, scan_images
+from .persist import ImageInfo, scan_images
 
 logger = logging.getLogger(__name__)
 

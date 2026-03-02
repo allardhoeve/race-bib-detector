@@ -2,7 +2,7 @@
 
 import pytest
 
-from pipeline_types import BibBox
+from pipeline.types import BibBox
 from benchmarking.photo_index import save_photo_index
 from benchmarking.routes.api.bibs import _get_bib_label, _save_bib_label
 

@@ -1,6 +1,6 @@
 """Unified single-photo detection pipeline.
 
-Both production (scan/pipeline.py) and benchmarking (benchmarking/runner.py)
+Both production (scan/persist.py) and benchmarking (benchmarking/runner.py)
 delegate to ``run_single_photo()`` so that improvements to detection logic
 apply everywhere automatically.
 """
@@ -20,7 +20,7 @@ from detection import detect_bib_numbers
 from detection.types import DetectionResult
 from faces.types import FaceCandidate
 from geometry import Bbox, bbox_to_rect, rect_iou
-from pipeline_types import AutolinkResult, BibBox, FaceBox, predict_links
+from pipeline.types import AutolinkResult, BibBox, FaceBox, predict_links
 
 if TYPE_CHECKING:
     import easyocr

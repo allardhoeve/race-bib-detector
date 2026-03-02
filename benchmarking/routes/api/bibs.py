@@ -35,7 +35,7 @@ from benchmarking.schemas import (
     SaveBibBoxesRequest,
 )
 from config import ITERATION_SPLIT_PROBABILITY
-from pipeline_types import BibBox
+from pipeline.types import BibBox
 
 PHOTOS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "photos"
 
