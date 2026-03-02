@@ -399,44 +399,25 @@ def _validate_inputs(gt, index: dict, photos: list, split: str) -> None:
 
 def _assign_face_clusters(
     photo_results: list[PhotoResult],
-    image_cache: dict[str, bytes],
     distance_threshold: float | None = None,
 ) -> None:
-    """Embed predicted faces and assign cluster IDs in-place."""
-    from faces.embedder import get_face_embedder
+    """Read embeddings from face_trace and assign cluster IDs in-place."""
     from faces.clustering import _cluster_embeddings
 
-    embedder = get_face_embedder()
     all_embeddings: list[np.ndarray] = []
-    face_refs: list[tuple[int, int]] = []  # (photo_idx, face_idx)
+    face_refs: list[tuple[int, int]] = []  # (photo_idx, accepted_face_idx)
 
     for p_idx, result in enumerate(photo_results):
-        if not result.pred_face_boxes:
+        if not result.face_trace:
             continue
-        image_data = image_cache.get(result.content_hash)
-        if not image_data:
-            continue
-        img_array = cv2.imdecode(
-            np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR
-        )
-        if img_array is None:
-            continue
-        image_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
-        h, w = image_rgb.shape[:2]
-        bboxes = []
-        for f_idx, fbox in enumerate(result.pred_face_boxes):
-            if fbox.x is None or fbox.w is None:
+        accepted_idx = -1
+        for trace in result.face_trace:
+            if not trace.accepted:
                 continue
-            x1 = int(fbox.x * w)
-            y1 = int(fbox.y * h)
-            x2 = int((fbox.x + fbox.w) * w)
-            y2 = int((fbox.y + fbox.h) * h)
-            bboxes.append(((x1, y1), (x2, y1), (x2, y2), (x1, y2)))
-            face_refs.append((p_idx, f_idx))
-
-        if bboxes:
-            embeddings = embedder.embed(image_rgb, bboxes)
-            all_embeddings.extend(embeddings)
+            accepted_idx += 1
+            if trace.embedding is not None:
+                all_embeddings.append(np.array(trace.embedding, dtype=np.float32))
+                face_refs.append((p_idx, accepted_idx))
 
     if not all_embeddings:
         return
@@ -471,11 +452,16 @@ def _run_detection_loop(
     """
     if photos_dir is None:
         photos_dir = PHOTOS_DIR
+
+    embedder = None
+    if face_backend is not None:
+        from faces.embedder import get_face_embedder
+        embedder = get_face_embedder()
+
     photo_results: list[PhotoResult] = []
     bib_tp = bib_fp = bib_fn = bib_ocr_correct = bib_ocr_total = 0
     face_tp = face_fp = face_fn = 0
     link_tp = link_fp = link_fn = 0
-    image_cache: dict[str, bytes] = {}
 
     for i, label in enumerate(photos):
         path = get_path_for_hash(label.content_hash, photos_dir, index)
@@ -488,8 +474,6 @@ def _run_detection_loop(
             continue
 
         image_data = path.read_bytes()
-        if face_backend is not None:
-            image_cache[label.content_hash] = image_data
         photo_artifact_dir = str(images_dir / label.content_hash[:16])
 
         # --- Unified pipeline call ---
@@ -500,6 +484,7 @@ def _run_detection_loop(
             run_bibs=True,
             face_backend=face_backend,
             fallback_face_backend=None,  # benchmarking: no fallback chain
+            face_embedder=embedder,
             run_faces=face_backend is not None,
             run_autolink=link_gt is not None and face_backend is not None and face_gt is not None,
             artifact_dir=photo_artifact_dir,
@@ -529,9 +514,11 @@ def _run_detection_loop(
         photo_result.preprocess_metadata = sp_result.bib_result.preprocess_metadata
         photo_results.append(photo_result)
 
-        # Bib candidate trace (built by run_single_photo, task-088)
+        # Candidate traces (built by run_single_photo)
         if sp_result.bib_trace:
             photo_result.bib_trace = sp_result.bib_trace
+        if sp_result.face_trace:
+            photo_result.face_trace = sp_result.face_trace
 
         # --- Bib IoU scoring ---
         if img_w > 0 and img_h > 0:
@@ -598,9 +585,9 @@ def _run_detection_loop(
                 label.content_hash[:8],
             )
 
-    # Post-processing: embed + cluster predicted faces (task-051)
+    # Post-processing: cluster predicted faces (task-051)
     if face_backend is not None:
-        _assign_face_clusters(photo_results, image_cache)
+        _assign_face_clusters(photo_results)
 
     bib_scorecard = BibScorecard(
         detection_tp=bib_tp,

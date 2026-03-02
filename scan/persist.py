@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator, TYPE_CHECKING
 
+import numpy as np
 from tqdm import tqdm
 
 import config
@@ -185,6 +186,7 @@ def process_image(
     skip_existing: bool,
     run_bib_detection: bool,
     run_face_detection: bool,
+    face_embedder=None,
 ) -> tuple[int, int]:
     """Process a single image: detect bibs/faces, save artifacts, update database.
 
@@ -201,6 +203,7 @@ def process_image(
         run_bibs=run_bib_detection,
         face_backend=face_backend,
         fallback_face_backend=fallback_face_backend,
+        face_embedder=face_embedder,
         run_faces=run_face_detection,
         run_autolink=run_bib_detection and run_face_detection,
     )
@@ -218,20 +221,22 @@ def process_image(
             conn, result.detections, photo_url, thumbnail_url, album_id, cache_path, skip_existing
         )
 
-    # --- Face embedding, artifacts + DB ---
+    # --- Face artifacts + DB ---
     face_detections: list[FaceDetection] = []
     if run_face_detection and sp.face_pixel_bboxes and sp.image_rgb is not None:
         image_rgb = sp.image_rgb
         photo_hash = compute_photo_hash(photo_url)
 
-        embedder = get_face_embedder()
-        embedder_model_info = embedder.model_info()
-        embeddings = embedder.embed(image_rgb, sp.face_pixel_bboxes)
+        embedder_model_info = face_embedder.model_info() if face_embedder is not None else None
 
         paths = ImagePaths.for_cache_path(cache_path)
         paths.ensure_dirs_exist()
 
-        for face_index, (bbox, embedding) in enumerate(zip(sp.face_pixel_bboxes, embeddings)):
+        accepted_traces = [t for t in sp.face_trace if t.accepted]
+        for face_index, trace in enumerate(accepted_traces):
+            bbox = trace.to_pixel_quad()
+            embedding = np.array(trace.embedding, dtype=np.float32) if trace.embedding else None
+
             snippet_path = paths.face_snippet_path(face_index)
             preview_path = paths.face_boxed_path(face_index)
 
@@ -328,11 +333,13 @@ def scan_images(
 
     face_backend = None
     fallback_face_backend = None
+    face_embedder = None
     if run_face_detection:
         logger.info("Initializing face backend...")
         face_backend = get_face_backend()
         if config.FACE_FALLBACK_BACKEND:
             fallback_face_backend = get_face_backend_by_name(config.FACE_FALLBACK_BACKEND)
+        face_embedder = get_face_embedder()
 
     conn = db.get_connection()
 
@@ -360,6 +367,7 @@ def scan_images(
                 image_data, cache_path, skip_existing,
                 run_bib_detection=effective_run_bib,
                 run_face_detection=run_face_detection,
+                face_embedder=face_embedder,
             )
             stats["bibs_detected"] += bibs_count
             stats["faces_detected"] += faces_count

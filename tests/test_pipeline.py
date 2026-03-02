@@ -523,3 +523,65 @@ class TestFaceTrace:
 
         for trace in result.face_trace:
             assert trace.pixel_bbox is not None
+
+    def test_embedding_populated_with_embedder(self):
+        """Accepted traces have embedding when face_embedder is provided."""
+        from pipeline import run_single_photo
+
+        class FakeEmbedder:
+            def embed(self, image, boxes):
+                return [np.ones(4, dtype=np.float32) for _ in boxes]
+
+            def model_info(self):
+                return _FAKE_MODEL
+
+        result = run_single_photo(
+            _make_png_bytes(),
+            run_bibs=False,
+            face_backend=FakeFaceBackend(),
+            face_embedder=FakeEmbedder(),
+            run_autolink=False,
+        )
+
+        accepted = [t for t in result.face_trace if t.accepted]
+        assert len(accepted) == 1
+        assert accepted[0].embedding is not None
+        assert accepted[0].embedding == [1.0, 1.0, 1.0, 1.0]
+
+    def test_rejected_face_has_no_embedding(self):
+        """Rejected traces still have embedding=None even with embedder."""
+        from pipeline import run_single_photo
+
+        class FakeEmbedder:
+            def embed(self, image, boxes):
+                return [np.ones(4, dtype=np.float32) for _ in boxes]
+
+            def model_info(self):
+                return _FAKE_MODEL
+
+        result = run_single_photo(
+            _make_png_bytes(),
+            run_bibs=False,
+            face_backend=EmptyFaceBackend(),
+            face_embedder=FakeEmbedder(),
+            run_autolink=False,
+        )
+
+        rejected = [t for t in result.face_trace if not t.accepted]
+        assert len(rejected) >= 1
+        for trace in rejected:
+            assert trace.embedding is None
+
+    def test_no_embedder_means_no_embeddings(self):
+        """Without face_embedder, all traces have embedding=None."""
+        from pipeline import run_single_photo
+
+        result = run_single_photo(
+            _make_png_bytes(),
+            run_bibs=False,
+            face_backend=FakeFaceBackend(),
+            run_autolink=False,
+        )
+
+        for trace in result.face_trace:
+            assert trace.embedding is None

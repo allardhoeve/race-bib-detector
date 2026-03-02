@@ -25,6 +25,7 @@ from pipeline.types import AutolinkResult, BibBox, BibCandidateTrace, FaceCandid
 if TYPE_CHECKING:
     import easyocr
     from faces import FaceBackend
+    from faces.embedder import FaceEmbedder
 
 logger = logging.getLogger(__name__)
 
@@ -274,6 +275,7 @@ def run_single_photo(
     run_bibs: bool = True,
     face_backend: "FaceBackend | None" = None,
     fallback_face_backend: "FaceBackend | None" = None,
+    face_embedder: "FaceEmbedder | None" = None,
     run_faces: bool = True,
     run_autolink: bool = True,
     artifact_dir: str | None = None,
@@ -359,6 +361,15 @@ def run_single_photo(
         face_trace, face_boxes, face_pixel_bboxes = _build_face_trace(
             all_candidates, accepted_bbox_ids, img_w, img_h,
         )
+
+    # --- Face embedding ---
+    if face_embedder is not None and face_trace and image_rgb is not None:
+        accepted = [t for t in face_trace if t.accepted and t.pixel_bbox]
+        if accepted:
+            bboxes = [t.to_pixel_quad() for t in accepted]
+            embeddings = face_embedder.embed(image_rgb, bboxes)
+            for trace, emb in zip(accepted, embeddings):
+                trace.embedding = emb.tolist()
 
     # --- Autolink ---
     autolink: AutolinkResult | None = None

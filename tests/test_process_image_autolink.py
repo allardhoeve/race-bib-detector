@@ -90,14 +90,13 @@ class TestProcessImageAutolink:
             kwargs["detect_fn"] = _bib_detect_fn
             return _orig(image_data, **kwargs)
 
-        # Patch embedder to avoid loading real model
-        monkeypatch.setattr("scan.persist.get_face_embedder", lambda: FakeEmbedder())
         monkeypatch.setattr("scan.persist.run_single_photo", patched_run_single_photo)
 
         bibs_count, faces_count = process_image(
             reader="fake_reader",  # detect_fn injected via patched run_single_photo
             face_backend=FakeFaceBackend(),
             fallback_face_backend=None,
+            face_embedder=FakeEmbedder(),
             conn=conn,
             photo_url="http://example.com/photo.jpg",
             thumbnail_url=None,
