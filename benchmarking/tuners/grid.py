@@ -1,11 +1,11 @@
-"""Face detection parameter sweep (task-029).
+"""Grid-sweep tuner for face detection parameters (task-029, task-060).
 
 Usage::
 
-    from benchmarking.tuner import run_face_sweep, load_tune_config, print_sweep_results
+    from benchmarking.tuners.grid import GridTuner, load_tune_config, print_sweep_results
 
     cfg = load_tune_config(Path("benchmarking/tune_configs/face_default.yaml"))
-    results = run_face_sweep(**cfg)
+    results = GridTuner(cfg["param_grid"]).tune(split=cfg["split"], metric=cfg["metric"])
     print_sweep_results(results, metric=cfg["metric"])
 """
 
@@ -22,6 +22,7 @@ from benchmarking.ground_truth import BibPhotoLabel, FaceBox, load_bib_ground_tr
 from benchmarking.photo_index import get_path_for_hash, load_photo_index
 from benchmarking.photo_metadata import load_photo_metadata
 from benchmarking.scoring import FaceScorecard, score_faces
+from benchmarking.tuners.protocol import TunerResult
 from faces.backend import get_face_backend_with_overrides
 from geometry import bbox_to_rect
 
@@ -38,7 +39,7 @@ _PARAM_TO_BACKEND_KWARG: dict[str, str] = {
     "FACE_DETECTION_MIN_SIZE": "min_size",
 }
 
-PHOTOS_DIR = Path(__file__).parent.parent / "photos"
+PHOTOS_DIR = Path(__file__).parent.parent.parent / "photos"
 
 
 def load_tune_config(path: Path) -> dict:
@@ -74,6 +75,35 @@ def load_tune_config(path: Path) -> dict:
         "split": data.get("split", "iteration"),
         "metric": data.get("metric", "face_f1"),
     }
+
+
+class GridTuner:
+    """Exhaustive grid sweep over face detection parameters."""
+
+    def __init__(self, param_grid: dict[str, list]) -> None:
+        self.param_grid = param_grid
+
+    def tune(
+        self,
+        *,
+        split: str = "iteration",
+        metric: str = "face_f1",
+        verbose: bool = True,
+    ) -> list[TunerResult]:
+        """Run the grid sweep and return ranked TunerResult objects."""
+        raw = run_face_sweep(
+            param_grid=self.param_grid,
+            split=split,
+            metric=metric,
+            verbose=verbose,
+        )
+        metric_keys = {"face_f1", "face_precision", "face_recall"}
+        results = []
+        for row in raw:
+            params = {k: v for k, v in row.items() if k not in metric_keys}
+            metrics = {k: v for k, v in row.items() if k in metric_keys}
+            results.append(TunerResult(params=params, metrics=metrics))
+        return results
 
 
 def run_face_sweep(

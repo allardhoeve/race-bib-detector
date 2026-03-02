@@ -8,7 +8,7 @@ Build a tuning workflow that starts from benchmark failures, diagnoses why they 
 
 ## Background
 
-The existing `benchmarking/tuner.py` does brute-force grid sweeps: you define parameter ranges in YAML, it tries every combination. This is slow and uninformed — it doesn't know which parameters matter for the actual failures.
+The existing `benchmarking/tuners/grid.py` (GridTuner) does brute-force grid sweeps: you define parameter ranges in YAML, it tries every combination. This is slow and uninformed — it doesn't know which parameters matter for the actual failures.
 
 The auto-tuner takes the opposite approach: start from what's broken, understand why, propose a fix, and verify it doesn't break what's working. The workflow is:
 
@@ -35,14 +35,15 @@ Steps 1, 4, 5 are the **harness** — stable scaffolding. Steps 2 and 3 are the 
 
 - `benchmarking/runner.py` — `BenchmarkRun`, `PhotoResult`, `BenchmarkMetrics`, `PipelineConfig`; detection loop stores pred/GT boxes per photo (task-049/050)
 - `benchmarking/scoring.py` — `BibScorecard`, `score_bibs()`, IoU matching
-- `benchmarking/tuner.py` — existing grid sweep (face params); reference for how sweeps work
+- `benchmarking/tuners/grid.py` — existing grid sweep (GridTuner); reference for how sweeps work
+- `benchmarking/tuners/protocol.py` — `Tuner` Protocol + `TunerResult` BaseModel (task-060)
 - `detection/detector.py` — bib detection pipeline, `PipelineResult`, `BibCandidate`
 - `detection/types.py` — `Detection` (has `confidence`, `source`), `BibCandidate` (has `passed`, `rejection_reason`, intermediate metrics)
 - `config.py` — all default parameter values
 
 ## Architecture
 
-### Harness: `benchmarking/auto_tuner.py`
+### Harness: `benchmarking/tuners/auto.py`
 
 The harness orchestrates the workflow. It is not pluggable — it's the stable frame.
 
@@ -204,9 +205,9 @@ Run `bnr benchmark tune --apply suggestion-1` to adopt these settings.
 
 ## Changes
 
-### New: `benchmarking/auto_tuner.py`
+### New: `benchmarking/tuners/auto.py`
 
-Harness module: `run_auto_tune()`, failure selection, regression testing, result dataclasses.
+Harness module: `run_auto_tune()`, failure selection, regression testing, result dataclasses. `AutoTuner` must satisfy the `Tuner` protocol from `benchmarking.tuners.protocol` — its `tune()` method returns `list[TunerResult]` (the protocol contract), while `run_auto_tune()` returns the full `AutoTuneResult` with richer output.
 
 ### New: `benchmarking/tuning_strategies/base.py`
 
@@ -282,4 +283,3 @@ venv/bin/python bnr.py benchmark auto-tune
 - **In scope**: harness, rule-based strategy for bib detection, CLI command, report output
 - **Out of scope**: face detection auto-tuning (future strategy), web UI for suggestions, automatic application of suggestions to `config.py`
 - **Do not** modify existing benchmark run storage format
-- **Do not** modify `benchmarking/tuner.py` (the grid sweep remains independent)

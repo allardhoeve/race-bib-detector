@@ -8,7 +8,7 @@ from pathlib import Path
 
 def cmd_tune(args: argparse.Namespace) -> int:
     """Run a face detection parameter sweep and print a ranked results table."""
-    from benchmarking.tuner import load_tune_config, print_sweep_results, run_face_sweep, validate_on_full
+    from benchmarking.tuners.grid import load_tune_config, print_sweep_results, run_face_sweep, validate_on_full
 
     param_grid: dict[str, list] = {}
     split = args.split or "iteration"
