@@ -14,6 +14,31 @@ def _lazy_cmd(module_path: str, func_name: str):
     return _wrapper
 
 
+def _add_common_filter_args(
+    parser: argparse.ArgumentParser,
+    *,
+    split_default: str | None = "iteration",
+) -> None:
+    """Add --split, --set, and --quiet flags shared by run/tune subcommands."""
+    parser.add_argument(
+        "-s", "--split",
+        choices=["iteration", "full"],
+        default=split_default,
+        help="Which split to run (default: %(default)s)",
+    )
+    parser.add_argument(
+        "-S", "--set",
+        dest="frozen_set",
+        metavar="NAME",
+        help="Only run against photos in this frozen set",
+    )
+    parser.add_argument(
+        "-q", "--quiet",
+        action="store_true",
+        help="Suppress per-photo/per-combo progress output",
+    )
+
+
 def add_benchmark_subparser(subparsers: argparse._SubParsersAction) -> None:
     benchmark_parser = subparsers.add_parser(
         "benchmark",
@@ -50,23 +75,7 @@ def add_benchmark_subparser(subparsers: argparse._SubParsersAction) -> None:
         "run",
         help="Run benchmark",
     )
-    bench_run.add_argument(
-        "-s", "--split",
-        choices=["iteration", "full"],
-        default="iteration",
-        help="Which split to run (default: iteration)",
-    )
-    bench_run.add_argument(
-        "-q", "--quiet",
-        action="store_true",
-        help="Suppress per-photo output",
-    )
-    bench_run.add_argument(
-        "-S", "--set",
-        dest="frozen_set",
-        metavar="NAME",
-        help="Only run against photos in this frozen set",
-    )
+    _add_common_filter_args(bench_run)
     bench_run.add_argument(
         "--note", "--comment",
         dest="note",
@@ -210,22 +219,12 @@ def add_benchmark_subparser(subparsers: argparse._SubParsersAction) -> None:
         metavar="KEY=v1,v2",
         help="Inline param grid (e.g. FACE_DNN_CONFIDENCE_MIN=0.2,0.3,0.4)",
     )
-    bench_tune.add_argument(
-        "-s", "--split",
-        choices=["iteration", "full"],
-        default=None,
-        help="Photo split to evaluate on (overrides config)",
-    )
+    _add_common_filter_args(bench_tune, split_default=None)
     bench_tune.add_argument(
         "--metric",
         choices=["face_f1", "face_recall", "face_precision"],
         default=None,
         help="Metric to rank by (overrides config)",
-    )
-    bench_tune.add_argument(
-        "-q", "--quiet",
-        action="store_true",
-        help="Suppress per-combo progress output",
     )
     bench_tune.add_argument(
         "--no-validate",
