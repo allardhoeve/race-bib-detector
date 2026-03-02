@@ -1,9 +1,14 @@
-"""Face embedding clustering helpers."""
+"""Face embedding clustering helpers.
+
+The core clustering algorithm lives in ``pipeline.cluster``.  This module
+provides the DB-backed ``cluster_album_faces()`` wrapper and the
+``similarity_label()`` utility.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from collections import defaultdict
+from dataclasses import dataclass
 import logging
 
 import numpy as np
@@ -11,6 +16,8 @@ import numpy as np
 import config
 import db
 from faces.types import embedding_from_bytes
+from pipeline.cluster import cluster as _cluster
+from pipeline.types import FaceCandidateTrace
 
 logger = logging.getLogger(__name__)
 
@@ -21,61 +28,6 @@ class FaceEmbeddingRecord:
     embedding: np.ndarray
     model_name: str
     model_version: str
-
-
-class _UnionFind:
-    def __init__(self, size: int) -> None:
-        self._parent = list(range(size))
-        self._rank = [0] * size
-
-    def find(self, idx: int) -> int:
-        parent = self._parent[idx]
-        if parent != idx:
-            self._parent[idx] = self.find(parent)
-        return self._parent[idx]
-
-    def union(self, a: int, b: int) -> None:
-        root_a = self.find(a)
-        root_b = self.find(b)
-        if root_a == root_b:
-            return
-        rank_a = self._rank[root_a]
-        rank_b = self._rank[root_b]
-        if rank_a < rank_b:
-            self._parent[root_a] = root_b
-        elif rank_a > rank_b:
-            self._parent[root_b] = root_a
-        else:
-            self._parent[root_b] = root_a
-            self._rank[root_a] += 1
-
-
-def _normalize_embeddings(embeddings: np.ndarray) -> np.ndarray:
-    norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
-    norms[norms == 0] = 1.0
-    return embeddings / norms
-
-
-def _cluster_embeddings(
-    embeddings: np.ndarray,
-    distance_threshold: float,
-) -> list[list[int]]:
-    if embeddings.size == 0:
-        return []
-    normed = _normalize_embeddings(embeddings)
-    similarity = normed @ normed.T
-    distance = 1.0 - similarity
-    mask = np.triu(distance <= distance_threshold, k=1)
-    pairs = np.argwhere(mask)
-
-    uf = _UnionFind(normed.shape[0])
-    for idx_a, idx_b in pairs:
-        uf.union(int(idx_a), int(idx_b))
-
-    clusters: dict[int, list[int]] = defaultdict(list)
-    for idx in range(normed.shape[0]):
-        clusters[uf.find(idx)].append(idx)
-    return list(clusters.values())
 
 
 def similarity_label(similarity: float) -> str:
@@ -91,9 +43,6 @@ def cluster_album_faces(
     album_id: str,
     distance_threshold: float | None = None,
 ) -> dict:
-    if distance_threshold is None:
-        distance_threshold = config.FACE_CLUSTER_DISTANCE_THRESHOLD
-
     rows = db.list_face_embeddings_for_album(conn, album_id)
     if not rows:
         logger.info("No face embeddings found for album %s", album_id)
@@ -127,45 +76,55 @@ def cluster_album_faces(
 
         db.delete_face_clusters_for_album_model(conn, album_id, model_name, model_version)
 
-        embeddings = np.stack([record.embedding for record in records]).astype(np.float32)
-        face_ids = [record.face_id for record in records]
-        clusters = _cluster_embeddings(embeddings, distance_threshold)
-        if not clusters:
+        # Build lightweight traces for the shared cluster() function
+        face_ids = [r.face_id for r in records]
+        traces = [
+            FaceCandidateTrace(
+                x=0, y=0, w=0, h=0,
+                confidence=None,
+                passed=True,
+                accepted=True,
+                embedding=r.embedding.tolist(),
+            )
+            for r in records
+        ]
+
+        result = _cluster(traces, distance_threshold)
+        if result.cluster_count == 0:
             continue
 
-        normed = _normalize_embeddings(embeddings)
-        for cluster_indices in clusters:
-            cluster_embeddings = normed[cluster_indices]
-            centroid = cluster_embeddings.mean(axis=0)
-            centroid_norm = np.linalg.norm(centroid)
-            if centroid_norm > 0:
-                centroid = centroid / centroid_norm
-            similarities = cluster_embeddings @ centroid
+        # Persist clusters and members to DB
+        for cid in range(result.cluster_count):
+            centroid = result.centroids[cid].astype(np.float32)
+            members = [
+                (i, t) for i, t in enumerate(traces)
+                if t.cluster_id == cid
+            ]
+            similarities = [1.0 - t.cluster_distance for _, t in members]
 
             avg_similarity = float(np.mean(similarities))
             min_similarity = float(np.min(similarities))
             max_similarity = float(np.max(similarities))
 
-            cluster_id = db.insert_face_cluster(
+            db_cluster_id = db.insert_face_cluster(
                 conn,
                 album_id=album_id,
                 model_name=model_name,
                 model_version=model_version,
-                centroid=centroid.astype(np.float32),
+                centroid=centroid,
                 avg_similarity=avg_similarity,
                 min_similarity=min_similarity,
                 max_similarity=max_similarity,
-                size=len(cluster_indices),
+                size=len(members),
             )
             clusters_created += 1
 
-            for face_idx, similarity in zip(cluster_indices, similarities):
-                distance = float(1.0 - similarity)
+            for trace_idx, trace in members:
                 db.insert_face_cluster_member(
                     conn,
-                    cluster_id=cluster_id,
-                    face_id=face_ids[face_idx],
-                    distance=distance,
+                    cluster_id=db_cluster_id,
+                    face_id=face_ids[trace_idx],
+                    distance=trace.cluster_distance,
                 )
                 members_created += 1
 

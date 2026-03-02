@@ -36,6 +36,7 @@ from warnings_utils import suppress_torch_mps_pin_memory_warning
 from faces import FaceBackend, get_face_backend
 
 from pipeline import run_single_photo
+from pipeline.cluster import cluster as cluster_faces
 from pipeline.types import BibCandidateTrace, FaceCandidateTrace, predict_links
 
 from .ground_truth import (
@@ -397,41 +398,6 @@ def _validate_inputs(gt, index: dict, photos: list, split: str) -> None:
         raise ValueError(f"No photos in split '{split}'")
 
 
-def _assign_face_clusters(
-    photo_results: list[PhotoResult],
-    distance_threshold: float | None = None,
-) -> None:
-    """Read embeddings from face_trace and assign cluster IDs in-place."""
-    from faces.clustering import _cluster_embeddings
-
-    all_embeddings: list[np.ndarray] = []
-    face_refs: list[tuple[int, int]] = []  # (photo_idx, accepted_face_idx)
-
-    for p_idx, result in enumerate(photo_results):
-        if not result.face_trace:
-            continue
-        accepted_idx = -1
-        for trace in result.face_trace:
-            if not trace.accepted:
-                continue
-            accepted_idx += 1
-            if trace.embedding is not None:
-                all_embeddings.append(np.array(trace.embedding, dtype=np.float32))
-                face_refs.append((p_idx, accepted_idx))
-
-    if not all_embeddings:
-        return
-
-    emb_matrix = np.stack(all_embeddings).astype(np.float32)
-    threshold = distance_threshold if distance_threshold is not None else config.FACE_CLUSTER_DISTANCE_THRESHOLD
-    clusters = _cluster_embeddings(emb_matrix, threshold)
-
-    for cluster_id, indices in enumerate(clusters):
-        for idx in indices:
-            p_idx, f_idx = face_refs[idx]
-            photo_results[p_idx].pred_face_boxes[f_idx].cluster_id = cluster_id
-
-
 def _run_detection_loop(
     reader,
     photos: list,
@@ -585,9 +551,13 @@ def _run_detection_loop(
                 label.content_hash[:8],
             )
 
-    # Post-processing: cluster predicted faces (task-051)
+    # Post-processing: cluster predicted faces (task-051, task-091)
     if face_backend is not None:
-        _assign_face_clusters(photo_results)
+        all_face_traces: list[FaceCandidateTrace] = []
+        for result in photo_results:
+            if result.face_trace:
+                all_face_traces.extend(result.face_trace)
+        cluster_faces(all_face_traces)
 
     bib_scorecard = BibScorecard(
         detection_tp=bib_tp,

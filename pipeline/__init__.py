@@ -3,6 +3,7 @@
 Re-exports for backward compat and convenience.
 """
 
+from pipeline.cluster import ClusterResult, cluster
 from pipeline.single_photo import SinglePhotoResult, run_single_photo
 from pipeline.types import (
     AutolinkResult,
@@ -20,6 +21,8 @@ from pipeline.types import (
 )
 
 __all__ = [
+    "ClusterResult",
+    "cluster",
     "SinglePhotoResult",
     "run_single_photo",
     "AutolinkResult",
