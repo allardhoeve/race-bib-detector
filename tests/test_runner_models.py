@@ -339,23 +339,6 @@ class TestBibCandidateTrace:
         assert ct.ocr_confidence == 0.15
         assert ct.accepted is False
 
-    def test_to_bib_label(self):
-        ct = BibCandidateTrace(**_trace_dict(
-            ocr_text="42", ocr_confidence=0.9,
-            accepted=True, bib_number="42",
-        ))
-        box = ct.to_bib_label()
-        assert box.x == ct.x
-        assert box.y == ct.y
-        assert box.w == ct.w
-        assert box.h == ct.h
-        assert box.number == "42"
-        assert box.confidence == 0.9
-
-    def test_to_bib_label_unaccepted_raises(self):
-        ct = BibCandidateTrace(**_trace_dict(accepted=False))
-        with pytest.raises(ValueError):
-            ct.to_bib_label()
 
 
 class TestPhotoResultBibTrace:
@@ -448,20 +431,6 @@ class TestFaceCandidateTrace:
         assert ft.cluster_id is None
         assert ft.cluster_distance is None
         assert ft.nearest_other_distance is None
-
-    def test_to_face_label(self):
-        ft = FaceCandidateTrace(**_face_trace_dict())
-        box = ft.to_face_label()
-        assert box.x == ft.x
-        assert box.y == ft.y
-        assert box.w == ft.w
-        assert box.h == ft.h
-        assert box.confidence == 0.85
-
-    def test_to_face_label_unaccepted_raises(self):
-        ft = FaceCandidateTrace(**_face_trace_dict(accepted=False))
-        with pytest.raises(ValueError):
-            ft.to_face_label()
 
     def test_to_pixel_quad(self):
         ft = FaceCandidateTrace(**_face_trace_dict(pixel_bbox=(10, 20, 50, 60)))

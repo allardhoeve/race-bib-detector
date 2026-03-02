@@ -1,8 +1,8 @@
-"""Tests for LinkScorecard and score_links()."""
+"""Tests for LinkScorecard and score_links() (rewritten for TraceLink in task-095)."""
 
 import pytest
 
-from pipeline.types import BibLabel, BibFaceLink, FaceLabel
+from pipeline.types import BibCandidateTrace, BibFaceLink, FaceCandidateTrace, FaceLabel, BibLabel, TraceLink
 from benchmarking.scoring import LinkScorecard, score_links
 
 
@@ -10,16 +10,41 @@ from benchmarking.scoring import LinkScorecard, score_links
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _bib(x, y, w, h, number="1"):
+def _bib_label(x, y, w, h, number="1"):
     return BibLabel(x=x, y=y, w=w, h=h, number=number)
 
 
-def _face(x, y, w, h):
+def _face_label(x, y, w, h):
     return FaceLabel(x=x, y=y, w=w, h=h, scope="keep")
+
+
+def _bib_trace(x, y, w, h, number="1"):
+    return BibCandidateTrace(
+        x=x, y=y, w=w, h=h,
+        area=100, aspect_ratio=1.0, median_brightness=200.0,
+        mean_brightness=200.0, relative_area=0.01,
+        passed_validation=True, accepted=True, bib_number=number,
+    )
+
+
+def _face_trace(x, y, w, h):
+    return FaceCandidateTrace(
+        x=x, y=y, w=w, h=h,
+        confidence=0.9, passed=True, accepted=True,
+    )
 
 
 def _link(bib_idx, face_idx):
     return BibFaceLink(bib_index=bib_idx, face_index=face_idx)
+
+
+def _trace_link(bib, face, provenance="spatial"):
+    bib_cx = bib.x + bib.w / 2
+    bib_cy = bib.y + bib.h / 2
+    face_cx = face.x + face.w / 2
+    face_cy = face.y + face.h / 2
+    dist = ((bib_cx - face_cx) ** 2 + (bib_cy - face_cy) ** 2) ** 0.5
+    return TraceLink(face_trace=face, bib_trace=bib, provenance=provenance, distance=dist)
 
 
 # ---------------------------------------------------------------------------
@@ -29,8 +54,8 @@ def _link(bib_idx, face_idx):
 class TestScoreLinks:
     def test_empty_predictions(self):
         """No predictions, N GT links → FN=N, TP=FP=0."""
-        gt_bibs = [_bib(0.1, 0.1, 0.2, 0.2), _bib(0.5, 0.5, 0.2, 0.2)]
-        gt_faces = [_face(0.3, 0.3, 0.1, 0.1)]
+        gt_bibs = [_bib_label(0.1, 0.1, 0.2, 0.2), _bib_label(0.5, 0.5, 0.2, 0.2)]
+        gt_faces = [_face_label(0.3, 0.3, 0.1, 0.1)]
         gt_links = [_link(0, 0), _link(1, 0)]
 
         sc = score_links([], gt_bibs, gt_faces, gt_links)
@@ -42,11 +67,11 @@ class TestScoreLinks:
 
     def test_empty_gt(self):
         """N predictions, no GT links → FP=N, TP=FN=0."""
-        pred_bib = _bib(0.1, 0.1, 0.2, 0.2)
-        pred_face = _face(0.3, 0.3, 0.1, 0.1)
-        pairs = [(pred_bib, pred_face), (pred_bib, pred_face)]
+        bt = _bib_trace(0.1, 0.1, 0.2, 0.2)
+        ft = _face_trace(0.3, 0.3, 0.1, 0.1)
+        pred = [_trace_link(bt, ft), _trace_link(bt, ft)]
 
-        sc = score_links(pairs, [pred_bib], [pred_face], [])
+        sc = score_links(pred, [_bib_label(0.1, 0.1, 0.2, 0.2)], [_face_label(0.3, 0.3, 0.1, 0.1)], [])
 
         assert sc.link_tp == 0
         assert sc.link_fp == 2
@@ -55,18 +80,17 @@ class TestScoreLinks:
 
     def test_perfect_match(self):
         """Predictions exactly match GT links → TP=N, FP=FN=0."""
-        bib0 = _bib(0.1, 0.1, 0.2, 0.2)
-        face0 = _face(0.4, 0.4, 0.15, 0.15)
-        bib1 = _bib(0.6, 0.6, 0.2, 0.2)
-        face1 = _face(0.7, 0.1, 0.1, 0.1)
+        bt0 = _bib_trace(0.1, 0.1, 0.2, 0.2)
+        ft0 = _face_trace(0.4, 0.4, 0.15, 0.15)
+        bt1 = _bib_trace(0.6, 0.6, 0.2, 0.2)
+        ft1 = _face_trace(0.7, 0.1, 0.1, 0.1)
 
-        gt_bibs = [bib0, bib1]
-        gt_faces = [face0, face1]
+        gt_bibs = [_bib_label(0.1, 0.1, 0.2, 0.2), _bib_label(0.6, 0.6, 0.2, 0.2)]
+        gt_faces = [_face_label(0.4, 0.4, 0.15, 0.15), _face_label(0.7, 0.1, 0.1, 0.1)]
         gt_links = [_link(0, 0), _link(1, 1)]
 
-        # Predicted pairs are the same boxes (IoU = 1.0)
-        pairs = [(bib0, face0), (bib1, face1)]
-        sc = score_links(pairs, gt_bibs, gt_faces, gt_links)
+        pred = [_trace_link(bt0, ft0), _trace_link(bt1, ft1)]
+        sc = score_links(pred, gt_bibs, gt_faces, gt_links)
 
         assert sc.link_tp == 2
         assert sc.link_fp == 0
@@ -75,18 +99,18 @@ class TestScoreLinks:
 
     def test_wrong_pair(self):
         """Boxes match but link direction is wrong → FP."""
-        bib0 = _bib(0.1, 0.1, 0.2, 0.2)
-        bib1 = _bib(0.6, 0.6, 0.2, 0.2)
-        face0 = _face(0.4, 0.4, 0.15, 0.15)
-        face1 = _face(0.7, 0.1, 0.1, 0.1)
+        bt0 = _bib_trace(0.1, 0.1, 0.2, 0.2)
+        bt1 = _bib_trace(0.6, 0.6, 0.2, 0.2)
+        ft0 = _face_trace(0.4, 0.4, 0.15, 0.15)
+        ft1 = _face_trace(0.7, 0.1, 0.1, 0.1)
 
-        gt_bibs = [bib0, bib1]
-        gt_faces = [face0, face1]
+        gt_bibs = [_bib_label(0.1, 0.1, 0.2, 0.2), _bib_label(0.6, 0.6, 0.2, 0.2)]
+        gt_faces = [_face_label(0.4, 0.4, 0.15, 0.15), _face_label(0.7, 0.1, 0.1, 0.1)]
         gt_links = [_link(0, 0), _link(1, 1)]  # bib0↔face0, bib1↔face1
 
         # Predicted pairs are swapped: bib0↔face1, bib1↔face0
-        pairs = [(bib0, face1), (bib1, face0)]
-        sc = score_links(pairs, gt_bibs, gt_faces, gt_links)
+        pred = [_trace_link(bt0, ft1), _trace_link(bt1, ft0)]
+        sc = score_links(pred, gt_bibs, gt_faces, gt_links)
 
         assert sc.link_tp == 0
         assert sc.link_fp == 2
@@ -94,15 +118,14 @@ class TestScoreLinks:
 
     def test_iou_below_threshold(self):
         """Boxes don't meet IoU threshold → pair counts as FP; GT link as FN."""
-        # GT bib at [0.1, 0.1, 0.2, 0.2]; predicted bib is far away
-        gt_bib = _bib(0.1, 0.1, 0.2, 0.2)
-        pred_bib = _bib(0.8, 0.8, 0.1, 0.1)  # IoU ≈ 0 with gt_bib
-        face = _face(0.4, 0.4, 0.15, 0.15)
+        gt_bib = _bib_label(0.1, 0.1, 0.2, 0.2)
+        pred_bt = _bib_trace(0.8, 0.8, 0.1, 0.1)  # IoU ≈ 0 with gt_bib
+        ft = _face_trace(0.4, 0.4, 0.15, 0.15)
 
         gt_links = [_link(0, 0)]
-        pairs = [(pred_bib, face)]
+        pred = [_trace_link(pred_bt, ft)]
 
-        sc = score_links(pairs, [gt_bib], [face], gt_links)
+        sc = score_links(pred, [gt_bib], [_face_label(0.4, 0.4, 0.15, 0.15)], gt_links)
 
         assert sc.link_tp == 0
         assert sc.link_fp == 1

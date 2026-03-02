@@ -56,18 +56,55 @@ class TestScopeConstants:
 
 class TestAutolinkFromPipelineTypes:
     def test_predict_links_importable(self):
-        from pipeline.types import predict_links, AutolinkResult, BibLabel, FaceLabel
-        bib = BibLabel(x=0.1, y=0.5, w=0.1, h=0.1, number="1")
-        face = FaceLabel(x=0.1, y=0.1, w=0.1, h=0.1)
+        from pipeline.types import predict_links, TraceLink, BibCandidateTrace, FaceCandidateTrace
+        bib = BibCandidateTrace(
+            x=0.1, y=0.5, w=0.1, h=0.1,
+            area=100, aspect_ratio=1.0, median_brightness=200.0,
+            mean_brightness=200.0, relative_area=0.01,
+            passed_validation=True, accepted=True, bib_number="1",
+        )
+        face = FaceCandidateTrace(
+            x=0.1, y=0.1, w=0.1, h=0.1,
+            confidence=0.9, passed=True, accepted=True,
+        )
         result = predict_links([bib], [face])
-        assert isinstance(result, AutolinkResult)
-        assert len(result.pairs) == 1
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert isinstance(result[0], TraceLink)
 
     def test_torso_region_importable(self):
-        from pipeline.types import _torso_region, FaceLabel
-        face = FaceLabel(x=0.1, y=0.1, w=0.1, h=0.1)
+        from pipeline.types import _torso_region, FaceCandidateTrace
+        face = FaceCandidateTrace(
+            x=0.1, y=0.1, w=0.1, h=0.1,
+            confidence=0.9, passed=True, accepted=True,
+        )
         tx, ty, tw, th = _torso_region(face)
         assert tw > 0 and th > 0
+
+
+class TestTraceLink:
+    def test_importable_and_constructable(self):
+        from pipeline.types import TraceLink, BibCandidateTrace, FaceCandidateTrace
+        bib_trace = BibCandidateTrace(
+            x=0.1, y=0.5, w=0.1, h=0.1,
+            area=100, aspect_ratio=1.0, median_brightness=200.0,
+            mean_brightness=200.0, relative_area=0.01,
+            passed_validation=True, accepted=True, bib_number="42",
+        )
+        face_trace = FaceCandidateTrace(
+            x=0.1, y=0.1, w=0.1, h=0.1,
+            confidence=0.9, passed=True, accepted=True,
+        )
+        link = TraceLink(
+            face_trace=face_trace,
+            bib_trace=bib_trace,
+            provenance="single_face",
+            distance=0.25,
+        )
+        assert link.face_trace is face_trace
+        assert link.bib_trace is bib_trace
+        assert link.provenance == "single_face"
+        assert link.distance == 0.25
 
 
 class TestReExportsFromGroundTruth:

@@ -15,7 +15,7 @@ from typing import Sequence
 
 from pydantic import BaseModel, computed_field
 
-from pipeline.types import BibLabel, BibFaceLink, FaceLabel, _BIB_BOX_UNSCORED
+from pipeline.types import BibLabel, BibFaceLink, FaceLabel, TraceLink, _BIB_BOX_UNSCORED
 
 # Type alias for a box as (x, y, w, h) tuple
 Box = tuple[float, float, float, float]
@@ -393,8 +393,18 @@ def score_faces(
     )
 
 
+def _trace_bib_to_tuple(link: TraceLink) -> Box:
+    t = link.bib_trace
+    return (t.x, t.y, t.w, t.h)
+
+
+def _trace_face_to_tuple(link: TraceLink) -> Box:
+    t = link.face_trace
+    return (t.x, t.y, t.w, t.h)
+
+
 def score_links(
-    predicted_pairs: Sequence[tuple[BibLabel, FaceLabel]],
+    predicted_links: Sequence[TraceLink],
     gt_bib_boxes: Sequence[BibLabel],
     gt_face_boxes: Sequence[FaceLabel],
     gt_links: Sequence[BibFaceLink],
@@ -403,14 +413,14 @@ def score_links(
 ) -> LinkScorecard:
     """Score predicted bib-face links against ground truth links.
 
-    Each predicted pair is a (bib_box, face_box) tuple from the pipeline.
-    A pair is a TP only if:
-      - its bib_box matches a GT bib box at >= bib_iou_threshold,
-      - its face_box matches a GT face box at >= face_iou_threshold, AND
+    Each predicted link is a TraceLink with bib_trace and face_trace.
+    A link is a TP only if:
+      - its bib_trace matches a GT bib box at >= bib_iou_threshold,
+      - its face_trace matches a GT face box at >= face_iou_threshold, AND
       - the GT link (gt_bib_index, gt_face_index) between those boxes exists.
 
     Args:
-        predicted_pairs: (bib_box, face_box) pairs from the detection pipeline.
+        predicted_links: TraceLink objects from the detection pipeline.
         gt_bib_boxes: GT bib boxes for this photo, in index order matching
                       BibFaceLink.bib_index.
         gt_face_boxes: GT face boxes for this photo, in index order matching
@@ -424,7 +434,7 @@ def score_links(
     """
     gt_link_count = len(gt_links)
 
-    if not predicted_pairs:
+    if not predicted_links:
         return LinkScorecard(
             link_tp=0, link_fp=0, link_fn=gt_link_count,
             gt_link_count=gt_link_count,
@@ -432,18 +442,18 @@ def score_links(
 
     if not gt_links:
         return LinkScorecard(
-            link_tp=0, link_fp=len(predicted_pairs), link_fn=0,
+            link_tp=0, link_fp=len(predicted_links), link_fn=0,
             gt_link_count=0,
         )
 
     # Step 1: match predicted bib boxes to GT bib boxes
-    pred_bib_tuples = [_bibbox_to_tuple(p[0]) for p in predicted_pairs]
+    pred_bib_tuples = [_trace_bib_to_tuple(lnk) for lnk in predicted_links]
     gt_bib_tuples = [_bibbox_to_tuple(b) for b in gt_bib_boxes]
     bib_match = match_boxes(pred_bib_tuples, gt_bib_tuples, bib_iou_threshold)
     pred_to_gt_bib: dict[int, int] = {pi: gi for pi, gi in bib_match.tp}
 
     # Step 2: match predicted face boxes to GT face boxes
-    pred_face_tuples = [_facebox_to_tuple(p[1]) for p in predicted_pairs]
+    pred_face_tuples = [_trace_face_to_tuple(lnk) for lnk in predicted_links]
     gt_face_tuples = [_facebox_to_tuple(b) for b in gt_face_boxes]
     face_match = match_boxes(pred_face_tuples, gt_face_tuples, face_iou_threshold)
     pred_to_gt_face: dict[int, int] = {pi: gi for pi, gi in face_match.tp}
@@ -451,10 +461,10 @@ def score_links(
     # Step 3: build GT link set for O(1) lookup
     gt_link_set = {(lnk.bib_index, lnk.face_index) for lnk in gt_links}
 
-    # Step 4: for each predicted pair, check if both boxes matched and link exists
+    # Step 4: for each predicted link, check if both boxes matched and link exists
     matched_gt_links: set[tuple[int, int]] = set()
     tp = fp = 0
-    for pi in range(len(predicted_pairs)):
+    for pi in range(len(predicted_links)):
         gt_bib_idx = pred_to_gt_bib.get(pi)
         gt_face_idx = pred_to_gt_face.get(pi)
         if gt_bib_idx is not None and gt_face_idx is not None:

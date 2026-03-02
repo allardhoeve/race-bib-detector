@@ -20,7 +20,7 @@ from detection import detect_bib_numbers
 from detection.types import DetectionResult
 from faces.types import FaceCandidate
 from geometry import Bbox, bbox_to_rect, rect_iou
-from pipeline.types import AutolinkResult, BibLabel, BibCandidateTrace, FaceCandidateTrace, FaceLabel, predict_links
+from pipeline.types import BibCandidateTrace, FaceCandidateTrace, TraceLink, predict_links
 
 if TYPE_CHECKING:
     import easyocr
@@ -45,48 +45,25 @@ class SinglePhotoResult:
     face_trace: list[FaceCandidateTrace]
     face_detect_time_ms: float
 
-    # Linking
-    autolink: AutolinkResult | None = None
+    # Linking (trace-based, task-095)
+    links: list[TraceLink] = field(default_factory=list)
 
     # Decoded image (for consumers that need it for embedding/artifacts)
     image_rgb: np.ndarray | None = None
-
-    # Cached bib boxes (computed once, same instances used by autolink)
-    _bib_boxes_cache: list[BibLabel] = field(default_factory=list, repr=False)
-
-    # Cached face boxes/pixel bboxes (computed once, identity matters for autolink)
-    _face_boxes_cache: list[FaceLabel] = field(default_factory=list, repr=False)
-    _face_pixel_bboxes_cache: list[Bbox] = field(default_factory=list, repr=False)
-
-    @property
-    def bib_boxes(self) -> list[BibLabel]:
-        """Normalised BibLabel list derived from bib_trace (cached)."""
-        return self._bib_boxes_cache
-
-    @property
-    def face_boxes(self) -> list[FaceLabel]:
-        """Normalised FaceLabel list for accepted traces (cached)."""
-        return self._face_boxes_cache
-
-    @property
-    def face_pixel_bboxes(self) -> list[Bbox]:
-        """Pixel-space Bbox list for accepted traces (cached)."""
-        return self._face_pixel_bboxes_cache
 
 
 def _build_bib_trace(
     result: DetectionResult,
     img_w: int,
     img_h: int,
-) -> tuple[list[BibCandidateTrace], list[BibLabel]]:
-    """Build bib candidate trace and corresponding BibLabel list.
+) -> list[BibCandidateTrace]:
+    """Build bib candidate trace from detection result.
 
-    Returns both the full trace (all candidates) and the accepted BibLabel
-    list.  The BibLabel instances are created once here and must be reused
-    for autolink (object identity matters for ``list.index()``).
+    Every candidate gets a trace entry.  Detections without a source
+    candidate (test stubs) also get an accepted trace with minimal fields.
     """
     if img_w <= 0 or img_h <= 0:
-        return [], []
+        return []
 
     sf = result.scale_factor  # OCR→original scale
 
@@ -98,7 +75,6 @@ def _build_bib_trace(
             accepted_by_candidate[cand_id] = (det.bib_number, det.confidence)
 
     traces: list[BibCandidateTrace] = []
-    bib_boxes: list[BibLabel] = []
 
     for cand in result.all_candidates:
         # Normalise candidate bbox from OCR coords to [0, 1]
@@ -130,26 +106,24 @@ def _build_bib_trace(
         )
         traces.append(trace)
 
-        if is_accepted:
-            bib_boxes.append(BibLabel(
-                x=nx, y=ny, w=nw, h=nh,
-                number=bib_number or "",
-                confidence=det_confidence,
-            ))
-
-    # Also create BibLabel for detections without a source candidate
+    # Also create accepted traces for detections without a source candidate
     # (e.g. from test stubs that don't set source_candidate)
     for det in result.detections:
         if det.source_candidate is None:
             x1, y1, x2, y2 = bbox_to_rect(det.bbox)
-            bib_boxes.append(BibLabel(
+            traces.append(BibCandidateTrace(
                 x=x1 / img_w, y=y1 / img_h,
                 w=(x2 - x1) / img_w, h=(y2 - y1) / img_h,
-                number=det.bib_number,
-                confidence=det.confidence,
+                area=0, aspect_ratio=0.0,
+                median_brightness=0.0, mean_brightness=0.0,
+                relative_area=0.0, passed_validation=True,
+                ocr_text=det.bib_number,
+                ocr_confidence=det.confidence,
+                accepted=True,
+                bib_number=det.bib_number,
             ))
 
-    return traces, bib_boxes
+    return traces
 
 
 def _build_face_trace(
@@ -157,21 +131,13 @@ def _build_face_trace(
     accepted_bboxes: set[int],
     img_w: int,
     img_h: int,
-) -> tuple[list[FaceCandidateTrace], list[FaceLabel], list[Bbox]]:
-    """Build face candidate trace, FaceLabel list, and pixel bbox list.
+) -> list[FaceCandidateTrace]:
+    """Build face candidate trace.
 
     ``accepted_bboxes`` is a set of ``id(bbox)`` for bboxes that survived
-    the fallback chain.  Every candidate gets a trace entry; accepted ones
-    also produce a FaceLabel + pixel Bbox.
-
-    Returns:
-        (face_trace, face_boxes, face_pixel_bboxes) — the FaceLabel and Bbox
-        lists are created once here and must be reused for autolink (object
-        identity matters for ``list.index()``).
+    the fallback chain.  Every candidate gets a trace entry.
     """
     traces: list[FaceCandidateTrace] = []
-    face_boxes: list[FaceLabel] = []
-    pixel_bboxes: list[Bbox] = []
 
     for cand in all_candidates:
         x1, y1, x2, y2 = bbox_to_rect(cand.bbox)
@@ -192,15 +158,7 @@ def _build_face_trace(
         )
         traces.append(trace)
 
-        if is_accepted:
-            fb = FaceLabel(
-                x=nx, y=ny, w=nw, h=nh,
-                confidence=cand.confidence,
-            )
-            face_boxes.append(fb)
-            pixel_bboxes.append(cand.bbox)
-
-    return traces, face_boxes, pixel_bboxes
+    return traces
 
 
 def _run_face_fallback_chain(
@@ -324,7 +282,6 @@ def run_single_photo(
         scale_factor=1.0,
     )
     bib_trace: list[BibCandidateTrace] = []
-    bib_boxes: list[BibLabel] = []
     bib_time_ms = 0.0
 
     if run_bibs:
@@ -334,12 +291,10 @@ def run_single_photo(
         bib_result = detect_fn(reader, image_data, artifact_dir=artifact_dir)
         bib_time_ms = (time.time() - start) * 1000
         bib_w, bib_h = bib_result.original_dimensions
-        bib_trace, bib_boxes = _build_bib_trace(bib_result, bib_w, bib_h)
+        bib_trace = _build_bib_trace(bib_result, bib_w, bib_h)
 
     # --- Face detection ---
     face_trace: list[FaceCandidateTrace] = []
-    face_boxes: list[FaceLabel] = []
-    face_pixel_bboxes: list[Bbox] = []
     face_time_ms = 0.0
 
     if run_faces and face_backend is not None and image_rgb is not None:
@@ -356,9 +311,9 @@ def run_single_photo(
             all_candidates, passed_bboxes,
         )
 
-        # Build trace + cached FaceLabel/pixel_bbox lists
+        # Build trace
         accepted_bbox_ids = {id(bbox) for bbox in passed_bboxes}
-        face_trace, face_boxes, face_pixel_bboxes = _build_face_trace(
+        face_trace = _build_face_trace(
             all_candidates, accepted_bbox_ids, img_w, img_h,
         )
 
@@ -372,9 +327,12 @@ def run_single_photo(
                 trace.embedding = emb.tolist()
 
     # --- Autolink ---
-    autolink: AutolinkResult | None = None
-    if run_autolink and bib_boxes and face_boxes:
-        autolink = predict_links(bib_boxes, face_boxes)
+    links: list[TraceLink] = []
+    if run_autolink:
+        accepted_bibs = [t for t in bib_trace if t.accepted]
+        accepted_faces = [t for t in face_trace if t.accepted]
+        if accepted_bibs and accepted_faces:
+            links = predict_links(accepted_bibs, accepted_faces)
 
     return SinglePhotoResult(
         image_dims=(img_w, img_h),
@@ -383,9 +341,6 @@ def run_single_photo(
         bib_detect_time_ms=bib_time_ms,
         face_trace=face_trace,
         face_detect_time_ms=face_time_ms,
-        autolink=autolink,
+        links=links,
         image_rgb=image_rgb,
-        _bib_boxes_cache=bib_boxes,
-        _face_boxes_cache=face_boxes,
-        _face_pixel_bboxes_cache=face_pixel_bboxes,
     )

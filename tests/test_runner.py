@@ -178,8 +178,8 @@ class TestFaceBackendFailureGraceful:
 class TestRunSinglePhotoBibDetection:
     """Test bib detection through the unified pipeline."""
 
-    def test_detection_returns_normalised_boxes_and_dims(self):
-        """Known detection -> normalised BibLabel and correct dims."""
+    def test_detection_returns_normalised_traces_and_dims(self):
+        """Known detection -> normalised BibCandidateTrace and correct dims."""
         from pipeline import run_single_photo
         from detection.types import DetectionResult, Detection
         from geometry import rect_to_bbox as _rtb
@@ -207,13 +207,14 @@ class TestRunSinglePhotoBibDetection:
         )
 
         assert sp.image_dims == (100, 100)
-        assert len(sp.bib_boxes) == 1
+        accepted = [t for t in sp.bib_trace if t.accepted]
+        assert len(accepted) == 1
         # [10,10->30,30] in 100x100 -> x=0.1, y=0.1, w=0.2, h=0.2
-        assert abs(sp.bib_boxes[0].x - 0.1) < 1e-6
-        assert abs(sp.bib_boxes[0].w - 0.2) < 1e-6
+        assert abs(accepted[0].x - 0.1) < 1e-6
+        assert abs(accepted[0].w - 0.2) < 1e-6
 
-    def test_no_detections_returns_empty_boxes(self):
-        """No detections -> empty bib_boxes list."""
+    def test_no_detections_returns_empty_traces(self):
+        """No detections -> empty accepted traces."""
         from pipeline import run_single_photo
 
         sp = run_single_photo(
@@ -223,7 +224,7 @@ class TestRunSinglePhotoBibDetection:
             run_autolink=False,
         )
 
-        assert sp.bib_boxes == []
+        assert [t for t in sp.bib_trace if t.accepted] == []
 
 
 # =============================================================================
@@ -235,7 +236,7 @@ class TestRunSinglePhotoFaceDetection:
     """Test face detection through the unified pipeline."""
 
     def test_passed_candidates_normalised_correctly(self):
-        """Passed face candidate -> FaceLabel with correct normalised coords."""
+        """Passed face candidate -> accepted trace with correct normalised coords."""
         from pipeline import run_single_photo
 
         sp = run_single_photo(
@@ -245,16 +246,17 @@ class TestRunSinglePhotoFaceDetection:
             run_autolink=False,
         )
 
-        assert len(sp.face_boxes) == 1
+        accepted = [t for t in sp.face_trace if t.accepted]
+        assert len(accepted) == 1
         # FakeFaceBackend: rect_to_bbox(10,10,40,40) -> [10,10->50,50] in 100x100
-        assert abs(sp.face_boxes[0].x - 0.1) < 1e-6
-        assert abs(sp.face_boxes[0].y - 0.1) < 1e-6
-        assert abs(sp.face_boxes[0].w - 0.4) < 1e-6
-        assert abs(sp.face_boxes[0].h - 0.4) < 1e-6
+        assert abs(accepted[0].x - 0.1) < 1e-6
+        assert abs(accepted[0].y - 0.1) < 1e-6
+        assert abs(accepted[0].w - 0.4) < 1e-6
+        assert abs(accepted[0].h - 0.4) < 1e-6
         assert sp.face_detect_time_ms >= 0
 
-    def test_face_box_has_confidence(self):
-        """Predicted FaceLabel carries confidence from FaceCandidate."""
+    def test_face_trace_has_confidence(self):
+        """Accepted trace carries confidence from FaceCandidate."""
         from pipeline import run_single_photo
 
         sp = run_single_photo(
@@ -263,10 +265,11 @@ class TestRunSinglePhotoFaceDetection:
             face_backend=FakeFaceBackend(),
             run_autolink=False,
         )
-        assert sp.face_boxes[0].confidence == 0.9
+        accepted = [t for t in sp.face_trace if t.accepted]
+        assert accepted[0].confidence == 0.9
 
-    def test_corrupt_image_returns_empty_list(self):
-        """Undecodable bytes -> empty face list."""
+    def test_corrupt_image_returns_empty_trace(self):
+        """Undecodable bytes -> empty face trace."""
         from pipeline import run_single_photo
 
         sp = run_single_photo(
@@ -275,7 +278,7 @@ class TestRunSinglePhotoFaceDetection:
             face_backend=FakeFaceBackend(),
             run_autolink=False,
         )
-        assert sp.face_boxes == []
+        assert sp.face_trace == []
 
     def test_failed_candidates_excluded(self):
         """Candidates with passed=False and very low confidence are excluded.
@@ -302,7 +305,7 @@ class TestRunSinglePhotoFaceDetection:
             face_backend=FailingBackend(),
             run_autolink=False,
         )
-        assert sp.face_boxes == []
+        assert [t for t in sp.face_trace if t.accepted] == []
 
 
 # =============================================================================
@@ -565,8 +568,8 @@ class TestPredLinks:
 class TestScorecardAndConfidence:
     """Per-photo scorecards and confidence fields are populated (task-061)."""
 
-    def test_bib_box_has_confidence(self):
-        """Predicted bib boxes carry confidence from Detection."""
+    def test_bib_trace_has_confidence(self):
+        """Accepted bib traces carry OCR confidence from Detection."""
         from pipeline import run_single_photo
         from detection.types import Detection, DetectionResult
 
@@ -592,8 +595,9 @@ class TestScorecardAndConfidence:
             run_autolink=False,
         )
 
-        assert len(sp.bib_boxes) == 1
-        assert sp.bib_boxes[0].confidence == 0.85
+        accepted = [t for t in sp.bib_trace if t.accepted]
+        assert len(accepted) == 1
+        assert accepted[0].ocr_confidence == 0.85
 
     def test_photo_result_has_scorecards(self, tmp_path):
         """bib_scorecard, face_scorecard, and face_detection_time_ms are populated."""

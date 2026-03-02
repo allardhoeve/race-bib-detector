@@ -1,53 +1,55 @@
-"""Tests for faces.autolink.predict_links (task-030)."""
+"""Tests for predict_links (task-030, rewritten for TraceLink in task-095)."""
 
 from __future__ import annotations
 
 import pytest
 
-from pipeline.types import AutolinkResult, BibLabel, FaceLabel, predict_links
+from pipeline.types import BibCandidateTrace, FaceCandidateTrace, TraceLink, predict_links
 
 
 def _bib(x=0.1, y=0.5, w=0.1, h=0.1, number="1"):
-    return BibLabel(x=x, y=y, w=w, h=h, number=number)
+    return BibCandidateTrace(
+        x=x, y=y, w=w, h=h,
+        area=100, aspect_ratio=1.0, median_brightness=200.0,
+        mean_brightness=200.0, relative_area=0.01,
+        passed_validation=True, accepted=True, bib_number=number,
+    )
 
 
 def _face(x=0.1, y=0.1, w=0.1, h=0.1):
-    return FaceLabel(x=x, y=y, w=w, h=h)
+    return FaceCandidateTrace(
+        x=x, y=y, w=w, h=h,
+        confidence=0.9, passed=True, accepted=True,
+    )
 
 
 class TestSingleFaceRule:
     def test_single_face_single_bib_linked(self):
-        """Single face + single bib → exactly one link."""
+        """Single face + single bib → exactly one TraceLink."""
         face = _face()
         bib = _bib()
         result = predict_links([bib], [face])
-        assert len(result.pairs) == 1
-        assert result.pairs[0] == (bib, face)
-        assert result.provenance == ["single_face"]
-
-    def test_single_face_low_conf_bib(self):
-        """bib_confidence_threshold >= 1.0 suppresses all links."""
-        result = predict_links([_bib()], [_face()], bib_confidence_threshold=1.1)
-        assert result.pairs == []
-        assert result.provenance == []
+        assert len(result) == 1
+        assert result[0].bib_trace is bib
+        assert result[0].face_trace is face
+        assert result[0].provenance == "single_face"
+        assert result[0].distance >= 0
 
 
 class TestEdgeCases:
     def test_no_faces(self):
-        """Empty face list → AutolinkResult with no pairs."""
+        """Empty face list → empty list."""
         result = predict_links([_bib()], [])
-        assert result.pairs == []
-        assert result.provenance == []
+        assert result == []
 
     def test_no_bibs(self):
-        """Empty bib list → AutolinkResult with no pairs."""
+        """Empty bib list → empty list."""
         result = predict_links([], [_face()])
-        assert result.pairs == []
-        assert result.provenance == []
+        assert result == []
 
     def test_both_empty(self):
         result = predict_links([], [])
-        assert result.pairs == []
+        assert result == []
 
 
 class TestMultiFaceSpatialMatching:
@@ -64,9 +66,13 @@ class TestMultiFaceSpatialMatching:
 
         result = predict_links([bib1, bib2], [face1, face2])
 
-        assert len(result.pairs) == 2
-        assert (bib1, face1) in result.pairs
-        assert (bib2, face2) in result.pairs
+        assert len(result) == 2
+        bib_trace_ids = {id(link.bib_trace) for link in result}
+        face_trace_ids = {id(link.face_trace) for link in result}
+        assert id(bib1) in bib_trace_ids
+        assert id(bib2) in bib_trace_ids
+        assert id(face1) in face_trace_ids
+        assert id(face2) in face_trace_ids
 
     def test_bib_outside_all_torsos_skipped(self):
         """Bib whose centroid falls outside every face's torso region is not linked."""
@@ -76,7 +82,7 @@ class TestMultiFaceSpatialMatching:
         result = predict_links([bib], [face])
         # single-face rule fires (1 face + 1 bib) → still links unconditionally
         # only the multi-face path skips out-of-torso bibs
-        assert len(result.pairs) == 1  # single-face rule, not spatial
+        assert len(result) == 1  # single-face rule, not spatial
 
     def test_each_bib_used_at_most_once(self):
         """One bib is not assigned to two faces."""
@@ -86,5 +92,5 @@ class TestMultiFaceSpatialMatching:
         bib = _bib(x=0.1, y=0.25, w=0.1, h=0.1)
         result = predict_links([bib], [face1, face2])
         # bib should appear at most once
-        bib_uses = sum(1 for (b, _) in result.pairs if b is bib)
+        bib_uses = sum(1 for link in result if link.bib_trace is bib)
         assert bib_uses <= 1

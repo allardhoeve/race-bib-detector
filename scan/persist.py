@@ -278,26 +278,26 @@ def process_image(
         save_face_detections_to_db(conn, face_detections, photo_id, skip_existing)
 
     # --- Autolink persistence ---
-    if sp.autolink and sp.autolink.pairs and face_detections:
-        # Need to map autolink box pairs back to DB detection IDs.
-        # Bib detections are inserted in order → get their IDs
+    if sp.links and face_detections:
         bib_det_ids = _get_bib_detection_ids(conn, photo_id)
         face_det_ids = _get_face_detection_ids(conn, photo_id)
+        accepted_bibs = [t for t in sp.bib_trace if t.accepted]
+        accepted_faces = [t for t in sp.face_trace if t.accepted]
 
         db.delete_bib_face_links(conn, photo_id)
-        for (bib_box, face_box), prov in zip(sp.autolink.pairs, sp.autolink.provenance):
+        for link in sp.links:
             try:
-                bib_idx = sp.bib_boxes.index(bib_box)
-                face_idx = sp.face_boxes.index(face_box)
-                if bib_idx < len(bib_det_ids) and face_idx < len(face_det_ids):
+                bi = accepted_bibs.index(link.bib_trace)
+                fi = accepted_faces.index(link.face_trace)
+                if bi < len(bib_det_ids) and fi < len(face_det_ids):
                     db.insert_bib_face_link(
                         conn, photo_id,
-                        bib_det_ids[bib_idx],
-                        face_det_ids[face_idx],
-                        prov,
+                        bib_det_ids[bi],
+                        face_det_ids[fi],
+                        link.provenance,
                     )
             except ValueError:
-                pass  # box not found in list
+                pass
 
     return len(result.detections), len(face_detections)
 

@@ -8,7 +8,7 @@ imported from the benchmarking package.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
@@ -122,19 +122,6 @@ class BibCandidateTrace(BaseModel):
     accepted: bool = False
     bib_number: str | None = None
 
-    def to_bib_label(self) -> BibLabel:
-        """Convert an accepted trace to a BibLabel.
-
-        Raises:
-            ValueError: If this trace was not accepted.
-        """
-        if not self.accepted:
-            raise ValueError("Cannot convert unaccepted trace to BibLabel")
-        return BibLabel(
-            x=self.x, y=self.y, w=self.w, h=self.h,
-            number=self.bib_number or "",
-            confidence=self.ocr_confidence,
-        )
 
 
 # =============================================================================
@@ -181,19 +168,6 @@ class FaceCandidateTrace(BaseModel):
     cluster_id: int | None = None
     cluster_distance: float | None = None
     nearest_other_distance: float | None = None
-
-    def to_face_label(self) -> FaceLabel:
-        """Convert an accepted trace to a FaceLabel.
-
-        Raises:
-            ValueError: If this trace was not accepted.
-        """
-        if not self.accepted:
-            raise ValueError("Cannot convert unaccepted trace to FaceLabel")
-        return FaceLabel(
-            x=self.x, y=self.y, w=self.w, h=self.h,
-            confidence=self.confidence,
-        )
 
     def to_pixel_quad(self) -> Bbox:
         """Convert pixel_bbox (x1, y1, x2, y2) to a 4-point Bbox.
@@ -291,27 +265,29 @@ class BibFaceLink(BaseModel):
 
 
 # =============================================================================
-# Autolink predictor
+# Trace link (task-095)
 # =============================================================================
 
 
 @dataclass
-class AutolinkResult:
-    """Result of the autolink predictor for a single photo."""
+class TraceLink:
+    """A link between a face trace and a bib trace within one photo."""
 
-    pairs: list[tuple[BibLabel, FaceLabel]] = field(default_factory=list)
-    provenance: list[str] = field(default_factory=list)
+    face_trace: FaceCandidateTrace
+    bib_trace: BibCandidateTrace
+    provenance: str      # "single_face", "spatial"
+    distance: float      # centroid distance
 
 
-def _torso_region(face_box: FaceLabel) -> tuple[float, float, float, float]:
+def _torso_region(face: FaceCandidateTrace | FaceLabel) -> tuple[float, float, float, float]:
     """Return estimated torso bounding box (x, y, w, h) in normalised [0,1] coords.
 
     Uses empirically-derived multipliers from config (task-042).
     All offsets are in face-height units from face center.
     """
-    fh = face_box.h
-    cx = face_box.x + face_box.w / 2
-    cy = face_box.y + fh / 2
+    fh = face.h
+    cx = face.x + face.w / 2
+    cy = face.y + fh / 2
     ty = cy + AUTOLINK_TORSO_TOP * fh
     th = (AUTOLINK_TORSO_BOTTOM - AUTOLINK_TORSO_TOP) * fh
     tw = 2 * AUTOLINK_TORSO_HALF_WIDTH * fh
@@ -320,64 +296,55 @@ def _torso_region(face_box: FaceLabel) -> tuple[float, float, float, float]:
 
 
 def predict_links(
-    bib_boxes: list[BibLabel],
-    face_boxes: list[FaceLabel],
-    bib_confidence_threshold: float = 0.5,
-) -> AutolinkResult:
+    bib_traces: list[BibCandidateTrace],
+    face_traces: list[FaceCandidateTrace],
+) -> list[TraceLink]:
     """Rule-based autolink predictor for a single photo.
 
     Rules (applied in order):
-    1. Single face rule: if exactly 1 face and exactly 1 high-confidence bib
+    1. Single face rule: if exactly 1 face and exactly 1 bib
        → link them unconditionally.
     2. Multi-face rule: for each face, find the nearest bib whose centroid
        falls inside the face's estimated torso region. One bib per face max.
 
-    ``bib_confidence_threshold`` gates eligibility: all bibs are treated as
-    having full confidence (1.0) because ``BibLabel`` carries no confidence
-    field. Passing a threshold ≥ 1.0 therefore suppresses all links, which
-    is useful in tests.
-
     Args:
-        bib_boxes: Detected bib boxes for this photo (normalised [0,1] coords).
-        face_boxes: Detected face boxes for this photo (normalised [0,1] coords).
-        bib_confidence_threshold: Minimum bib confidence required for autolink
-            eligibility. All coordinate-bearing bibs are treated as confidence
-            1.0; use a value > 1.0 to disable all links.
+        bib_traces: Accepted bib traces for this photo (normalised [0,1] coords).
+        face_traces: Accepted face traces for this photo (normalised [0,1] coords).
 
     Returns:
-        AutolinkResult with ``pairs`` and ``provenance`` lists.
+        List of TraceLink objects.
     """
-    if not face_boxes or not bib_boxes:
-        return AutolinkResult()
+    if not face_traces or not bib_traces:
+        return []
 
-    if bib_confidence_threshold >= 1.0:
-        return AutolinkResult()
-
-    valid_faces = [f for f in face_boxes if f.has_coords]
-    valid_bibs = [b for b in bib_boxes if b.has_coords]
-
-    if not valid_faces or not valid_bibs:
-        return AutolinkResult()
+    def _centroid_distance(face: FaceCandidateTrace, bib: BibCandidateTrace) -> float:
+        face_cx = face.x + face.w / 2
+        face_cy = face.y + face.h / 2
+        bib_cx = bib.x + bib.w / 2
+        bib_cy = bib.y + bib.h / 2
+        return ((bib_cx - face_cx) ** 2 + (bib_cy - face_cy) ** 2) ** 0.5
 
     # Rule 1: single face + single bib → link unconditionally.
-    if len(valid_faces) == 1 and len(valid_bibs) == 1:
-        return AutolinkResult(
-            pairs=[(valid_bibs[0], valid_faces[0])],
-            provenance=["single_face"],
-        )
+    if len(face_traces) == 1 and len(bib_traces) == 1:
+        dist = _centroid_distance(face_traces[0], bib_traces[0])
+        return [TraceLink(
+            face_trace=face_traces[0],
+            bib_trace=bib_traces[0],
+            provenance="single_face",
+            distance=dist,
+        )]
 
     # Rule 2: multi-face spatial matching.
-    pairs: list[tuple[BibLabel, FaceLabel]] = []
-    provenance: list[str] = []
+    links: list[TraceLink] = []
     used_bibs: set[int] = set()
 
-    for face in valid_faces:
+    for face in face_traces:
         tx, ty, tw, th = _torso_region(face)
         face_cx = face.x + face.w / 2
         face_cy = face.y + face.h / 2
 
         candidates: list[tuple[float, int]] = []
-        for bi, bib in enumerate(valid_bibs):
+        for bi, bib in enumerate(bib_traces):
             if bi in used_bibs:
                 continue
             bib_cx = bib.x + bib.w / 2
@@ -388,14 +355,14 @@ def predict_links(
 
         if candidates:
             candidates.sort()
-            _, best_bi = candidates[0]
-            pairs.append((valid_bibs[best_bi], face))
-            provenance.append("single_face")
+            best_dist, best_bi = candidates[0]
+            links.append(TraceLink(
+                face_trace=face,
+                bib_trace=bib_traces[best_bi],
+                provenance="spatial",
+                distance=best_dist,
+            ))
             used_bibs.add(best_bi)
 
-    return AutolinkResult(pairs=pairs, provenance=provenance)
+    return links
 
-
-# Backward-compat aliases (task-095a). Remove once all external consumers are updated.
-BibBox = BibLabel
-FaceBox = FaceLabel

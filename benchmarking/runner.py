@@ -37,7 +37,7 @@ from faces import FaceBackend, get_face_backend
 
 from pipeline import run_single_photo
 from pipeline.cluster import cluster as cluster_faces
-from pipeline.types import BibCandidateTrace, FaceCandidateTrace, predict_links
+from pipeline.types import BibCandidateTrace, FaceCandidateTrace
 
 from .ground_truth import (
     load_bib_ground_truth,
@@ -456,8 +456,19 @@ def _run_detection_loop(
             artifact_dir=photo_artifact_dir,
         )
 
-        pred_bib_boxes = sp_result.bib_boxes
         img_w, img_h = sp_result.image_dims
+
+        # Derive pred boxes from accepted traces (for scoring and inspect overlay)
+        pred_bib_boxes = [
+            BibLabel(x=t.x, y=t.y, w=t.w, h=t.h,
+                     number=t.bib_number or "", confidence=t.ocr_confidence)
+            for t in sp_result.bib_trace if t.accepted
+        ]
+        pred_face_boxes = [
+            FaceLabel(x=t.x, y=t.y, w=t.w, h=t.h,
+                      confidence=t.confidence, cluster_id=t.cluster_id)
+            for t in sp_result.face_trace if t.accepted
+        ]
 
         # --- Build PhotoResult from pipeline output ---
         detected_bibs: list[int] = []
@@ -500,7 +511,6 @@ def _run_detection_loop(
         photo_result.gt_bib_boxes = label.boxes
 
         # --- Face scoring ---
-        pred_face_boxes = sp_result.face_boxes
         photo_face_label = None
         if face_backend is not None and face_gt is not None:
             photo_face_label = face_gt.get_photo(label.content_hash)
@@ -514,19 +524,21 @@ def _run_detection_loop(
 
         # --- Link scoring ---
         if link_gt is not None and photo_face_label is not None:
-            autolink = sp_result.autolink
-            predicted_pairs = autolink.pairs if autolink else []
+            trace_links = sp_result.links
+            # Build BibFaceLink list for PhotoResult (index-based for serialization)
+            accepted_bibs = [t for t in sp_result.bib_trace if t.accepted]
+            accepted_faces = [t for t in sp_result.face_trace if t.accepted]
             pred_link_list = []
-            for bib_box, face_box in predicted_pairs:
+            for tl in trace_links:
                 try:
-                    bi = pred_bib_boxes.index(bib_box)
-                    fi = pred_face_boxes.index(face_box)
+                    bi = accepted_bibs.index(tl.bib_trace)
+                    fi = accepted_faces.index(tl.face_trace)
                     pred_link_list.append(BibFaceLink(bib_index=bi, face_index=fi))
                 except ValueError:
                     pass
             photo_result.pred_links = pred_link_list
             photo_link_sc = score_links(
-                predicted_pairs=predicted_pairs,
+                predicted_links=trace_links,
                 gt_bib_boxes=label.boxes,
                 gt_face_boxes=photo_face_label.boxes,
                 gt_links=link_gt.get_links(label.content_hash),
@@ -559,17 +571,15 @@ def _run_detection_loop(
                 all_face_traces.extend(result.face_trace)
         cluster_faces(all_face_traces)
 
-        # Back-propagate cluster_id from traces to pred_face_boxes
+        # Rebuild pred_face_boxes from traces (cluster_id comes from traces directly)
         for result in photo_results:
-            if not result.face_trace or not result.pred_face_boxes:
+            if not result.face_trace:
                 continue
-            accepted_idx = 0
-            for trace in result.face_trace:
-                if not trace.accepted:
-                    continue
-                if accepted_idx < len(result.pred_face_boxes):
-                    result.pred_face_boxes[accepted_idx].cluster_id = trace.cluster_id
-                accepted_idx += 1
+            result.pred_face_boxes = [
+                FaceLabel(x=t.x, y=t.y, w=t.w, h=t.h,
+                          confidence=t.confidence, cluster_id=t.cluster_id)
+                for t in result.face_trace if t.accepted
+            ]
 
     bib_scorecard = BibScorecard(
         detection_tp=bib_tp,

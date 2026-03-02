@@ -118,7 +118,7 @@ class FakeEmbedder:
 
 
 class TestBibsOnly:
-    def test_bib_detection_produces_normalised_boxes(self):
+    def test_bib_detection_produces_normalised_traces(self):
         from pipeline import run_single_photo
 
         result = run_single_photo(
@@ -129,14 +129,14 @@ class TestBibsOnly:
         )
 
         assert result.image_dims == (100, 100)
-        assert len(result.bib_boxes) == 1
-        box = result.bib_boxes[0]
-        assert abs(box.x - 0.1) < 1e-6
-        assert abs(box.y - 0.1) < 1e-6
-        assert abs(box.w - 0.2) < 1e-6
-        assert abs(box.h - 0.2) < 1e-6
-        assert box.number == "42"
-        assert box.confidence == 0.9
+        accepted = [t for t in result.bib_trace if t.accepted]
+        assert len(accepted) == 1
+        trace = accepted[0]
+        assert abs(trace.x - 0.1) < 1e-6
+        assert abs(trace.y - 0.1) < 1e-6
+        assert abs(trace.w - 0.2) < 1e-6
+        assert abs(trace.h - 0.2) < 1e-6
+        assert trace.bib_number == "42"
 
     def test_no_bib_detections(self):
         from pipeline import run_single_photo
@@ -148,12 +148,12 @@ class TestBibsOnly:
             run_autolink=False,
         )
 
-        assert result.bib_boxes == []
+        assert [t for t in result.bib_trace if t.accepted] == []
         assert result.bib_result is not None
 
 
 class TestFacesOnly:
-    def test_face_detection_produces_normalised_boxes(self):
+    def test_face_detection_produces_normalised_traces(self):
         from pipeline import run_single_photo
 
         result = run_single_photo(
@@ -163,16 +163,17 @@ class TestFacesOnly:
             run_autolink=False,
         )
 
-        assert len(result.face_boxes) == 1
-        box = result.face_boxes[0]
+        accepted = [t for t in result.face_trace if t.accepted]
+        assert len(accepted) == 1
+        trace = accepted[0]
         # FakeFaceBackend: rect_to_bbox(10,10,40,40) -> [10,10->50,50] in 100x100
-        assert abs(box.x - 0.1) < 1e-6
-        assert abs(box.y - 0.1) < 1e-6
-        assert abs(box.w - 0.4) < 1e-6
-        assert abs(box.h - 0.4) < 1e-6
-        assert box.confidence == 0.9
+        assert abs(trace.x - 0.1) < 1e-6
+        assert abs(trace.y - 0.1) < 1e-6
+        assert abs(trace.w - 0.4) < 1e-6
+        assert abs(trace.h - 0.4) < 1e-6
+        assert trace.confidence == 0.9
 
-    def test_no_face_backend_produces_empty_list(self):
+    def test_no_face_backend_produces_empty_trace(self):
         from pipeline import run_single_photo
 
         result = run_single_photo(
@@ -184,12 +185,13 @@ class TestFacesOnly:
         )
 
         # run_faces=True but no backend → treated as no faces
-        assert result.face_boxes == []
+        assert result.face_trace == []
 
 
 class TestBibsAndFacesWithAutolink:
-    def test_autolink_produces_pairs(self):
+    def test_autolink_produces_links(self):
         from pipeline import run_single_photo
+        from pipeline.types import TraceLink
 
         # Bib at [10,50,30,20] → centroid (0.25, 0.60) in 100x100
         det = Detection(
@@ -215,8 +217,8 @@ class TestBibsAndFacesWithAutolink:
             run_autolink=True,
         )
 
-        assert result.autolink is not None
-        assert len(result.autolink.pairs) == 1
+        assert len(result.links) == 1
+        assert isinstance(result.links[0], TraceLink)
 
 
 class TestFaceFallbackChain:
@@ -233,7 +235,8 @@ class TestFaceFallbackChain:
         )
 
         # EmptyFaceBackend has 0 passed, FallbackFaceBackend has 1 passed
-        assert len(result.face_boxes) >= 1
+        accepted = [t for t in result.face_trace if t.accepted]
+        assert len(accepted) >= 1
 
     def test_no_fallback_when_primary_has_faces(self):
         """Primary returns passed candidates, fallback is not used."""
@@ -250,7 +253,8 @@ class TestFaceFallbackChain:
         # FakeFaceBackend returns 1 passed → no fallback needed
         # (Unless face count < FACE_FALLBACK_MIN_FACE_COUNT, which is 2 by default)
         # With default config (min_face_count=2), fallback WILL trigger for 1 face
-        assert len(result.face_boxes) >= 1
+        accepted = [t for t in result.face_trace if t.accepted]
+        assert len(accepted) >= 1
 
 
 class TestImageDecodeFailure:
@@ -264,7 +268,6 @@ class TestImageDecodeFailure:
             run_autolink=False,
         )
 
-        assert result.face_boxes == []
         assert result.face_trace == []
         assert result.image_dims == (0, 0)
 
@@ -304,9 +307,10 @@ class TestBibTrace:
 
         assert result.bib_trace is not None
         # _fake_detect_fn has 0 candidates, so trace may be empty
-        # but bib_boxes should still be correct
-        assert len(result.bib_boxes) == 1
-        assert result.bib_boxes[0].number == "42"
+        # but accepted traces from detections without source_candidate are created
+        accepted = [t for t in result.bib_trace if t.accepted]
+        assert len(accepted) == 1
+        assert accepted[0].bib_number == "42"
 
     def test_trace_empty_when_no_bibs(self):
         from pipeline import run_single_photo
@@ -320,25 +324,9 @@ class TestBibTrace:
 
         assert result.bib_trace is not None
         assert len(result.bib_trace) == 0
-        assert result.bib_boxes == []
 
-    def test_bib_boxes_property_matches_trace(self):
-        """bib_boxes returns same objects each time (identity check)."""
-        from pipeline import run_single_photo
-
-        result = run_single_photo(
-            _make_png_bytes(),
-            detect_fn=_fake_detect_fn,
-            run_faces=False,
-            run_autolink=False,
-        )
-
-        boxes1 = result.bib_boxes
-        boxes2 = result.bib_boxes
-        assert boxes1 is boxes2  # cached, same list object
-
-    def test_bib_boxes_identity_with_autolink(self):
-        """Autolink pairs reference the same BibLabel instances as bib_boxes."""
+    def test_bib_trace_identity_with_links(self):
+        """Links reference the same BibCandidateTrace instances as bib_trace."""
         from pipeline import run_single_photo
 
         det = Detection(
@@ -363,11 +351,10 @@ class TestBibTrace:
             run_autolink=True,
         )
 
-        if result.autolink and result.autolink.pairs:
-            bib_box_from_link = result.autolink.pairs[0][0]
-            assert bib_box_from_link in result.bib_boxes
-            idx = result.bib_boxes.index(bib_box_from_link)
-            assert result.bib_boxes[idx] is bib_box_from_link
+        if result.links:
+            bib_trace_from_link = result.links[0].bib_trace
+            accepted_bibs = [t for t in result.bib_trace if t.accepted]
+            assert bib_trace_from_link in accepted_bibs
 
 
 class TestSinglePhotoResultFields:
@@ -383,26 +370,13 @@ class TestSinglePhotoResultFields:
 
         assert result.image_dims == (100, 100)
         assert result.bib_result is not None
-        assert isinstance(result.bib_boxes, list)
-        assert isinstance(result.face_boxes, list)
+        assert isinstance(result.bib_trace, list)
         assert isinstance(result.face_trace, list)
-        assert isinstance(result.face_pixel_bboxes, list)
+        assert isinstance(result.links, list)
         assert result.bib_detect_time_ms >= 0
         assert result.face_detect_time_ms >= 0
         assert result.image_rgb is not None
         assert result.image_rgb.shape == (100, 100, 3)
-
-    def test_face_pixel_bboxes_match_face_boxes(self):
-        from pipeline import run_single_photo
-
-        result = run_single_photo(
-            _make_png_bytes(),
-            run_bibs=False,
-            face_backend=FakeFaceBackend(),
-            run_autolink=False,
-        )
-
-        assert len(result.face_pixel_bboxes) == len(result.face_boxes)
 
     def test_face_trace_includes_rejected(self):
         from pipeline import run_single_photo
@@ -416,7 +390,8 @@ class TestSinglePhotoResultFields:
 
         # EmptyFaceBackend returns 1 rejected candidate
         assert len(result.face_trace) >= 1
-        assert result.face_boxes == []  # none passed (no fallback)
+        accepted = [t for t in result.face_trace if t.accepted]
+        assert accepted == []  # none passed (no fallback)
 
 
 class TestFaceTrace:
@@ -444,36 +419,8 @@ class TestFaceTrace:
         assert abs(trace.h - 0.4) < 1e-6
         assert trace.pixel_bbox is not None
 
-    def test_face_boxes_cached(self):
-        from pipeline import run_single_photo
-
-        result = run_single_photo(
-            _make_png_bytes(),
-            run_bibs=False,
-            face_backend=FakeFaceBackend(),
-            run_autolink=False,
-        )
-
-        boxes1 = result.face_boxes
-        boxes2 = result.face_boxes
-        assert boxes1 is boxes2  # cached, same list object
-
-    def test_face_pixel_bboxes_cached(self):
-        from pipeline import run_single_photo
-
-        result = run_single_photo(
-            _make_png_bytes(),
-            run_bibs=False,
-            face_backend=FakeFaceBackend(),
-            run_autolink=False,
-        )
-
-        bboxes1 = result.face_pixel_bboxes
-        bboxes2 = result.face_pixel_bboxes
-        assert bboxes1 is bboxes2  # cached
-
-    def test_face_boxes_identity_with_autolink(self):
-        """Autolink pairs reference the same FaceLabel instances as face_boxes."""
+    def test_face_trace_identity_with_links(self):
+        """Links reference the same FaceCandidateTrace instances as face_trace."""
         from pipeline import run_single_photo
 
         det = Detection(
@@ -498,13 +445,12 @@ class TestFaceTrace:
             run_autolink=True,
         )
 
-        if result.autolink and result.autolink.pairs:
-            face_box_from_link = result.autolink.pairs[0][1]
-            assert face_box_from_link in result.face_boxes
-            idx = result.face_boxes.index(face_box_from_link)
-            assert result.face_boxes[idx] is face_box_from_link
+        if result.links:
+            face_trace_from_link = result.links[0].face_trace
+            accepted_faces = [t for t in result.face_trace if t.accepted]
+            assert face_trace_from_link in accepted_faces
 
-    def test_rejected_in_trace_not_in_face_boxes(self):
+    def test_rejected_in_trace_not_in_accepted(self):
         from pipeline import run_single_photo
 
         result = run_single_photo(
@@ -518,7 +464,8 @@ class TestFaceTrace:
         assert len(result.face_trace) >= 1
         rejected = [t for t in result.face_trace if not t.accepted]
         assert len(rejected) >= 1
-        assert result.face_boxes == []
+        accepted = [t for t in result.face_trace if t.accepted]
+        assert accepted == []
 
     def test_pixel_bbox_on_all_candidates(self):
         """pixel_bbox is set on ALL candidates, not just accepted ones."""
