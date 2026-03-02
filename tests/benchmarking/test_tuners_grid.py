@@ -388,13 +388,14 @@ def test_cmd_tune_calls_validate_when_not_full(tmp_path):
     args.metric = None
     args.quiet = False
     args.no_validate = False
+    args.frozen_set = None
 
     with patch(f"{_PATCH_PREFIX}.run_face_sweep", return_value=fake_results), \
          patch(f"{_PATCH_PREFIX}.print_sweep_results"), \
          patch(f"{_PATCH_PREFIX}.validate_on_full") as mock_validate:
         cmd_tune(args)
 
-    mock_validate.assert_called_once_with(fake_results[0], metric="face_f1")
+    mock_validate.assert_called_once_with(fake_results[0], metric="face_f1", frozen_set=None)
 
 
 def test_cmd_tune_skips_validate_with_no_validate_flag(tmp_path):
@@ -420,6 +421,7 @@ def test_cmd_tune_skips_validate_with_no_validate_flag(tmp_path):
     args.metric = None
     args.quiet = False
     args.no_validate = True
+    args.frozen_set = None
 
     with patch(f"{_PATCH_PREFIX}.run_face_sweep", return_value=fake_results), \
          patch(f"{_PATCH_PREFIX}.print_sweep_results"), \
@@ -452,6 +454,7 @@ def test_cmd_tune_skips_validate_when_split_is_full(tmp_path):
     args.metric = None
     args.quiet = False
     args.no_validate = False
+    args.frozen_set = None
 
     with patch(f"{_PATCH_PREFIX}.run_face_sweep", return_value=fake_results), \
          patch(f"{_PATCH_PREFIX}.print_sweep_results"), \
@@ -459,3 +462,155 @@ def test_cmd_tune_skips_validate_when_split_is_full(tmp_path):
         cmd_tune(args)
 
     mock_validate.assert_not_called()
+
+
+# =============================================================================
+# frozen_set filtering
+# =============================================================================
+
+
+def test_run_face_sweep_filters_by_frozen_set(tmp_path):
+    """run_face_sweep with frozen_set only evaluates photos in that set."""
+    import cv2
+    import numpy as np
+    from benchmarking.ground_truth import (
+        BibGroundTruth,
+        BibPhotoLabel,
+        FaceBox,
+        FaceGroundTruth,
+        FacePhotoLabel,
+    )
+    from benchmarking.tuners.grid import run_face_sweep
+
+    hash_in = "a" * 64
+    hash_out = "c" * 64
+    img = np.zeros((100, 100, 3), dtype=np.uint8)
+
+    img_in = tmp_path / "in.jpg"
+    img_out = tmp_path / "out.jpg"
+    cv2.imwrite(str(img_in), img)
+    cv2.imwrite(str(img_out), img)
+
+    bib_gt = BibGroundTruth()
+    bib_gt.photos[hash_in] = BibPhotoLabel(content_hash=hash_in, split="iteration")
+    bib_gt.photos[hash_out] = BibPhotoLabel(content_hash=hash_out, split="iteration")
+
+    face_gt = FaceGroundTruth()
+    for h in (hash_in, hash_out):
+        face_gt.add_photo(
+            FacePhotoLabel(content_hash=h, boxes=[FaceBox(x=0.1, y=0.1, w=0.2, h=0.2, scope="keep")])
+        )
+
+    index = {hash_in: [str(img_in)], hash_out: [str(img_out)]}
+
+    mock_snapshot = MagicMock()
+    mock_snapshot.hashes = [hash_in]
+
+    detected_hashes = []
+    real_backend = _make_stub_backend(tp=1)
+
+    class _TrackingBackend:
+        def detect_face_candidates(self, image):
+            detected_hashes.append("called")
+            return real_backend.detect_face_candidates(image)
+
+    with patch(f"{_PATCH_PREFIX}.load_bib_ground_truth", return_value=bib_gt), \
+         patch(f"{_PATCH_PREFIX}.load_face_ground_truth", return_value=face_gt), \
+         patch(f"{_PATCH_PREFIX}.load_photo_index", return_value=index), \
+         patch(f"{_PATCH_PREFIX}.load_photo_metadata") as mock_meta, \
+         patch(f"{_PATCH_PREFIX}.PHOTOS_DIR", tmp_path), \
+         patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
+               return_value=_TrackingBackend()), \
+         patch("benchmarking.sets.BenchmarkSnapshot") as mock_snap_cls:
+        mock_meta.return_value.get_hashes_by_split.return_value = [hash_in, hash_out]
+        mock_snap_cls.load.return_value = mock_snapshot
+        results = run_face_sweep(
+            param_grid={"FACE_DNN_CONFIDENCE_MIN": [0.3]},
+            split="iteration",
+            frozen_set="test-set",
+            metric="face_f1",
+            verbose=False,
+        )
+
+    assert len(detected_hashes) == 1
+    assert len(results) == 1
+
+
+def test_evaluate_single_combo_filters_by_frozen_set(tmp_path):
+    """_evaluate_single_combo with frozen_set only evaluates photos in that set."""
+    bib_gt, face_gt, index = _make_gt_fixtures(tmp_path)
+    content_hash = list(index.keys())[0]
+
+    mock_snapshot = MagicMock()
+    mock_snapshot.hashes = [content_hash]
+
+    with patch(f"{_PATCH_PREFIX}.load_bib_ground_truth", return_value=bib_gt), \
+         patch(f"{_PATCH_PREFIX}.load_face_ground_truth", return_value=face_gt), \
+         patch(f"{_PATCH_PREFIX}.load_photo_index", return_value=index), \
+         patch(f"{_PATCH_PREFIX}.load_photo_metadata") as mock_meta, \
+         patch(f"{_PATCH_PREFIX}.PHOTOS_DIR", tmp_path), \
+         patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
+               return_value=_make_stub_backend(tp=1)), \
+         patch("benchmarking.sets.BenchmarkSnapshot") as mock_snap_cls:
+        mock_meta.return_value.get_hashes_by_split.return_value = [content_hash]
+        mock_snap_cls.load.return_value = mock_snapshot
+        row = _evaluate_single_combo(
+            {"FACE_DNN_CONFIDENCE_MIN": 0.3},
+            split="full",
+            frozen_set="test-set",
+            verbose=False,
+        )
+
+    assert "face_f1" in row
+    mock_snap_cls.load.assert_called_once_with("test-set")
+
+
+def test_validate_on_full_passes_frozen_set(tmp_path, capsys):
+    """validate_on_full forwards frozen_set to _evaluate_single_combo."""
+    best_combo = {
+        "FACE_DNN_CONFIDENCE_MIN": 0.25,
+        "face_f1": 0.85,
+        "face_precision": 0.80,
+        "face_recall": 0.90,
+    }
+
+    with patch(f"{_PATCH_PREFIX}._evaluate_single_combo") as mock_eval:
+        mock_eval.return_value = {"face_f1": 0.85, "face_precision": 0.80, "face_recall": 0.90}
+        validate_on_full(best_combo, metric="face_f1", frozen_set="jeugd-1")
+
+    for call in mock_eval.call_args_list:
+        assert call.kwargs.get("frozen_set") == "jeugd-1"
+
+
+def test_cmd_tune_passes_frozen_set_to_sweep_and_validate(tmp_path):
+    """cmd_tune forwards --set to both run_face_sweep and validate_on_full."""
+    from benchmarking.cli.commands.tune import cmd_tune
+
+    cfg_file = tmp_path / "test.yaml"
+    cfg_file.write_text(
+        "params:\n"
+        "  FACE_DNN_CONFIDENCE_MIN: [0.2]\n"
+        "split: iteration\n"
+        "metric: face_f1\n"
+    )
+
+    fake_results = [
+        {"FACE_DNN_CONFIDENCE_MIN": 0.2, "face_f1": 0.85, "face_precision": 0.80, "face_recall": 0.90},
+    ]
+
+    args = MagicMock()
+    args.config = str(cfg_file)
+    args.params = None
+    args.split = None
+    args.metric = None
+    args.quiet = False
+    args.no_validate = False
+    args.frozen_set = "jeugd-1"
+
+    with patch(f"{_PATCH_PREFIX}.run_face_sweep", return_value=fake_results) as mock_sweep, \
+         patch(f"{_PATCH_PREFIX}.print_sweep_results"), \
+         patch(f"{_PATCH_PREFIX}.validate_on_full") as mock_validate:
+        cmd_tune(args)
+
+    assert mock_sweep.call_args.kwargs.get("frozen_set") == "jeugd-1"
+    assert mock_validate.call_args.kwargs.get("frozen_set") == "jeugd-1"

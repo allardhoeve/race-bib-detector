@@ -35,12 +35,14 @@ def cmd_tune(args: argparse.Namespace) -> int:
         return 1
 
     verbose = not getattr(args, "quiet", False)
+    frozen_set = getattr(args, "frozen_set", None)
     try:
         results = run_face_sweep(
             param_grid=param_grid,
             split=split,
             metric=metric,
             verbose=verbose,
+            frozen_set=frozen_set,
         )
     except (ValueError, FileNotFoundError) as exc:
         print(f"Error: {exc}")
@@ -52,7 +54,7 @@ def cmd_tune(args: argparse.Namespace) -> int:
     skip_validation = getattr(args, "no_validate", False)
     if results and split != "full" and not skip_validation:
         try:
-            validate_on_full(results[0], metric=metric)
+            validate_on_full(results[0], metric=metric, frozen_set=frozen_set)
         except (ValueError, FileNotFoundError) as exc:
             print(f"\nValidation skipped: {exc}")
 

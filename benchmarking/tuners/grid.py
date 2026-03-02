@@ -42,6 +42,22 @@ _PARAM_TO_BACKEND_KWARG: dict[str, str] = {
 PHOTOS_DIR = Path(__file__).parent.parent.parent / "photos"
 
 
+def _select_hashes(
+    split: str,
+    meta_store,
+    frozen_set: str | None,
+) -> list[str]:
+    """Choose which photo hashes to evaluate, respecting frozen set and split."""
+    if frozen_set is not None:
+        from benchmarking.sets import BenchmarkSnapshot
+        snapshot = BenchmarkSnapshot.load(frozen_set)
+        if split == "full":
+            return list(snapshot.hashes)
+        allowed = set(meta_store.get_hashes_by_split(split))
+        return [h for h in snapshot.hashes if h in allowed]
+    return meta_store.get_hashes_by_split(split)
+
+
 def load_tune_config(path: Path) -> dict:
     """Parse a YAML tune config file.
 
@@ -111,6 +127,7 @@ def run_face_sweep(
     split: str = "iteration",
     metric: str = "face_f1",
     verbose: bool = True,
+    frozen_set: str | None = None,
 ) -> list[dict]:
     """Sweep face detection parameters and return ranked results.
 
@@ -127,6 +144,7 @@ def run_face_sweep(
         metric: Metric to sort by (``"face_f1"``, ``"face_recall"``,
             ``"face_precision"``).
         verbose: Log progress to the logger.
+        frozen_set: Optional frozen set name to restrict photos to.
 
     Returns:
         List of result dicts sorted descending by ``metric``.  Each dict
@@ -137,7 +155,7 @@ def run_face_sweep(
     face_gt = load_face_ground_truth()
     index = load_photo_index()
     meta_store = load_photo_metadata()
-    split_hashes = meta_store.get_hashes_by_split(split)
+    split_hashes = _select_hashes(split, meta_store, frozen_set)
     photos = [bib_gt.get_photo(h) or BibPhotoLabel(content_hash=h) for h in split_hashes if bib_gt.has_photo(h) or h in index]
 
     param_names = list(param_grid.keys())
@@ -219,13 +237,14 @@ def _evaluate_single_combo(
     combo: dict[str, object],
     split: str,
     verbose: bool = True,
+    frozen_set: str | None = None,
 ) -> dict:
     """Evaluate a single parameter combination on a split and return a result row."""
     bib_gt = load_bib_ground_truth()
     face_gt = load_face_ground_truth()
     index = load_photo_index()
     meta_store = load_photo_metadata()
-    split_hashes = meta_store.get_hashes_by_split(split)
+    split_hashes = _select_hashes(split, meta_store, frozen_set)
     photos = [bib_gt.get_photo(h) or BibPhotoLabel(content_hash=h) for h in split_hashes if bib_gt.has_photo(h) or h in index]
 
     backend_kwargs = {
@@ -326,6 +345,7 @@ def print_sweep_results(results: list[dict], metric: str = "face_f1") -> None:
 def validate_on_full(
     best_combo: dict[str, object],
     metric: str = "face_f1",
+    frozen_set: str | None = None,
 ) -> None:
     """Run the best combo and current defaults on the full split, print comparison."""
     import config as _config
@@ -347,10 +367,10 @@ def validate_on_full(
     logger.info("  Current defaults: %s", defaults)
 
     print("\nCurrent defaults:")
-    default_row = _evaluate_single_combo(defaults, split="full")
+    default_row = _evaluate_single_combo(defaults, split="full", frozen_set=frozen_set)
 
     print("\nBest from sweep:")
-    best_row = _evaluate_single_combo(best_params, split="full")
+    best_row = _evaluate_single_combo(best_params, split="full", frozen_set=frozen_set)
 
     # Print comparison table
     print(f"\n{'':>30}  {'Defaults':>10}  {'Best':>10}  {'Delta':>10}")
