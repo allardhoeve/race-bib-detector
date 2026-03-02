@@ -20,6 +20,10 @@ TODOs are always written with `[ ]` syntax so it is clear what is done.
 
 Project-wide conventions live in `STANDARDS.md`. Do not duplicate those rules elsewhere; link to them instead.
 
+## One pipeline principle
+
+Benchmark and production must use the same detection/embedding/clustering code. Do not create parallel implementations for the same operation. If the benchmark needs richer output (traces, diagnostics), extend the shared code with optional outputs — do not fork it into a separate function.
+
 ## Rescanning Single Photos
 
 To rescan a single photo after making code changes, use:

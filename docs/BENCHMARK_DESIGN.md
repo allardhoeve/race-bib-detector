@@ -52,13 +52,93 @@ Progress is measured by the scorecard, not by parameter changes. Improvements ar
 
 ## Pipeline Model
 
-The benchmark evaluates three pipeline stages:
+The pipeline has two phases with a clear boundary: single-photo processing
+(per photo, independent, parallelizable) and cross-photo analysis (needs all
+photos).
 
-1. Detect bibs (localize bib boxes).
-2. Detect faces (localize face boxes).
-3. Link faces to bibs when possible.
+### Single-photo pipeline
 
-Geometric priors (bibs sit below faces) belong in stage 3 as a pipeline heuristic, not in the ground truth. The benchmark stores bib-face links as plain facts so the pipeline can be evaluated on whether it discovers them.
+Runs independently per photo. The image is decoded once and shared across all
+stages:
+
+```
+image_data (bytes)
+     │
+     ▼
+decode image (once)
+     │
+     ├──────────────────┐
+     ▼                  ▼
+Bib detection       Face detection
+ candidates          candidates
+ → validate          → confidence/NMS
+ → OCR               → accept/reject
+ → accept/reject         │
+     │                    ▼
+     │              Face embedding
+     │               crop + embed
+     │                    │
+     └────────┬───────────┘
+              ▼
+         Autolink
+     spatial bib ↔ face
+              │
+              ▼
+     Score vs GT (bibs, faces, links)
+              │
+              ▼
+         PhotoResult
+         ├── bib_trace     (all candidates, complete journey)
+         ├── face_trace    (all candidates, complete journey)
+         ├── pred_bib_boxes, pred_face_boxes (result view)
+         ├── pred_links
+         └── scorecards
+```
+
+Each stage produces a **trace** recording every candidate's journey through the
+pipeline (validation, OCR/confidence, acceptance) alongside the **result view**
+(accepted predictions used for scoring and display).
+
+### Cross-photo analysis
+
+Runs once after all photos are processed. Works entirely from structured data on
+PhotoResults — no image access needed.
+
+```
+all face embeddings (from traces)
+     │
+     ▼
+Face clustering
+ distance matrix → union-find → cluster assignments
+ per-face: distance to centroid, nearest other cluster
+     │
+     ▼
+Bib-identity consistency (future — task-077)
+ per cluster: collect bib numbers, flag contradictions
+     │
+     ▼
+Write back to PhotoResults:
+ cluster_id, cluster_distance on face traces
+     │
+     ▼
+Aggregate metrics
+```
+
+### Refinement loop (future — task-077)
+
+Cross-photo analysis can feed corrections back into single-photo results:
+
+1. Cluster quality checks (split suspicious clusters)
+2. Orphan face rescue (rejected faces that match a cluster)
+3. Bib consistency (OCR errors visible across a cluster)
+
+If corrections are made, re-cluster and repeat until stable.
+
+### Geometric priors
+
+Geometric priors (bibs sit below faces) belong in the autolink stage as a
+pipeline heuristic, not in the ground truth. The benchmark stores bib-face links
+as plain facts so the pipeline can be evaluated on whether it discovers them.
 
 ## Ground Truth Schema
 
@@ -179,10 +259,10 @@ Two scoring systems run in parallel:
 
 All scorecards are implemented in `benchmarking/scoring.py` and printed by `bnr benchmark run`.
 
-**Link scorecard** (`LinkScorecard`): implemented in `scoring.py`, stub in `runner.py`.
+**Link scorecard** (`LinkScorecard`): implemented in `scoring.py` and wired into `runner.py`.
 A predicted pair `(bib_box, face_box)` is TP only if both boxes match GT boxes at
-IoU ≥ threshold and the GT link between those indices exists. Currently TP/FP = 0 because
-the detection pipeline does not yet output link predictions.
+IoU ≥ threshold and the GT link between those indices exists. Predicted links come from
+`predict_links()` (rule-based spatial matching) and are stored on each `PhotoResult`.
 
 ### Future scorecard extensions
 

@@ -105,6 +105,10 @@ Update docstrings that mention "full_image" detection method.
 
 Remove full-image OCR section from pipeline documentation.
 
+### Modified: `docs/RESEARCH_QUESTIONS.md`
+
+Remove `FULL_IMAGE_CONFIDENCE_THRESHOLD` reference (line 34).
+
 ## Verification
 
 ```bash
