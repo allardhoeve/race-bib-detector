@@ -13,14 +13,22 @@ from __future__ import annotations
 
 import itertools
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 
 import cv2
 import numpy as np
 
-from benchmarking.ground_truth import BibPhotoLabel, FaceBox, load_bib_ground_truth, load_face_ground_truth
+from benchmarking.ground_truth import (
+    BibGroundTruth,
+    BibPhotoLabel,
+    FaceBox,
+    FaceGroundTruth,
+    load_bib_ground_truth,
+    load_face_ground_truth,
+)
 from benchmarking.photo_index import get_path_for_hash, load_photo_index
-from benchmarking.photo_metadata import load_photo_metadata
+from benchmarking.photo_metadata import PhotoMetadataStore, load_photo_metadata
 from benchmarking.scoring import FaceScorecard, score_faces
 from benchmarking.tuners.protocol import TunerResult
 from faces.backend import get_face_backend_with_overrides
@@ -40,6 +48,28 @@ _PARAM_TO_BACKEND_KWARG: dict[str, str] = {
 }
 
 PHOTOS_DIR = Path(__file__).parent.parent.parent / "photos"
+
+
+@dataclass
+class TunerContext:
+    """Pre-loaded data for tuner functions, eliminating repeated I/O."""
+
+    bib_gt: BibGroundTruth
+    face_gt: FaceGroundTruth
+    index: dict
+    meta_store: PhotoMetadataStore
+    photos_dir: Path
+
+
+def _load_context() -> TunerContext:
+    """Load all data needed by tuner functions from disk."""
+    return TunerContext(
+        bib_gt=load_bib_ground_truth(),
+        face_gt=load_face_ground_truth(),
+        index=load_photo_index(),
+        meta_store=load_photo_metadata(),
+        photos_dir=PHOTOS_DIR,
+    )
 
 
 def _select_hashes(
@@ -105,6 +135,7 @@ class GridTuner:
         split: str = "iteration",
         metric: str = "face_f1",
         verbose: bool = True,
+        ctx: TunerContext | None = None,
     ) -> list[TunerResult]:
         """Run the grid sweep and return ranked TunerResult objects."""
         raw = run_face_sweep(
@@ -112,6 +143,7 @@ class GridTuner:
             split=split,
             metric=metric,
             verbose=verbose,
+            ctx=ctx,
         )
         metric_keys = {"face_f1", "face_precision", "face_recall"}
         results = []
@@ -128,6 +160,7 @@ def run_face_sweep(
     metric: str = "face_f1",
     verbose: bool = True,
     frozen_set: str | None = None,
+    ctx: TunerContext | None = None,
 ) -> list[dict]:
     """Sweep face detection parameters and return ranked results.
 
@@ -145,18 +178,17 @@ def run_face_sweep(
             ``"face_precision"``).
         verbose: Log progress to the logger.
         frozen_set: Optional frozen set name to restrict photos to.
+        ctx: Pre-loaded data context. Loaded from disk when ``None``.
 
     Returns:
         List of result dicts sorted descending by ``metric``.  Each dict
         contains the parameter combination plus ``face_f1``,
         ``face_precision``, and ``face_recall``.
     """
-    bib_gt = load_bib_ground_truth()
-    face_gt = load_face_ground_truth()
-    index = load_photo_index()
-    meta_store = load_photo_metadata()
-    split_hashes = _select_hashes(split, meta_store, frozen_set)
-    photos = [bib_gt.get_photo(h) or BibPhotoLabel(content_hash=h) for h in split_hashes if bib_gt.has_photo(h) or h in index]
+    if ctx is None:
+        ctx = _load_context()
+    split_hashes = _select_hashes(split, ctx.meta_store, frozen_set)
+    photos = [ctx.bib_gt.get_photo(h) or BibPhotoLabel(content_hash=h) for h in split_hashes if ctx.bib_gt.has_photo(h) or h in ctx.index]
 
     param_names = list(param_grid.keys())
     value_lists = [param_grid[name] for name in param_names]
@@ -180,7 +212,7 @@ def run_face_sweep(
 
         det_tp = det_fp = det_fn = 0
         for label in photos:
-            path = get_path_for_hash(label.content_hash, PHOTOS_DIR, index)
+            path = get_path_for_hash(label.content_hash, ctx.photos_dir, ctx.index)
             if not path or not path.exists():
                 continue
             image_data = path.read_bytes()
@@ -190,7 +222,7 @@ def run_face_sweep(
             image_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
             face_h, face_w = image_rgb.shape[:2]
 
-            face_label = face_gt.get_photo(label.content_hash)
+            face_label = ctx.face_gt.get_photo(label.content_hash)
             gt_face_boxes = face_label.boxes if face_label else []
 
             candidates = backend.detect_face_candidates(image_rgb)
@@ -238,14 +270,13 @@ def _evaluate_single_combo(
     split: str,
     verbose: bool = True,
     frozen_set: str | None = None,
+    ctx: TunerContext | None = None,
 ) -> dict:
     """Evaluate a single parameter combination on a split and return a result row."""
-    bib_gt = load_bib_ground_truth()
-    face_gt = load_face_ground_truth()
-    index = load_photo_index()
-    meta_store = load_photo_metadata()
-    split_hashes = _select_hashes(split, meta_store, frozen_set)
-    photos = [bib_gt.get_photo(h) or BibPhotoLabel(content_hash=h) for h in split_hashes if bib_gt.has_photo(h) or h in index]
+    if ctx is None:
+        ctx = _load_context()
+    split_hashes = _select_hashes(split, ctx.meta_store, frozen_set)
+    photos = [ctx.bib_gt.get_photo(h) or BibPhotoLabel(content_hash=h) for h in split_hashes if ctx.bib_gt.has_photo(h) or h in ctx.index]
 
     backend_kwargs = {
         _PARAM_TO_BACKEND_KWARG.get(k, k): v for k, v in combo.items()
@@ -254,7 +285,7 @@ def _evaluate_single_combo(
 
     det_tp = det_fp = det_fn = 0
     for label in photos:
-        path = get_path_for_hash(label.content_hash, PHOTOS_DIR, index)
+        path = get_path_for_hash(label.content_hash, ctx.photos_dir, ctx.index)
         if not path or not path.exists():
             continue
         image_data = path.read_bytes()
@@ -264,7 +295,7 @@ def _evaluate_single_combo(
         image_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
         face_h, face_w = image_rgb.shape[:2]
 
-        face_label = face_gt.get_photo(label.content_hash)
+        face_label = ctx.face_gt.get_photo(label.content_hash)
         gt_face_boxes = face_label.boxes if face_label else []
 
         candidates = backend.detect_face_candidates(image_rgb)
@@ -346,6 +377,7 @@ def validate_on_full(
     best_combo: dict[str, object],
     metric: str = "face_f1",
     frozen_set: str | None = None,
+    ctx: TunerContext | None = None,
 ) -> None:
     """Run the best combo and current defaults on the full split, print comparison."""
     import config as _config
@@ -367,10 +399,10 @@ def validate_on_full(
     logger.info("  Current defaults: %s", defaults)
 
     print("\nCurrent defaults:")
-    default_row = _evaluate_single_combo(defaults, split="full", frozen_set=frozen_set)
+    default_row = _evaluate_single_combo(defaults, split="full", frozen_set=frozen_set, ctx=ctx)
 
     print("\nBest from sweep:")
-    best_row = _evaluate_single_combo(best_params, split="full", frozen_set=frozen_set)
+    best_row = _evaluate_single_combo(best_params, split="full", frozen_set=frozen_set, ctx=ctx)
 
     # Print comparison table
     print(f"\n{'':>30}  {'Defaults':>10}  {'Best':>10}  {'Delta':>10}")

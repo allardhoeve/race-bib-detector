@@ -10,9 +10,11 @@ import yaml
 
 from benchmarking.tuners.grid import (
     GridTuner,
+    TunerContext,
     _evaluate_single_combo,
     load_tune_config,
     print_sweep_results,
+    run_face_sweep,
     validate_on_full,
 )
 
@@ -91,8 +93,8 @@ def _make_stub_backend(tp: int = 1, fp: int = 0, fn: int = 0):
     return _StubBackend()
 
 
-def _make_gt_fixtures(tmp_path):
-    """Shared helper: create GT, index, and a dummy photo for one hash."""
+def _make_tuner_context(tmp_path, *, split="full", content_hash=None):
+    """Create a TunerContext with one photo for testing."""
     import cv2
     import numpy as np
     from benchmarking.ground_truth import (
@@ -102,15 +104,17 @@ def _make_gt_fixtures(tmp_path):
         FaceGroundTruth,
         FacePhotoLabel,
     )
+    from benchmarking.photo_metadata import PhotoMetadata, PhotoMetadataStore
 
-    content_hash = "b" * 64
+    if content_hash is None:
+        content_hash = "b" * 64
     img = np.zeros((100, 100, 3), dtype=np.uint8)
     img_path = tmp_path / "photo.jpg"
     cv2.imwrite(str(img_path), img)
 
     bib_gt = BibGroundTruth()
     bib_gt.photos[content_hash] = BibPhotoLabel(
-        content_hash=content_hash, split="full"
+        content_hash=content_hash, split=split
     )
 
     face_gt = FaceGroundTruth()
@@ -122,7 +126,17 @@ def _make_gt_fixtures(tmp_path):
     )
 
     index = {content_hash: [str(img_path)]}
-    return bib_gt, face_gt, index
+
+    meta_store = PhotoMetadataStore()
+    meta_store.set(content_hash, PhotoMetadata(split=split))
+
+    return TunerContext(
+        bib_gt=bib_gt,
+        face_gt=face_gt,
+        index=index,
+        meta_store=meta_store,
+        photos_dir=tmp_path,
+    )
 
 
 # =============================================================================
@@ -132,46 +146,15 @@ def _make_gt_fixtures(tmp_path):
 
 def test_grid_tuner_tune_returns_tuner_results(tmp_path):
     """GridTuner.tune() returns a list of TunerResult objects."""
-    import cv2
-    import numpy as np
-    from benchmarking.ground_truth import (
-        BibGroundTruth,
-        BibPhotoLabel,
-        FaceBox,
-        FaceGroundTruth,
-        FacePhotoLabel,
-    )
     from benchmarking.tuners.protocol import TunerResult
 
-    content_hash = "a" * 64
-    img = np.zeros((100, 100, 3), dtype=np.uint8)
-    img_path = tmp_path / "photo.jpg"
-    cv2.imwrite(str(img_path), img)
-
-    bib_gt = BibGroundTruth()
-    bib_gt.photos[content_hash] = BibPhotoLabel(
-        content_hash=content_hash, split="iteration"
-    )
-
-    face_gt = FaceGroundTruth()
-    face_gt.add_photo(
-        FacePhotoLabel(
-            content_hash=content_hash,
-            boxes=[FaceBox(x=0.1, y=0.1, w=0.2, h=0.2, scope="keep")],
-        )
-    )
-
-    index = {content_hash: [str(img_path)]}
+    ctx = _make_tuner_context(tmp_path, split="iteration")
     param_grid = {"FACE_DNN_CONFIDENCE_MIN": [0.2, 0.4]}
 
-    with patch(f"{_PATCH_PREFIX}.load_bib_ground_truth", return_value=bib_gt), \
-         patch(f"{_PATCH_PREFIX}.load_face_ground_truth", return_value=face_gt), \
-         patch(f"{_PATCH_PREFIX}.load_photo_index", return_value=index), \
-         patch(f"{_PATCH_PREFIX}.PHOTOS_DIR", tmp_path), \
-         patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
+    with patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
                return_value=_make_stub_backend(tp=1)):
         tuner = GridTuner(param_grid=param_grid)
-        results = tuner.tune(split="iteration", metric="face_f1", verbose=False)
+        results = tuner.tune(split="iteration", metric="face_f1", verbose=False, ctx=ctx)
 
     assert len(results) == 2
     for r in results:
@@ -189,50 +172,17 @@ def test_grid_tuner_tune_returns_tuner_results(tmp_path):
 
 def test_face_sweep_returns_ranked_results(tmp_path):
     """Results are sorted descending by the target metric."""
-    import cv2
-    import numpy as np
-    from benchmarking.ground_truth import (
-        BibGroundTruth,
-        BibPhotoLabel,
-        FaceBox,
-        FaceGroundTruth,
-        FacePhotoLabel,
-    )
-
-    content_hash = "a" * 64
-    img = np.zeros((100, 100, 3), dtype=np.uint8)
-    img_path = tmp_path / "photo.jpg"
-    cv2.imwrite(str(img_path), img)
-
-    bib_gt = BibGroundTruth()
-    bib_gt.photos[content_hash] = BibPhotoLabel(
-        content_hash=content_hash, split="iteration"
-    )
-
-    face_gt = FaceGroundTruth()
-    face_gt.add_photo(
-        FacePhotoLabel(
-            content_hash=content_hash,
-            boxes=[FaceBox(x=0.1, y=0.1, w=0.2, h=0.2, scope="keep")],
-        )
-    )
-
-    index = {content_hash: [str(img_path)]}
+    ctx = _make_tuner_context(tmp_path, split="iteration")
     param_grid = {"FACE_DNN_CONFIDENCE_MIN": [0.2, 0.4]}
 
-    from benchmarking.tuners.grid import run_face_sweep
-
-    with patch(f"{_PATCH_PREFIX}.load_bib_ground_truth", return_value=bib_gt), \
-         patch(f"{_PATCH_PREFIX}.load_face_ground_truth", return_value=face_gt), \
-         patch(f"{_PATCH_PREFIX}.load_photo_index", return_value=index), \
-         patch(f"{_PATCH_PREFIX}.PHOTOS_DIR", tmp_path), \
-         patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
+    with patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
                return_value=_make_stub_backend(tp=1, fp=0, fn=0)):
         results = run_face_sweep(
             param_grid=param_grid,
             split="iteration",
             metric="face_f1",
             verbose=False,
+            ctx=ctx,
         )
 
     assert len(results) == 2
@@ -252,18 +202,12 @@ def test_face_sweep_returns_ranked_results(tmp_path):
 
 def test_evaluate_single_combo_returns_metrics(tmp_path):
     """_evaluate_single_combo returns a dict with face_f1, face_precision, face_recall."""
-    bib_gt, face_gt, index = _make_gt_fixtures(tmp_path)
+    ctx = _make_tuner_context(tmp_path)
     combo = {"FACE_DNN_CONFIDENCE_MIN": 0.3}
 
-    with patch(f"{_PATCH_PREFIX}.load_bib_ground_truth", return_value=bib_gt), \
-         patch(f"{_PATCH_PREFIX}.load_face_ground_truth", return_value=face_gt), \
-         patch(f"{_PATCH_PREFIX}.load_photo_index", return_value=index), \
-         patch(f"{_PATCH_PREFIX}.load_photo_metadata") as mock_meta, \
-         patch(f"{_PATCH_PREFIX}.PHOTOS_DIR", tmp_path), \
-         patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
+    with patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
                return_value=_make_stub_backend(tp=1, fp=0, fn=0)):
-        mock_meta.return_value.get_hashes_by_split.return_value = list(index.keys())
-        row = _evaluate_single_combo(combo, split="full", verbose=False)
+        row = _evaluate_single_combo(combo, split="full", verbose=False, ctx=ctx)
 
     assert "face_f1" in row
     assert "face_precision" in row
@@ -274,18 +218,12 @@ def test_evaluate_single_combo_returns_metrics(tmp_path):
 
 def test_evaluate_single_combo_preserves_param_values(tmp_path):
     """The returned row contains the exact param values from the combo."""
-    bib_gt, face_gt, index = _make_gt_fixtures(tmp_path)
+    ctx = _make_tuner_context(tmp_path)
     combo = {"FACE_DNN_INPUT_SIZE": [500, 500], "FACE_DNN_CONFIDENCE_MIN": 0.25}
 
-    with patch(f"{_PATCH_PREFIX}.load_bib_ground_truth", return_value=bib_gt), \
-         patch(f"{_PATCH_PREFIX}.load_face_ground_truth", return_value=face_gt), \
-         patch(f"{_PATCH_PREFIX}.load_photo_index", return_value=index), \
-         patch(f"{_PATCH_PREFIX}.load_photo_metadata") as mock_meta, \
-         patch(f"{_PATCH_PREFIX}.PHOTOS_DIR", tmp_path), \
-         patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
+    with patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
                return_value=_make_stub_backend(tp=1, fp=0, fn=0)):
-        mock_meta.return_value.get_hashes_by_split.return_value = list(index.keys())
-        row = _evaluate_single_combo(combo, split="full", verbose=False)
+        row = _evaluate_single_combo(combo, split="full", verbose=False, ctx=ctx)
 
     assert row["FACE_DNN_INPUT_SIZE"] == [500, 500]
     assert row["FACE_DNN_CONFIDENCE_MIN"] == 0.25
@@ -298,7 +236,7 @@ def test_evaluate_single_combo_preserves_param_values(tmp_path):
 
 def test_validate_on_full_prints_comparison(tmp_path, capsys):
     """validate_on_full prints a table comparing defaults vs best on full split."""
-    bib_gt, face_gt, index = _make_gt_fixtures(tmp_path)
+    ctx = _make_tuner_context(tmp_path)
 
     best_combo = {
         "FACE_DNN_CONFIDENCE_MIN": 0.25,
@@ -307,15 +245,9 @@ def test_validate_on_full_prints_comparison(tmp_path, capsys):
         "face_recall": 0.90,
     }
 
-    with patch(f"{_PATCH_PREFIX}.load_bib_ground_truth", return_value=bib_gt), \
-         patch(f"{_PATCH_PREFIX}.load_face_ground_truth", return_value=face_gt), \
-         patch(f"{_PATCH_PREFIX}.load_photo_index", return_value=index), \
-         patch(f"{_PATCH_PREFIX}.load_photo_metadata") as mock_meta, \
-         patch(f"{_PATCH_PREFIX}.PHOTOS_DIR", tmp_path), \
-         patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
+    with patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
                return_value=_make_stub_backend(tp=1, fp=0, fn=0)):
-        mock_meta.return_value.get_hashes_by_split.return_value = list(index.keys())
-        validate_on_full(best_combo, metric="face_f1")
+        validate_on_full(best_combo, metric="face_f1", ctx=ctx)
 
     output = capsys.readouterr().out
     assert "VALIDATION ON FULL SPLIT" in output
@@ -326,7 +258,7 @@ def test_validate_on_full_prints_comparison(tmp_path, capsys):
 
 def test_validate_on_full_warns_on_overfitting(tmp_path, capsys):
     """When defaults beat the sweep winner on full, print an overfitting warning."""
-    bib_gt, face_gt, index = _make_gt_fixtures(tmp_path)
+    ctx = _make_tuner_context(tmp_path)
 
     best_combo = {
         "FACE_DNN_CONFIDENCE_MIN": 0.1,
@@ -345,15 +277,9 @@ def test_validate_on_full_warns_on_overfitting(tmp_path, capsys):
         else:
             return _make_stub_backend(tp=0, fp=1, fn=1)
 
-    with patch(f"{_PATCH_PREFIX}.load_bib_ground_truth", return_value=bib_gt), \
-         patch(f"{_PATCH_PREFIX}.load_face_ground_truth", return_value=face_gt), \
-         patch(f"{_PATCH_PREFIX}.load_photo_index", return_value=index), \
-         patch(f"{_PATCH_PREFIX}.load_photo_metadata") as mock_meta, \
-         patch(f"{_PATCH_PREFIX}.PHOTOS_DIR", tmp_path), \
-         patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
+    with patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
                side_effect=_side_effect):
-        mock_meta.return_value.get_hashes_by_split.return_value = list(index.keys())
-        validate_on_full(best_combo, metric="face_f1")
+        validate_on_full(best_combo, metric="face_f1", ctx=ctx)
 
     output = capsys.readouterr().out
     assert "overfitting" in output.lower()
@@ -480,7 +406,7 @@ def test_run_face_sweep_filters_by_frozen_set(tmp_path):
         FaceGroundTruth,
         FacePhotoLabel,
     )
-    from benchmarking.tuners.grid import run_face_sweep
+    from benchmarking.photo_metadata import PhotoMetadata, PhotoMetadataStore
 
     hash_in = "a" * 64
     hash_out = "c" * 64
@@ -503,6 +429,18 @@ def test_run_face_sweep_filters_by_frozen_set(tmp_path):
 
     index = {hash_in: [str(img_in)], hash_out: [str(img_out)]}
 
+    meta_store = PhotoMetadataStore()
+    meta_store.set(hash_in, PhotoMetadata(split="iteration"))
+    meta_store.set(hash_out, PhotoMetadata(split="iteration"))
+
+    ctx = TunerContext(
+        bib_gt=bib_gt,
+        face_gt=face_gt,
+        index=index,
+        meta_store=meta_store,
+        photos_dir=tmp_path,
+    )
+
     mock_snapshot = MagicMock()
     mock_snapshot.hashes = [hash_in]
 
@@ -514,15 +452,9 @@ def test_run_face_sweep_filters_by_frozen_set(tmp_path):
             detected_hashes.append("called")
             return real_backend.detect_face_candidates(image)
 
-    with patch(f"{_PATCH_PREFIX}.load_bib_ground_truth", return_value=bib_gt), \
-         patch(f"{_PATCH_PREFIX}.load_face_ground_truth", return_value=face_gt), \
-         patch(f"{_PATCH_PREFIX}.load_photo_index", return_value=index), \
-         patch(f"{_PATCH_PREFIX}.load_photo_metadata") as mock_meta, \
-         patch(f"{_PATCH_PREFIX}.PHOTOS_DIR", tmp_path), \
-         patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
+    with patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
                return_value=_TrackingBackend()), \
          patch("benchmarking.sets.BenchmarkSnapshot") as mock_snap_cls:
-        mock_meta.return_value.get_hashes_by_split.return_value = [hash_in, hash_out]
         mock_snap_cls.load.return_value = mock_snapshot
         results = run_face_sweep(
             param_grid={"FACE_DNN_CONFIDENCE_MIN": [0.3]},
@@ -530,6 +462,7 @@ def test_run_face_sweep_filters_by_frozen_set(tmp_path):
             frozen_set="test-set",
             metric="face_f1",
             verbose=False,
+            ctx=ctx,
         )
 
     assert len(detected_hashes) == 1
@@ -538,27 +471,22 @@ def test_run_face_sweep_filters_by_frozen_set(tmp_path):
 
 def test_evaluate_single_combo_filters_by_frozen_set(tmp_path):
     """_evaluate_single_combo with frozen_set only evaluates photos in that set."""
-    bib_gt, face_gt, index = _make_gt_fixtures(tmp_path)
-    content_hash = list(index.keys())[0]
+    ctx = _make_tuner_context(tmp_path)
+    content_hash = list(ctx.index.keys())[0]
 
     mock_snapshot = MagicMock()
     mock_snapshot.hashes = [content_hash]
 
-    with patch(f"{_PATCH_PREFIX}.load_bib_ground_truth", return_value=bib_gt), \
-         patch(f"{_PATCH_PREFIX}.load_face_ground_truth", return_value=face_gt), \
-         patch(f"{_PATCH_PREFIX}.load_photo_index", return_value=index), \
-         patch(f"{_PATCH_PREFIX}.load_photo_metadata") as mock_meta, \
-         patch(f"{_PATCH_PREFIX}.PHOTOS_DIR", tmp_path), \
-         patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
+    with patch(f"{_PATCH_PREFIX}.get_face_backend_with_overrides",
                return_value=_make_stub_backend(tp=1)), \
          patch("benchmarking.sets.BenchmarkSnapshot") as mock_snap_cls:
-        mock_meta.return_value.get_hashes_by_split.return_value = [content_hash]
         mock_snap_cls.load.return_value = mock_snapshot
         row = _evaluate_single_combo(
             {"FACE_DNN_CONFIDENCE_MIN": 0.3},
             split="full",
             frozen_set="test-set",
             verbose=False,
+            ctx=ctx,
         )
 
     assert "face_f1" in row

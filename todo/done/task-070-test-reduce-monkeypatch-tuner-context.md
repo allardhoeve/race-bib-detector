@@ -1,4 +1,4 @@
-# Task 068: Reduce monkeypatch — context object for tuner functions
+# Task 070: Reduce monkeypatch — context object for tuner functions
 
 ## Problem
 
@@ -53,9 +53,9 @@ them to pure functions. The tuner functions just need the same treatment.
 
 ## Acceptance criteria
 
-- [ ] `TunerContext` dataclass exists
-- [ ] `run_face_sweep` and `_evaluate_single_combo` accept optional context
-- [ ] Production code path unchanged (context is loaded when not provided)
-- [ ] `test_tuners_grid.py` tests rewritten without data-loading patches
-- [ ] No test has more than 2 concurrent `patch()` calls for tuner functions
-- [ ] All tests pass (`venv/bin/python -m pytest`)
+- [x] `TunerContext` dataclass exists
+- [x] `run_face_sweep` and `_evaluate_single_combo` accept optional context
+- [x] Production code path unchanged (context is loaded when not provided)
+- [x] `test_tuners_grid.py` tests rewritten without data-loading patches
+- [x] No test has more than 2 concurrent `patch()` calls for tuner functions
+- [x] All tests pass (`venv/bin/python -m pytest`)
