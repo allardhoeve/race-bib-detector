@@ -1,47 +1,32 @@
-# Task 077: Cross-photo refinement loop framework
+# Task 093: Cross-photo refinement loop — `pipeline/refine.py`
 
-Part of the tuning series. Architectural framework for iterative pipeline improvement.
+Part of the tuning series (085-094). Framework for iterative pipeline improvement.
 
-**Depends on:** task-072 (bib trace), task-073 (face trace), task-074 (split embed from cluster), task-075 (clustering trace)
+**Depends on:** task-091 (pipeline/cluster.py)
 
 ## Goal
 
-Establish a loop structure where cross-photo analysis (clustering, consistency checks) feeds back into single-photo results, rescuing borderline rejections and correcting errors that are only visible in aggregate.
+Create `pipeline/refine.py` with a `refine()` function that iterates: cluster → check → correct → re-cluster. Both production and benchmarking call the same function. This task builds the framework and one proof-of-concept check.
 
 ## Background
 
-The benchmark pipeline has two natural phases:
+The pipeline has two natural phases after single-photo detection:
+- **Phase 2**: Clustering (task-091)
+- **Phase 3**: Refinement — cross-photo checks that feed back into traces
 
-**Single-photo pipeline** (per photo, independent, parallelizable):
-- Bib detection: candidates → validation → OCR → accept/reject
-- Face detection: candidates → confidence/NMS → accept/reject
-- Face embedding: crop accepted faces → compute embedding
-- Autolink: spatial bib ↔ face matching
-
-**Cross-photo analysis** (needs all photos):
-- Face clustering: all embeddings → distance matrix → identity groups
-- Bib-identity consistency: check bib numbers within each cluster
-
-Today the pipeline is one-shot: single-photo → cross-photo → done. But cross-photo analysis produces signal that could improve single-photo results. A face rejected at confidence 0.28 might be clearly the same person as 5 other faces in a cluster. A bib reading "423" might be an OCR error when the cluster's other photos all read "428".
-
-The refinement loop uses cross-photo context to challenge borderline single-photo decisions:
+A face rejected at confidence 0.28 might clearly match 5 other faces in a cluster. A bib reading "423" might be an OCR error when the cluster reads "428" everywhere else. These corrections are only visible in aggregate.
 
 ```
-1. Single-photo pass
-       │
-       ▼
-2. Cross-photo analysis (clustering)
-       │
-       ▼
-3. Refinement checks
-   ├── 3a. Cluster quality — do the clusters look right?
-   ├── 3b. Orphan rescue — can unmatched faces join existing clusters?
-   ├── 3c. Bib consistency — are numbers consistent within clusters?
-   └── 3d. Feed corrections back → re-cluster if anything changed
-       │
-       ▼
-   If changes: go to step 2
-   If stable: done
+Phase 2: cluster()
+    │
+    ▼
+Phase 3: refine()
+    ├── check: cluster quality
+    ├── check: orphan face rescue
+    ├── check: bib consistency
+    └── corrections → re-cluster if changed
+    │
+    ▼ loop until stable or max iterations
 ```
 
 ## Design
@@ -49,126 +34,139 @@ The refinement loop uses cross-photo context to challenge borderline single-phot
 ### Loop structure
 
 ```python
-def run_pipeline(photos, config) -> PipelineResult:
-    # Phase 1: single-photo pass (parallelizable)
-    photo_results = [run_single_photo(photo, config) for photo in photos]
+def refine(
+    face_traces: list[FaceCandidateTrace],
+    bib_traces: list[BibCandidateTrace] | None = None,
+    checks: list[RefinementCheck] | None = None,
+    max_iterations: int = 3,
+) -> RefinementResult:
+    applied_keys: set[str] = set()
+    iterations: list[IterationLog] = []
 
-    # Phase 2+3: cross-photo analysis with refinement loop
-    max_iterations = config.max_refinement_iterations  # default: 3
     for iteration in range(max_iterations):
-        # Phase 2: cluster
-        cluster_result = cluster_faces(photo_results)
-
-        # Phase 3: run all refinement checks
+        cluster(face_traces)
         corrections = []
-        for check in refinement_checks:
-            corrections.extend(check.run(photo_results, cluster_result))
+        for check in checks:
+            corrections.extend(check.run(face_traces, bib_traces))
 
-        if not corrections:
-            break  # stable — no more improvements
+        # Deduplicate: skip already-applied corrections
+        novel = [c for c in corrections if c.key not in applied_keys]
+        if not novel:
+            break
 
-        # Apply corrections and loop
-        apply_corrections(photo_results, corrections)
+        for c in novel:
+            c.apply()
+            applied_keys.add(c.key)
 
-    return PipelineResult(photo_results, cluster_result)
+        iterations.append(IterationLog(...))
+
+    return RefinementResult(iterations=iterations)
 ```
 
-### Refinement check interface
+### Check interface
 
 ```python
 class RefinementCheck(Protocol):
-    """A cross-photo check that may propose corrections to single-photo results."""
-
     def run(
         self,
-        photo_results: list[PhotoResult],
-        cluster_result: ClusterResult,
-    ) -> list[Correction]:
-        ...
+        face_traces: list[FaceCandidateTrace],
+        bib_traces: list[BibCandidateTrace] | None,
+    ) -> list[Correction]: ...
 
 @dataclass
 class Correction:
-    """A proposed change to a single-photo result, motivated by cross-photo evidence."""
-    photo_hash: str
-    correction_type: str          # "rescue_face", "revise_bib", "split_cluster", etc.
-    evidence: str                 # human-readable explanation
-    confidence: float             # how sure we are (0-1)
-    apply: Callable               # function that applies the correction
+    key: str                 # unique ID, e.g. "bib_consistency:hash:idx"
+    correction_type: str     # "rescue_face", "revise_bib", "split_cluster"
+    evidence: str            # human-readable explanation
+    confidence: float        # 0-1
+    apply: Callable          # function that mutates traces
 ```
 
-### Planned refinement checks
+### Convergence guarantees
 
-#### 3a. Cluster quality check
+1. **No corrections** → stop
+2. **Max iterations** → stop unconditionally
+3. **Monotonic progress** → corrections only add information (rescue, revise), never undo. Deduplication by key prevents oscillation.
 
-Quick pass along clusters. Flag clusters with low cohesion (high intra-cluster distance) or suspiciously mixed visual features. These are candidates for splitting.
+### Proof-of-concept check: bib consistency
 
-- **Input**: cluster assignments + pairwise distances
-- **Output**: `split_cluster` corrections for low-quality clusters
+For each cluster, collect bib numbers from linked traces. If majority agrees and outliers exist, flag the outlier:
 
-#### 3b. Orphan face rescue
+```python
+class BibConsistencyCheck:
+    def run(self, face_traces, bib_traces):
+        # Group bib numbers by cluster_id
+        # Find clusters with a clear majority and outliers
+        # Return Correction for each outlier
+```
 
-For each face not assigned to a cluster (or rejected during detection), check if it's close to an existing cluster centroid. If within a relaxed threshold, rescue it.
+This is pure set logic — no re-running detection. The correction can:
+- Check if the majority number exists as a sub-threshold OCR result on the outlier trace
+- Flag for human review
+- Adopt majority reading with low confidence
 
-- **Input**: rejected face traces (from `face_trace` where `accepted=False`), cluster centroids
-- **Output**: `rescue_face` corrections that re-embed the rejected region and add to cluster
+### Future checks (not in this task)
 
-This is the most impactful check — it directly improves recall by using cluster context to lower the effective detection threshold for faces that "look like" known people.
-
-#### 3c. Bib consistency check
-
-For each cluster, collect all bib numbers from linked photos. If there's a majority number and outliers, flag the outliers for OCR re-examination.
-
-- **Input**: cluster assignments + pred_bib_boxes + pred_links
-- **Output**: `revise_bib` corrections for inconsistent readings
-
-This is pure set logic — no re-running detection. If cluster 7 has bibs [428, 428, 423, 428, 428], the "423" is likely an OCR error. The correction can either:
-- Re-score the bib trace for that photo (was there a "428" candidate below threshold?)
-- Flag it for human review
-- Automatically adopt the majority reading (with low confidence flag)
-
-### Convergence
-
-The loop must terminate. Three independent guarantees, any one of which is sufficient:
-
-1. **No corrections** — no check produces corrections → stable, stop.
-2. **Max iterations** — hard cap (default 3), stop unconditionally.
-3. **Monotonic progress** — corrections are only allowed to *add* information (rescue a face, revise a bib reading), never to *undo* a previous correction. A face rescued in iteration 1 cannot be un-rescued in iteration 2. This prevents oscillation by construction.
-
-Implementation: each correction carries a unique key (e.g., `("rescue_face", photo_hash, face_idx)`). The loop maintains a set of applied correction keys. A correction whose key is already in the set is silently skipped. This makes the loop idempotent — even if a check re-proposes the same correction, it won't be applied twice.
-
-In practice, most corrections happen in iteration 1. Iteration 2 catches second-order effects (e.g., a rescued face changes cluster composition, which surfaces a new bib inconsistency). Iteration 3 should almost always be a no-op. If iteration 3 still produces novel corrections, the max-iterations cap stops it and the diagnostics log what was left unresolved.
+- **Orphan face rescue**: rejected face close to a cluster centroid → re-embed and add
+- **Cluster quality**: high intra-cluster distance → split candidate
+- **Low-confidence bib rescan**: cluster consensus disagrees with low-confidence reading → rescan snippet with tighter crop
 
 ### Diagnostics
 
-Each iteration records:
-- Which checks ran
-- What corrections were proposed
-- What was applied
-- Before/after metrics delta
+Each iteration records: which checks ran, corrections proposed/applied, before/after metrics delta.
 
-This feeds into the benchmark report so you can see exactly what the refinement loop contributed.
+## Context
 
-## Prerequisites
+- `pipeline/cluster.py` — `cluster()` function (task-091)
+- `pipeline/types.py` — `BibCandidateTrace`, `FaceCandidateTrace`
+- `pipeline/single_photo.py` — `run_single_photo()`
 
-All now tasked:
+## Changes
 
-1. **Embedding on face trace** — task-074 (split embed from cluster)
-2. **Clustering with diagnostics** — task-075 (clustering trace)
-3. **Image decode once** — task-078 (shared image decode)
+### New: `pipeline/refine.py`
 
-## Scope boundaries
+Loop structure, `RefinementCheck` protocol, `Correction` model, `RefinementResult`, `IterationLog`.
 
-- **In scope**: loop structure, refinement check interface, correction model, iteration tracking
-- **Out of scope**: implementing individual refinement strategies (those are separate tasks), modifying single-photo detection logic, production (non-benchmark) pipeline changes
-- **This task is framework only** — it builds the scaffold that refinement checks plug into
+### New: `pipeline/checks/bib_consistency.py` (or inline in refine.py)
+
+Proof-of-concept bib consistency check.
+
+### Modified: `benchmarking/runner.py`
+
+After clustering, optionally run refinement:
+```python
+from pipeline.refine import refine
+all_traces = collect_traces(photo_results)
+refine(all_traces.face, all_traces.bib)
+```
+
+### Modified: `pipeline/__init__.py`
+
+Add `refine` to re-exports.
+
+## Tests
+
+`tests/test_pipeline_refine.py`:
+- `test_empty_corrections_stops_immediately` — no checks → one iteration, done
+- `test_max_iterations_caps_loop` — corrections every iteration → stops at max
+- `test_duplicate_correction_skipped` — same key not applied twice
+- `test_bib_consistency_finds_outlier` — cluster [428, 428, 423, 428] → correction for 423
+- `test_bib_consistency_no_outlier` — uniform cluster → no correction
+- `test_refinement_result_logs_iterations` — iteration count and corrections recorded
 
 ## Acceptance criteria
 
-- [ ] Loop structure runs cross-photo analysis and refinement checks iteratively
-- [ ] `RefinementCheck` protocol defined with clear contract
-- [ ] `Correction` model captures what/why/confidence for each proposed change
+- [ ] `pipeline/refine.py` exists with `refine()` function
+- [ ] `RefinementCheck` protocol defined
+- [ ] `Correction` model with key-based deduplication
 - [ ] Loop terminates on stability or max iterations
+- [ ] Bib consistency check implemented as proof of concept
 - [ ] Per-iteration diagnostics recorded
-- [ ] At least one trivial check implemented as proof of concept (e.g., bib consistency)
-- [ ] TDD tests for loop mechanics (convergence, max iterations, empty corrections)
+- [ ] TDD tests pass
 - [ ] All existing tests pass
+
+## Scope boundaries
+
+- **In scope**: framework, convergence, bib consistency check, diagnostics
+- **Out of scope**: orphan rescue, cluster splitting, low-confidence rescan (future checks)
+- **This is framework + one check** — additional checks are separate tasks

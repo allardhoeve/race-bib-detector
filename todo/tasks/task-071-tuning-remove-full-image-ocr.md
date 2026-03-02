@@ -1,143 +1,91 @@
-# Task 071: Remove full-image OCR fallback
+# Task 087: Remove full-image OCR fallback
 
-Part of the tuning series (071–077).
+Part of the tuning series (085-094).
+
+**Depends on:** task-086 (detection/ reorg) — or can be done before if targeting `detection/detector.py` directly
 
 ## Goal
 
-Remove the full-image OCR fallback from `detect_bib_numbers()`. This simplifies the detection pipeline to a single path (white-region candidates → OCR) and eliminates a source of false positives, unclear candidate lineage, and redundant configuration.
+Remove the full-image OCR fallback from `detect_bib_numbers()`. Simplifies the bib detection pipeline to a single path (white-region candidates → OCR) and eliminates false positives, unclear lineage, and redundant config.
 
 ## Background
 
-The pipeline currently has two OCR paths:
+Two OCR paths exist today:
 
-1. **White-region candidates** — find bright rectangular regions, validate geometry/brightness, run OCR on each region. This is the principled path.
-2. **Full-image OCR** — run EasyOCR on the entire image, filter by a separate confidence threshold (`FULL_IMAGE_CONFIDENCE_THRESHOLD = 0.5`). This is a fallback for when path 1 misses a bib.
+1. **White-region candidates** — find bright rectangular regions, validate, run OCR per region. The principled path.
+2. **Full-image OCR** — run EasyOCR on the entire image with `FULL_IMAGE_CONFIDENCE_THRESHOLD = 0.5`. A fallback that masks candidate detection weaknesses.
 
-The full-image fallback is the wrong fix for a real problem:
-
-- It runs OCR on the entire photo — runners, signs, banners, timing clocks — producing FPs from random text
-- It requires its own higher confidence threshold to compensate for the noise, adding a second tuning dimension
-- Its detections have no proper candidate lineage (`source_candidate=None`), making diagnostic traces impossible
-- It masks weaknesses in candidate detection instead of fixing them
-- Every bib it finds is a bib that candidate detection *should* have found
-
-Removing it makes the pipeline uniform and gives honest signal about where candidate detection needs improvement. The benchmark quantifies the actual TP cost.
+The fallback produces FPs from signs/banners/clocks, requires its own tuning dimension, and creates detections with no candidate lineage (`source_candidate=None`). Every bib it finds is one that candidate detection *should* have found.
 
 ## Context
 
-- `detection/detector.py:152-159` — the full-image OCR call and candidate/detection merging
-- `detection/detector.py:31-79` — `extract_bib_detections()` function (used only by full-image path)
-- `config.py:71` — `FULL_IMAGE_CONFIDENCE_THRESHOLD = 0.5`
-- `detection/types.py:23` — `DetectionSource = Literal["white_region", "full_image"]`
-- `detection/regions.py:9,37` — docstrings mentioning full_image
-- `docs/DETECTION.md` — pipeline documentation
+Post-086 paths (or current paths if done before 086):
+- `detection/bib/detector.py` (or `detection/detector.py`): full-image OCR block + `extract_bib_detections()`
+- `detection/bib/types.py` (or `detection/types.py`): `DetectionSource = Literal["white_region", "full_image"]`
+- `config.py`: `FULL_IMAGE_CONFIDENCE_THRESHOLD = 0.5`
 
 ## Test-first approach
 
-Write tests before making changes:
-
-### New: `tests/test_no_full_image_ocr.py`
-
 ```python
-"""Verify that full-image OCR has been removed from the detection pipeline."""
-
-def test_detect_bib_numbers_has_no_full_image_source():
-    """All detections must have source='white_region'."""
-    # Run detection on a test image (slow, needs reader)
-    # Assert every detection in result.detections has source == "white_region"
-
 def test_detection_source_type_is_white_region_only():
-    """DetectionSource literal should only allow 'white_region'."""
-    from detection.types import DetectionSource
+    from detection.bib.types import DetectionSource  # or detection.types
     # Verify "full_image" is not in the type
 
 def test_full_image_confidence_threshold_removed():
-    """FULL_IMAGE_CONFIDENCE_THRESHOLD should not exist in config."""
     import config
     assert not hasattr(config, "FULL_IMAGE_CONFIDENCE_THRESHOLD")
 
 def test_extract_bib_detections_removed():
-    """The full-image helper function should not exist."""
-    import detection.detector as det
+    import detection.bib.detector as det  # or detection.detector
     assert not hasattr(det, "extract_bib_detections")
 ```
 
-Mark the first test `@pytest.mark.slow` (needs EasyOCR reader).
-
 ## Changes
 
-### Modified: `detection/detector.py`
+### Modified: `detection/bib/detector.py`
 
-1. Remove the full-image OCR block (lines 152-159):
-   ```python
-   # DELETE:
-   full_image_detections, full_image_candidates = extract_bib_detections(...)
-   all_detections.extend(full_image_detections)
-   all_candidates.extend(full_image_candidates)
-   ```
-
-2. Remove `extract_bib_detections()` function (lines 31-79). It is only used by the full-image path.
-
-3. Remove the `FULL_IMAGE_CONFIDENCE_THRESHOLD` import.
+1. Delete `extract_bib_detections()` function
+2. Delete the full-image OCR block that calls it
+3. Remove `FULL_IMAGE_CONFIDENCE_THRESHOLD` import
 
 ### Modified: `config.py`
 
 Remove `FULL_IMAGE_CONFIDENCE_THRESHOLD = 0.5`.
 
-### Modified: `detection/types.py`
+### Modified: `detection/bib/types.py`
 
-Simplify:
 ```python
 # Before:
 DetectionSource = Literal["white_region", "full_image"]
-
 # After:
 DetectionSource = Literal["white_region"]
 ```
 
-Update `Detection` docstring to remove "full_image" references. Remove the `source_candidate` note about "None for full_image" — all detections now have a source candidate.
+Update `Detection` docstring — all detections now have a `source_candidate`.
 
-### Modified: `detection/regions.py`
+### Modified: docs
 
-Update docstrings that mention "full_image" detection method.
-
-### Modified: `docs/DETECTION.md`
-
-Remove full-image OCR section from pipeline documentation.
-
-### Modified: `docs/RESEARCH_QUESTIONS.md`
-
-Remove `FULL_IMAGE_CONFIDENCE_THRESHOLD` reference (line 34).
+Update `docs/DETECTION.md` and `docs/RESEARCH_QUESTIONS.md` to remove full-image references.
 
 ## Verification
 
 ```bash
-# TDD: write tests first, verify they fail
-venv/bin/python -m pytest tests/test_no_full_image_ocr.py -v
-
-# Make changes, verify tests pass
-venv/bin/python -m pytest tests/test_no_full_image_ocr.py -v
-
-# Full suite
 venv/bin/python -m pytest
-
-# Benchmark to measure impact
-venv/bin/python bnr.py benchmark run
-# Compare F1/precision/recall with previous run
+venv/bin/python bnr.py benchmark run  # measure impact
 ```
 
 ## Acceptance criteria
 
-- [ ] `extract_bib_detections()` removed from `detection/detector.py`
-- [ ] `FULL_IMAGE_CONFIDENCE_THRESHOLD` removed from `config.py`
+- [ ] `extract_bib_detections()` removed
+- [ ] `FULL_IMAGE_CONFIDENCE_THRESHOLD` removed from config
 - [ ] `DetectionSource` no longer includes `"full_image"`
 - [ ] All detections have `source="white_region"` and a `source_candidate`
 - [ ] TDD tests pass
-- [ ] All existing tests pass (`venv/bin/python -m pytest`)
-- [ ] Benchmark run completed — delta documented in commit message
+- [ ] All existing tests pass
+- [ ] Benchmark delta documented in commit message
 
 ## Scope boundaries
 
-- **In scope**: remove full-image OCR, update types, update docs, benchmark impact
-- **Out of scope**: improving candidate detection to compensate (that's a future task informed by the benchmark delta)
-- **Do not** change the white-region candidate pipeline — only remove the fallback
+- **In scope**: remove fallback, update types, docs, benchmark impact
+- **Out of scope**: improving candidate detection to compensate
+- **Do not** change the white-region candidate pipeline
