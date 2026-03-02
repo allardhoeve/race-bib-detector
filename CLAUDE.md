@@ -49,7 +49,7 @@ Project-wide conventions live in `STANDARDS.md`. Do not duplicate those rules el
 
 ## Test-driven development
 
-Use red/green TDD. Write failing tests first, then make them pass. Do not write implementation code before its test exists. When a task specifies test cases, create the test file and verify the tests fail before touching production code.
+Use strict red/green TDD — one test at a time. Write one test, run it and confirm it fails (red), then write the minimal code to make it pass (green). Repeat. Do not batch-write multiple tests before implementing. If a new test passes immediately, it is redundant — delete it or question the code. This cycle ensures every line of production code is justified by a specific failure and prevents over-engineering.
 
 ## One pipeline principle
 
