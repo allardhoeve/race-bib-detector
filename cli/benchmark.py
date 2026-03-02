@@ -227,6 +227,12 @@ def add_benchmark_subparser(subparsers: argparse._SubParsersAction) -> None:
         action="store_true",
         help="Suppress per-combo progress output",
     )
+    bench_tune.add_argument(
+        "--no-validate",
+        action="store_true",
+        dest="no_validate",
+        help="Skip automatic validation of the winner on the full split",
+    )
     bench_tune.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.tune", "cmd_tune"))
 
     # ---- inspect ----

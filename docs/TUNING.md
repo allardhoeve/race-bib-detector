@@ -296,6 +296,11 @@ Best: FACE_DNN_CONFIDENCE_MIN=0.30, FACE_DNN_NMS_IOU=0.40  (face_f1=78.5%)
 F1 is the recommended primary metric because it penalises both missing faces and
 reporting phantom faces equally.
 
+When the sweep runs on `iteration` split (the default), the tuner automatically
+validates the winning parameters on the `full` split and prints a side-by-side
+comparison. This catches overfitting to the smaller iteration subset. Use
+`--no-validate` to skip this step.
+
 ---
 
 ## Bib-face autolink (torso region)
@@ -425,7 +430,13 @@ Or use inline parameters for a quick one-off (works for scalar values, not tuple
 venv/bin/python bnr.py benchmark tune --params FACE_DNN_CONFIDENCE_MIN=0.2,0.3,0.4
 ```
 
-The output is a ranked table showing precision, recall, and F1 for each combination.
+The output has two parts:
+1. A ranked table showing precision, recall, and F1 for each combination on the
+   `iteration` split.
+2. An automatic **validation on `full`** comparing the sweep winner against your
+   current defaults. This catches overfitting to the iteration subset.
+
+You can skip validation with `--no-validate` if needed.
 
 ### Step 3: Interpret the results
 
@@ -438,6 +449,8 @@ Look at the full table, not just the top-ranked row. Consider:
   doesn't matter and you should look elsewhere.
 - **Watch for cliffs.** A smooth degradation is fine; a sudden drop (e.g. 800×800
   precision falling to 64%) means you've exceeded the model's operating range.
+- **Check the validation section.** If the winner performs worse than defaults on
+  `full`, it may be overfitting to the iteration subset.
 
 ### Step 4: Apply the winning value
 
@@ -447,9 +460,9 @@ Edit `config.py` with the chosen value:
 FACE_DNN_INPUT_SIZE = (400, 400)   # was (300, 300)
 ```
 
-### Step 5: Validate on the full split
+### Step 5: Run a full benchmark
 
-Run a full benchmark to confirm the improvement holds across all labeled photos:
+Run a full benchmark to confirm end-to-end improvement (bib + face + links):
 
 ```bash
 venv/bin/python bnr.py benchmark run --split full

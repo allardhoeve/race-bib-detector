@@ -8,7 +8,7 @@ from pathlib import Path
 
 def cmd_tune(args: argparse.Namespace) -> int:
     """Run a face detection parameter sweep and print a ranked results table."""
-    from benchmarking.tuner import load_tune_config, print_sweep_results, run_face_sweep
+    from benchmarking.tuner import load_tune_config, print_sweep_results, run_face_sweep, validate_on_full
 
     param_grid: dict[str, list] = {}
     split = args.split or "iteration"
@@ -47,6 +47,15 @@ def cmd_tune(args: argparse.Namespace) -> int:
         return 1
 
     print_sweep_results(results, metric=metric)
+
+    # Automatically validate the winner on full split (unless already tuning on full)
+    skip_validation = getattr(args, "no_validate", False)
+    if results and split != "full" and not skip_validation:
+        try:
+            validate_on_full(results[0], metric=metric)
+        except (ValueError, FileNotFoundError) as exc:
+            print(f"\nValidation skipped: {exc}")
+
     return 0
 
 
