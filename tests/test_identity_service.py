@@ -9,11 +9,8 @@ HASH_A = "a" * 64
 
 
 @pytest.fixture(autouse=True)
-def patch_paths(tmp_path, monkeypatch):
-    face_gt_path = tmp_path / "face_ground_truth.json"
-    identities_path = tmp_path / "face_identities.json"
-    monkeypatch.setattr("benchmarking.ground_truth.get_face_ground_truth_path", lambda: face_gt_path)
-    monkeypatch.setattr("benchmarking.identities.get_identities_path", lambda: identities_path)
+def patch_paths(benchmark_paths):
+    pass
 
 
 def test_list_identities_empty():

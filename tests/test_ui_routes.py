@@ -23,37 +23,19 @@ HASH_FROZEN = "f" * 64
 
 
 @pytest.fixture
-def labeling_client(tmp_path, monkeypatch):
+def labeling_client(benchmark_paths, tmp_path, monkeypatch):
     """Test client with photo index, bib/face GT, and all paths monkeypatched."""
-    bib_gt_path = tmp_path / "bib_ground_truth.json"
-    face_gt_path = tmp_path / "face_ground_truth.json"
-    link_gt_path = tmp_path / "bib_face_links.json"
-    suggestions_path = tmp_path / "suggestions.json"
-    identities_path = tmp_path / "face_identities.json"
-    index_path = tmp_path / "photo_index.json"
+    save_photo_index({HASH_A: ["photo_a.jpg"], HASH_B: ["photo_b.jpg"]}, benchmark_paths["photo_metadata"])
 
-    save_photo_index({HASH_A: ["photo_a.jpg"], HASH_B: ["photo_b.jpg"]}, index_path)
-
-    # Create bib GT with HASH_A labeled
     bib_gt = BibGroundTruth()
     bib_gt.add_photo(BibPhotoLabel(content_hash=HASH_A, labeled=True))
-    save_bib_ground_truth(bib_gt, bib_gt_path)
+    save_bib_ground_truth(bib_gt)
 
-    # Create face GT with HASH_A labeled
     face_gt = FaceGroundTruth()
     face_gt.add_photo(FacePhotoLabel(content_hash=HASH_A, labeled=True))
-    save_face_ground_truth(face_gt, face_gt_path)
+    save_face_ground_truth(face_gt)
 
-    monkeypatch.setattr("benchmarking.ground_truth.get_bib_ground_truth_path", lambda: bib_gt_path)
-    monkeypatch.setattr("benchmarking.ground_truth.get_face_ground_truth_path", lambda: face_gt_path)
-    monkeypatch.setattr("benchmarking.ground_truth.get_link_ground_truth_path", lambda: link_gt_path)
-    monkeypatch.setattr("benchmarking.ghost.get_suggestion_store_path", lambda: suggestions_path)
-    monkeypatch.setattr("benchmarking.identities.get_identities_path", lambda: identities_path)
-    monkeypatch.setattr("benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path)
-
-    # No frozen sets
     monkeypatch.setattr("benchmarking.routes.ui.nav.is_frozen", lambda h: None)
-    # No benchmark runs
     monkeypatch.setattr("benchmarking.runner.RESULTS_DIR", tmp_path / "no_results")
 
     from benchmarking.app import create_app
@@ -62,45 +44,29 @@ def labeling_client(tmp_path, monkeypatch):
 
 
 @pytest.fixture
-def frozen_labeling_client(tmp_path, monkeypatch):
+def frozen_labeling_client(benchmark_paths, tmp_path, monkeypatch):
     """Test client where HASH_FROZEN is in a frozen set."""
-    bib_gt_path = tmp_path / "bib_ground_truth.json"
-    face_gt_path = tmp_path / "face_ground_truth.json"
-    link_gt_path = tmp_path / "bib_face_links.json"
-    suggestions_path = tmp_path / "suggestions.json"
-    identities_path = tmp_path / "face_identities.json"
-    index_path = tmp_path / "photo_index.json"
-    frozen_dir = tmp_path / "frozen"
-
     save_photo_index(
         {HASH_A: ["photo_a.jpg"], HASH_FROZEN: ["photo_f.jpg"]},
-        index_path,
+        benchmark_paths["photo_metadata"],
     )
 
     bib_gt = BibGroundTruth()
     bib_gt.add_photo(BibPhotoLabel(content_hash=HASH_A, labeled=True))
-    save_bib_ground_truth(bib_gt, bib_gt_path)
+    save_bib_ground_truth(bib_gt)
 
     face_gt = FaceGroundTruth()
     face_gt.add_photo(FacePhotoLabel(content_hash=HASH_A, labeled=True))
-    save_face_ground_truth(face_gt, face_gt_path)
+    save_face_ground_truth(face_gt)
 
-    monkeypatch.setattr("benchmarking.ground_truth.get_bib_ground_truth_path", lambda: bib_gt_path)
-    monkeypatch.setattr("benchmarking.ground_truth.get_face_ground_truth_path", lambda: face_gt_path)
-    monkeypatch.setattr("benchmarking.ground_truth.get_link_ground_truth_path", lambda: link_gt_path)
-    monkeypatch.setattr("benchmarking.ghost.get_suggestion_store_path", lambda: suggestions_path)
-    monkeypatch.setattr("benchmarking.identities.get_identities_path", lambda: identities_path)
-    monkeypatch.setattr("benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path)
-    monkeypatch.setattr("benchmarking.sets.FROZEN_DIR", frozen_dir)
+    monkeypatch.setattr("benchmarking.sets.FROZEN_DIR", tmp_path / "frozen")
     monkeypatch.setattr("benchmarking.runner.RESULTS_DIR", tmp_path / "no_results")
 
-    # HASH_FROZEN is frozen in "verified-set"
     monkeypatch.setattr(
         "benchmarking.routes.ui.nav.is_frozen",
         lambda h: "verified-set" if h == HASH_FROZEN else None,
     )
 
-    # Create the frozen snapshot so frozen_photo_detail can load it
     from benchmarking.sets import BenchmarkSnapshot, BenchmarkSnapshotMetadata
     snap = BenchmarkSnapshot(
         metadata=BenchmarkSnapshotMetadata(

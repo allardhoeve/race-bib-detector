@@ -32,20 +32,13 @@ HASH_C = "c" * 64
 
 
 @pytest.fixture(autouse=True)
-def patch_paths(tmp_path, monkeypatch):
-    bib_path = tmp_path / "bib_ground_truth.json"
-    face_path = tmp_path / "face_ground_truth.json"
-    link_path = tmp_path / "bib_face_links.json"
-    index_path = tmp_path / "photo_index.json"
-    monkeypatch.setattr("benchmarking.ground_truth.get_bib_ground_truth_path", lambda: bib_path)
-    monkeypatch.setattr("benchmarking.ground_truth.get_face_ground_truth_path", lambda: face_path)
-    monkeypatch.setattr("benchmarking.ground_truth.get_link_ground_truth_path", lambda: link_path)
-    monkeypatch.setattr("benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path)
+def patch_paths(benchmark_paths):
+    pass
 
 
 def _save_index(tmp_path, hashes: list[str]) -> None:
     from benchmarking.photo_index import save_photo_index
-    index_path = tmp_path / "photo_index.json"
+    index_path = tmp_path / "photo_metadata.json"
     save_photo_index({h: [f"/photos/{h[:8]}.jpg"] for h in hashes}, index_path)
 
 

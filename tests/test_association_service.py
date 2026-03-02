@@ -10,12 +10,8 @@ HASH_UNKNOWN = "f" * 64
 
 
 @pytest.fixture(autouse=True)
-def patch_paths(tmp_path, monkeypatch):
-    link_gt_path = tmp_path / "bib_face_links.json"
-    index_path = tmp_path / "photo_index.json"
-    save_photo_index({HASH_A: ["photo_a.jpg"]}, index_path)
-    monkeypatch.setattr("benchmarking.ground_truth.get_link_ground_truth_path", lambda: link_gt_path)
-    monkeypatch.setattr("benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path)
+def patch_paths(benchmark_paths):
+    save_photo_index({HASH_A: ["photo_a.jpg"]}, benchmark_paths["photo_metadata"])
 
 
 def test_get_associations_not_found():

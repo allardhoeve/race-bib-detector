@@ -89,17 +89,11 @@ def _extract_photo_results_json(html: str) -> list[dict]:
 
 
 @pytest.fixture
-def client(tmp_path, monkeypatch):
+def client(benchmark_paths, tmp_path, monkeypatch):
     """Test client with a monkeypatched run and link GT."""
     from benchmarking.app import create_app
 
-    # Monkeypatch RESULTS_DIR so get_run finds our test run
     monkeypatch.setattr("benchmarking.runner.RESULTS_DIR", tmp_path / "results")
-    # Monkeypatch link GT path to tmp
-    monkeypatch.setattr(
-        "benchmarking.ground_truth.get_link_ground_truth_path",
-        lambda: tmp_path / "links.json",
-    )
 
     app = create_app()
     return TestClient(app, follow_redirects=False)
@@ -169,7 +163,7 @@ class TestInspectJsonBoxFields:
         from benchmarking.ground_truth import LinkGroundTruth, save_link_ground_truth
         link_gt = LinkGroundTruth()
         link_gt.set_links(content_hash, [BibFaceLink(bib_index=0, face_index=1)])
-        save_link_ground_truth(link_gt, tmp_path / "links.json")
+        save_link_ground_truth(link_gt)
 
         resp = client.get("/benchmark/test1234/")
         data = _extract_photo_results_json(resp.text)

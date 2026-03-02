@@ -23,33 +23,9 @@ HASH_UNKNOWN = "f" * 64
 
 
 @pytest.fixture
-def app_client(tmp_path, monkeypatch):
+def app_client(benchmark_paths):
     """Create a test client with all paths monkeypatched to tmp_path."""
-    bib_gt_path = tmp_path / "bib_ground_truth.json"
-    face_gt_path = tmp_path / "face_ground_truth.json"
-    suggestions_path = tmp_path / "suggestions.json"
-    identities_path = tmp_path / "face_identities.json"
-    index_path = tmp_path / "photo_index.json"
-
-    # Create a photo index with test hashes
-    save_photo_index({HASH_A: ["photo_a.jpg"], HASH_B: ["photo_b.jpg"]}, index_path)
-
-    # Monkeypatch all path functions
-    monkeypatch.setattr(
-        "benchmarking.ground_truth.get_bib_ground_truth_path", lambda: bib_gt_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.ground_truth.get_face_ground_truth_path", lambda: face_gt_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.ghost.get_suggestion_store_path", lambda: suggestions_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.identities.get_identities_path", lambda: identities_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path
-    )
+    save_photo_index({HASH_A: ["photo_a.jpg"], HASH_B: ["photo_b.jpg"]}, benchmark_paths["photo_metadata"])
 
     from benchmarking.app import create_app
 
@@ -482,36 +458,13 @@ def _make_test_jpeg(path, width=100, height=80):
 
 
 @pytest.fixture
-def crop_client(tmp_path, monkeypatch):
+def crop_client(benchmark_paths, tmp_path, monkeypatch):
     """Test client with PHOTOS_DIR pointed at tmp_path and a real JPEG."""
-    bib_gt_path = tmp_path / "bib_ground_truth.json"
-    face_gt_path = tmp_path / "face_ground_truth.json"
-    suggestions_path = tmp_path / "suggestions.json"
-    identities_path = tmp_path / "face_identities.json"
-    index_path = tmp_path / "photo_index.json"
     photos_dir = tmp_path / "photos"
     photos_dir.mkdir()
-
-    # Create a test photo
     _make_test_jpeg(photos_dir / "photo_a.jpg")
 
-    save_photo_index({HASH_A: ["photo_a.jpg"]}, index_path)
-
-    monkeypatch.setattr(
-        "benchmarking.ground_truth.get_bib_ground_truth_path", lambda: bib_gt_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.ground_truth.get_face_ground_truth_path", lambda: face_gt_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.ghost.get_suggestion_store_path", lambda: suggestions_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.identities.get_identities_path", lambda: identities_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path
-    )
+    save_photo_index({HASH_A: ["photo_a.jpg"]}, benchmark_paths["photo_metadata"])
     monkeypatch.setattr("benchmarking.services.face_service.PHOTOS_DIR", photos_dir)
 
     from benchmarking.app import create_app
@@ -627,38 +580,10 @@ class TestHomeRoute:
 
 
 @pytest.fixture
-def freeze_client(tmp_path, monkeypatch):
+def freeze_client(benchmark_paths, tmp_path, monkeypatch):
     """Test client with all GT paths + FROZEN_DIR monkeypatched."""
-    bib_gt_path = tmp_path / "bib_ground_truth.json"
-    face_gt_path = tmp_path / "face_ground_truth.json"
-    link_gt_path = tmp_path / "bib_face_links.json"
-    suggestions_path = tmp_path / "suggestions.json"
-    identities_path = tmp_path / "face_identities.json"
-    index_path = tmp_path / "photo_index.json"
-    frozen_dir = tmp_path / "frozen"
-
-    from benchmarking.photo_index import save_photo_index
-    save_photo_index({HASH_A: ["photo_a.jpg"], HASH_B: ["photo_b.jpg"]}, index_path)
-
-    monkeypatch.setattr(
-        "benchmarking.ground_truth.get_bib_ground_truth_path", lambda: bib_gt_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.ground_truth.get_face_ground_truth_path", lambda: face_gt_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.ground_truth.get_link_ground_truth_path", lambda: link_gt_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.ghost.get_suggestion_store_path", lambda: suggestions_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.identities.get_identities_path", lambda: identities_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.photo_metadata.get_photo_metadata_path", lambda: index_path
-    )
-    monkeypatch.setattr("benchmarking.sets.FROZEN_DIR", frozen_dir)
+    save_photo_index({HASH_A: ["photo_a.jpg"], HASH_B: ["photo_b.jpg"]}, benchmark_paths["photo_metadata"])
+    monkeypatch.setattr("benchmarking.sets.FROZEN_DIR", tmp_path / "frozen")
 
     from benchmarking.app import create_app
     app = create_app()

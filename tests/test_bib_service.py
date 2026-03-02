@@ -11,14 +11,8 @@ HASH_UNKNOWN = "f" * 64
 
 
 @pytest.fixture(autouse=True)
-def patch_paths(tmp_path, monkeypatch):
-    bib_gt_path = tmp_path / "bib_ground_truth.json"
-    suggestions_path = tmp_path / "suggestions.json"
-    meta_path = tmp_path / "photo_metadata.json"
-    save_photo_index({HASH_A: ["photo_a.jpg"]}, meta_path)
-    monkeypatch.setattr("benchmarking.ground_truth.get_bib_ground_truth_path", lambda: bib_gt_path)
-    monkeypatch.setattr("benchmarking.ghost.get_suggestion_store_path", lambda: suggestions_path)
-    monkeypatch.setattr("benchmarking.photo_metadata.get_photo_metadata_path", lambda: meta_path)
+def patch_paths(benchmark_paths):
+    save_photo_index({HASH_A: ["photo_a.jpg"]}, benchmark_paths["photo_metadata"])
 
 
 def test_get_bib_label_not_found():

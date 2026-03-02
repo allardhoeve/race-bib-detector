@@ -29,27 +29,13 @@ HASH_C = "c" * 64
 
 
 @pytest.fixture(autouse=True)
-def patch_paths(tmp_path, monkeypatch):
-    """Monkeypatch all GT and index paths to tmp_path."""
-    bib_gt_path = tmp_path / "bib_ground_truth.json"
-    face_gt_path = tmp_path / "face_ground_truth.json"
-    link_gt_path = tmp_path / "bib_face_links.json"
-    suggestions_path = tmp_path / "suggestions.json"
-    identities_path = tmp_path / "face_identities.json"
-    photo_metadata_path = tmp_path / "photo_metadata.json"
-
+def patch_paths(benchmark_paths):
+    """Activate benchmark path patches and set up photo index."""
     save_photo_index({
         HASH_A: ["photo_a.jpg"],
         HASH_B: ["photo_b.jpg"],
         HASH_C: ["photo_c.jpg"],
-    }, photo_metadata_path)
-
-    monkeypatch.setattr("benchmarking.ground_truth.get_bib_ground_truth_path", lambda: bib_gt_path)
-    monkeypatch.setattr("benchmarking.ground_truth.get_face_ground_truth_path", lambda: face_gt_path)
-    monkeypatch.setattr("benchmarking.ground_truth.get_link_ground_truth_path", lambda: link_gt_path)
-    monkeypatch.setattr("benchmarking.photo_metadata.get_photo_metadata_path", lambda: photo_metadata_path)
-    monkeypatch.setattr("benchmarking.ghost.get_suggestion_store_path", lambda: suggestions_path)
-    monkeypatch.setattr("benchmarking.identities.get_identities_path", lambda: identities_path)
+    }, benchmark_paths["photo_metadata"])
 
 
 def _make_face_box(scope="keep", identity=None, tags=None):

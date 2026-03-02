@@ -30,68 +30,33 @@ HASH_UNFROZEN = "c" * 64
 
 
 @pytest.fixture
-def frozen_env(tmp_path, monkeypatch):
+def frozen_env(benchmark_paths, tmp_path, monkeypatch):
     """Set up an environment with one frozen and one unfrozen photo."""
-    meta_path = tmp_path / "photo_metadata.json"
-    index_path = tmp_path / "photo_index.json"
-    bib_gt_path = tmp_path / "bib_ground_truth.json"
-    face_gt_path = tmp_path / "face_ground_truth.json"
-    link_gt_path = tmp_path / "bib_face_links.json"
-    suggestions_path = tmp_path / "suggestions.json"
-    identities_path = tmp_path / "face_identities.json"
-    frozen_dir = tmp_path / "frozen"
+    monkeypatch.setattr(sets_module, "FROZEN_DIR", tmp_path / "frozen")
 
-    # Patch all paths
-    monkeypatch.setattr(
-        "benchmarking.photo_metadata.get_photo_metadata_path", lambda: meta_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.photo_index.get_photo_index_path", lambda: index_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.ground_truth.get_bib_ground_truth_path", lambda: bib_gt_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.ground_truth.get_face_ground_truth_path", lambda: face_gt_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.ground_truth.get_link_ground_truth_path", lambda: link_gt_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.ghost.get_suggestion_store_path", lambda: suggestions_path
-    )
-    monkeypatch.setattr(
-        "benchmarking.identities.get_identities_path", lambda: identities_path
-    )
-    monkeypatch.setattr(sets_module, "FROZEN_DIR", frozen_dir)
-
-    # Set up photo index
     save_photo_index(
         {HASH_A: ["photo_a.jpg"], HASH_B: ["photo_b.jpg"], HASH_UNFROZEN: ["photo_c.jpg"]},
-        index_path,
+        benchmark_paths["photo_index"],
     )
 
-    # Set up ground truth (all labeled)
     bib_gt = BibGroundTruth()
     bib_gt.add_photo(BibPhotoLabel(content_hash=HASH_A, labeled=True))
     bib_gt.add_photo(BibPhotoLabel(content_hash=HASH_B, labeled=True))
     bib_gt.add_photo(BibPhotoLabel(content_hash=HASH_UNFROZEN, labeled=True))
-    save_bib_ground_truth(bib_gt, bib_gt_path)
+    save_bib_ground_truth(bib_gt)
 
     face_gt = FaceGroundTruth()
     face_gt.add_photo(FacePhotoLabel(content_hash=HASH_A, labeled=True))
     face_gt.add_photo(FacePhotoLabel(content_hash=HASH_B, labeled=True))
     face_gt.add_photo(FacePhotoLabel(content_hash=HASH_UNFROZEN, labeled=True))
-    save_face_ground_truth(face_gt, face_gt_path)
+    save_face_ground_truth(face_gt)
 
-    # Set up initial metadata for all photos
     store = PhotoMetadataStore()
     store.set(HASH_A, PhotoMetadata(paths=["photo_a.jpg"]))
     store.set(HASH_B, PhotoMetadata(paths=["photo_b.jpg"]))
     store.set(HASH_UNFROZEN, PhotoMetadata(paths=["photo_c.jpg"]))
-    save_photo_metadata(store, meta_path)
+    save_photo_metadata(store)
 
-    # Freeze HASH_A and HASH_B into "gold-v1"
     freeze(
         name="gold-v1",
         hashes=[HASH_A, HASH_B],
