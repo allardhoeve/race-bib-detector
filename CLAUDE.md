@@ -49,7 +49,7 @@ Project-wide conventions live in `STANDARDS.md`. Do not duplicate those rules el
 
 ## Test-driven development
 
-Use strict red/green TDD — one test at a time. Write one test, run it and confirm it fails (red), then write the minimal code to make it pass (green). Repeat. Do not batch-write multiple tests before implementing. If a new test passes immediately, it is redundant — delete it or question the code. This cycle ensures every line of production code is justified by a specific failure and prevents over-engineering.
+Write tests before or alongside code — not after. For tricky logic (edge cases, pure transforms), prefer red/green TDD: write a failing test, make it pass, repeat. For straightforward structural work, it's fine to write a small batch of related tests and then implement. The goal is that all meaningful behavior is covered by tests, not that every line requires a separate failing test first.
 
 ### TDD approach markers
 
