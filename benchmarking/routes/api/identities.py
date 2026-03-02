@@ -8,9 +8,9 @@ from benchmarking.schemas import (
     PatchIdentityRequest,
     PatchIdentityResponse,
 )
-from benchmarking.services.identity_service import (
-    create_identity,
-    list_identities,
+from benchmarking.identities import (
+    add_identity,
+    load_identities,
     rename_identity_across_gt,
 )
 
@@ -19,7 +19,7 @@ api_identities_router = APIRouter()
 
 @api_identities_router.get('/api/identities', response_model=IdentitiesResponse)
 async def get_identities() -> IdentitiesResponse:
-    return IdentitiesResponse(identities=list_identities())
+    return IdentitiesResponse(identities=load_identities())
 
 
 @api_identities_router.post('/api/identities', response_model=IdentitiesResponse)
@@ -27,7 +27,7 @@ async def post_identity(request: CreateIdentityRequest) -> IdentitiesResponse:
     name = request.name.strip()
     if not name:
         raise HTTPException(status_code=400, detail='Missing name')
-    ids = create_identity(name)
+    ids = add_identity(name)
     return IdentitiesResponse(identities=ids)
 
 

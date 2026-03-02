@@ -1,10 +1,10 @@
-"""Unit tests for benchmarking.services.face_service."""
+"""Unit tests for face label helpers in benchmarking.routes.api.faces."""
 
 import pytest
 
 from benchmarking.ground_truth import FacePhotoLabel, FaceBox, save_face_ground_truth, load_face_ground_truth
 from benchmarking.photo_index import save_photo_index
-from benchmarking.services import face_service
+from benchmarking.routes.api.faces import _get_face_label, _save_face_label, _get_face_crop_jpeg
 
 HASH_A = "a" * 64
 HASH_UNKNOWN = "f" * 64
@@ -16,13 +16,13 @@ def patch_paths(benchmark_paths):
 
 
 def test_get_face_label_not_found():
-    result = face_service.get_face_label(HASH_UNKNOWN[:8])
+    result = _get_face_label(HASH_UNKNOWN[:8])
     assert result is None
 
 
 def test_save_face_label_empty_boxes():
-    face_service.save_face_label(content_hash=HASH_A, boxes=[], tags=["no_faces"])
-    result = face_service.get_face_label(HASH_A[:8])
+    _save_face_label(content_hash=HASH_A, boxes=[], tags=["no_faces"])
+    result = _get_face_label(HASH_A[:8])
     assert result is not None
     assert result["boxes"] == []
     assert result["tags"] == ["no_faces"]
@@ -42,5 +42,5 @@ def test_get_face_crop_jpeg_no_coords(tmp_path):
     face_gt.add_photo(label)
     save_face_ground_truth(face_gt)
 
-    result = face_service.get_face_crop_jpeg(HASH_A[:8], 0)
+    result = _get_face_crop_jpeg(HASH_A[:8], 0)
     assert result is None

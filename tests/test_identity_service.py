@@ -1,9 +1,13 @@
-"""Unit tests for benchmarking.services.identity_service."""
+"""Unit tests for identity management in benchmarking.identities."""
 
 import pytest
 
 from benchmarking.ground_truth import FacePhotoLabel, FaceBox, save_face_ground_truth
-from benchmarking.services import identity_service
+from benchmarking.identities import (
+    add_identity,
+    load_identities,
+    rename_identity_across_gt,
+)
 
 HASH_A = "a" * 64
 
@@ -14,25 +18,25 @@ def patch_paths(benchmark_paths):
 
 
 def test_list_identities_empty():
-    ids = identity_service.list_identities()
+    ids = load_identities()
     assert isinstance(ids, list)
     assert ids == []
 
 
 def test_list_identities_after_create():
-    identity_service.create_identity("Alice")
-    ids = identity_service.list_identities()
+    add_identity("Alice")
+    ids = load_identities()
     assert "Alice" in ids
 
 
 def test_rename_identity_same_name():
-    identity_service.create_identity("Bob")
+    add_identity("Bob")
     with pytest.raises(ValueError, match="same"):
-        identity_service.rename_identity_across_gt("Bob", "Bob")
+        rename_identity_across_gt("Bob", "Bob")
 
 
 def test_rename_identity_updates_gt_boxes():
-    identity_service.create_identity("Alice")
+    add_identity("Alice")
 
     box = FaceBox(x=0.1, y=0.1, w=0.2, h=0.2, scope="keep", identity="Alice")
     label = FacePhotoLabel(content_hash=HASH_A, boxes=[box])
@@ -40,7 +44,7 @@ def test_rename_identity_updates_gt_boxes():
     face_gt_empty.add_photo(label)
     save_face_ground_truth(face_gt_empty)
 
-    updated_count, ids = identity_service.rename_identity_across_gt("Alice", "Alicia")
+    updated_count, ids = rename_identity_across_gt("Alice", "Alicia")
     assert updated_count == 1
     assert "Alicia" in ids
     assert "Alice" not in ids

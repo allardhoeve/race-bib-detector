@@ -21,7 +21,7 @@ from benchmarking.ground_truth import (
 from benchmarking.identities import save_identities
 from benchmarking.photo_index import save_photo_index
 from benchmarking.photo_metadata import PhotoMetadata, PhotoMetadataStore, save_photo_metadata
-from benchmarking.services.identity_gallery_service import get_identity_gallery
+from benchmarking.identity_gallery_service import get_identity_gallery
 
 HASH_A = "a" * 64
 HASH_B = "b" * 64
@@ -405,7 +405,7 @@ class TestBibCropEndpoint:
         photo_path = photos_dir / "photo_a.jpg"
         img.save(photo_path)
 
-        monkeypatch.setattr("benchmarking.services.bib_service.PHOTOS_DIR", photos_dir)
+        monkeypatch.setattr("benchmarking.routes.api.bibs.PHOTOS_DIR", photos_dir)
 
         _save_bib_gt({
             HASH_A: BibPhotoLabel(content_hash=HASH_A, boxes=[

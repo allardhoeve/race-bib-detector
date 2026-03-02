@@ -19,7 +19,7 @@ from benchmarking.label_utils import (
     get_filtered_hashes,
     is_face_labeled,
 )
-from benchmarking.services.completion_service import (
+from benchmarking.completion_service import (
     get_link_ready_hashes,
     get_unlinked_hashes,
     get_underlinked_hashes,
@@ -185,7 +185,7 @@ async def face_photo(
 @ui_labeling_router.get('/identities/')
 async def identity_gallery(request: Request):
     """Identity gallery: all faces grouped by identity with linked bibs."""
-    from benchmarking.services.identity_gallery_service import get_identity_gallery
+    from benchmarking.identity_gallery_service import get_identity_gallery
     groups = get_identity_gallery()
     total_frozen = sum(g.frozen_count for g in groups)
     total_new = sum(g.new_count for g in groups)

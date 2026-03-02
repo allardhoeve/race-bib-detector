@@ -1,10 +1,10 @@
-"""Unit tests for benchmarking.services.bib_service."""
+"""Unit tests for bib label helpers in benchmarking.routes.api.bibs."""
 
 import pytest
 
 from pipeline_types import BibBox
 from benchmarking.photo_index import save_photo_index
-from benchmarking.services import bib_service
+from benchmarking.routes.api.bibs import _get_bib_label, _save_bib_label
 
 HASH_A = "a" * 64
 HASH_UNKNOWN = "f" * 64
@@ -16,12 +16,12 @@ def patch_paths(benchmark_paths):
 
 
 def test_get_bib_label_not_found():
-    result = bib_service.get_bib_label(HASH_UNKNOWN[:8])
+    result = _get_bib_label(HASH_UNKNOWN[:8])
     assert result is None
 
 
 def test_get_bib_label_no_existing_label():
-    result = bib_service.get_bib_label(HASH_A[:8])
+    result = _get_bib_label(HASH_A[:8])
     assert result is not None
     assert result["boxes"] == []
     assert result["tags"] == []
@@ -30,14 +30,14 @@ def test_get_bib_label_no_existing_label():
 
 
 def test_save_bib_label_boxes():
-    bib_service.save_bib_label(
+    _save_bib_label(
         content_hash=HASH_A,
         boxes=[BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42", scope="bib")],
         bibs_legacy=None,
         tags=["dark_bib"],
         split="full",
     )
-    result = bib_service.get_bib_label(HASH_A[:8])
+    result = _get_bib_label(HASH_A[:8])
     assert result["labeled"] is True
     assert len(result["boxes"]) == 1
     assert result["boxes"][0].number == "42"
@@ -45,14 +45,14 @@ def test_save_bib_label_boxes():
 
 
 def test_save_bib_label_legacy_bibs():
-    bib_service.save_bib_label(
+    _save_bib_label(
         content_hash=HASH_A,
         boxes=None,
         bibs_legacy=[7, 42],
         tags=[],
         split="iteration",
     )
-    result = bib_service.get_bib_label(HASH_A[:8])
+    result = _get_bib_label(HASH_A[:8])
     assert result["labeled"] is True
     assert len(result["boxes"]) == 2
     # Legacy boxes have has_coords=False (x=y=w=h=0)

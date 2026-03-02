@@ -1,4 +1,4 @@
-"""Tests for benchmarking/services/completion_service.py."""
+"""Tests for benchmarking/completion_service.py."""
 from __future__ import annotations
 
 import pytest
@@ -16,7 +16,7 @@ from benchmarking.ground_truth import (
     save_face_ground_truth,
     save_link_ground_truth,
 )
-from benchmarking.services.completion_service import (
+from benchmarking.completion_service import (
     get_link_ready_hashes,
     get_unlinked_hashes,
     get_underlinked_hashes,

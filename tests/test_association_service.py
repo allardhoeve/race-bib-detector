@@ -1,9 +1,9 @@
-"""Unit tests for benchmarking.services.association_service."""
+"""Unit tests for association helpers in benchmarking.routes.api.bibs."""
 
 import pytest
 
 from benchmarking.photo_index import save_photo_index
-from benchmarking.services import association_service
+from benchmarking.routes.api.bibs import _get_associations, _set_associations
 
 HASH_A = "a" * 64
 HASH_UNKNOWN = "f" * 64
@@ -15,19 +15,19 @@ def patch_paths(benchmark_paths):
 
 
 def test_get_associations_not_found():
-    result = association_service.get_associations(HASH_UNKNOWN[:8])
+    result = _get_associations(HASH_UNKNOWN[:8])
     assert result is None
 
 
 def test_set_then_get():
-    saved = association_service.set_associations(HASH_A[:8], [[0, 1], [2, 3]])
+    saved = _set_associations(HASH_A[:8], [[0, 1], [2, 3]])
     assert saved == [[0, 1], [2, 3]]
 
-    retrieved = association_service.get_associations(HASH_A[:8])
+    retrieved = _get_associations(HASH_A[:8])
     assert retrieved == [[0, 1], [2, 3]]
 
 
 def test_set_associations_invalid_pair():
     """A pair with too few elements raises IndexError."""
     with pytest.raises((TypeError, IndexError, ValueError)):
-        association_service.set_associations(HASH_A[:8], [[0]])
+        _set_associations(HASH_A[:8], [[0]])
