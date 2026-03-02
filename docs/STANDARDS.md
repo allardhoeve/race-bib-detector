@@ -22,6 +22,11 @@ This document captures shared, stable conventions so they do not get repeated ac
 - Entry points must be `chmod 755`.
 - If you add a new entrypoint, include it in `tests/test_entrypoints.py` so the smoke test covers it.
 
+## Pipeline Data Model
+- The pipeline (`pipeline/`) produces **traces** (`BibCandidateTrace`, `FaceCandidateTrace`) and **trace links** (`TraceLink`). These are the working data structures.
+- **Labels** (`BibLabel`, `FaceLabel`) are ground truth types for human annotation. They live in `benchmarking/` and must not be imported or used by pipeline code.
+- Scoring compares traces (predicted) against labels (GT). Both have coordinates, but they are separate types with different fields.
+
 ## Configuration
 - All tunable detection parameters live in `config.py`.
 - Do not hardcode thresholds or pipeline constants outside `config.py`.

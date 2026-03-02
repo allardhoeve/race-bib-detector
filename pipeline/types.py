@@ -39,7 +39,12 @@ FACE_BOX_TAGS = frozenset({"tiny", "blurry", "occluded", "profile", "looking_dow
 
 
 class BibBox(BaseModel):
-    """A single bib bounding box with number and scope.
+    """A human-labeled bib bounding box for ground truth.
+
+    Used only for benchmark labeling and scoring — not by the pipeline.
+    The pipeline produces ``BibCandidateTrace`` instead, which carries the
+    full detection journey.  This type will be renamed to ``BibLabel``
+    (task-095a).
 
     Coordinates are in normalised [0, 1] image space.
     Legacy migrated boxes have x=y=w=h=0 (see ``has_coords``).
@@ -82,10 +87,16 @@ class BibBox(BaseModel):
 
 
 class BibCandidateTrace(BaseModel):
-    """Full trace of a single bib candidate through the pipeline.
+    """Full trace of a single bib candidate through automated detection.
 
-    Records the candidate's journey: region detection → validation →
-    OCR → acceptance.  Coordinates are normalised [0, 1] image space.
+    This is the pipeline's working data structure for bibs.  Records the
+    candidate's full journey: region detection → validation → OCR →
+    acceptance.  Every candidate is traced, whether accepted or rejected.
+
+    Not used for human labeling — see ``BibBox`` (future ``BibLabel``)
+    for ground truth.
+
+    Coordinates are normalised [0, 1] image space.
     """
 
     # Normalised bounding box
@@ -134,10 +145,17 @@ class BibCandidateTrace(BaseModel):
 
 
 class FaceCandidateTrace(BaseModel):
-    """Full trace of a single face candidate through the pipeline.
+    """Full trace of a single face candidate through automated detection.
 
-    Records the candidate's journey: detection → threshold → fallback chain →
-    acceptance.  Coordinates are normalised [0, 1] image space.
+    This is the pipeline's working data structure for faces.  Records the
+    candidate's full journey: detection → threshold → fallback chain →
+    acceptance → embedding → clustering.  Every candidate is traced,
+    whether accepted or rejected.
+
+    Not used for human labeling — see ``FaceBox`` (future ``FaceLabel``)
+    for ground truth.
+
+    Coordinates are normalised [0, 1] image space.
     """
 
     # Normalised bounding box
@@ -198,7 +216,12 @@ class FaceCandidateTrace(BaseModel):
 
 
 class FaceBox(BaseModel):
-    """A single face bounding box with scope and optional identity.
+    """A human-labeled face bounding box for ground truth.
+
+    Used only for benchmark labeling and scoring — not by the pipeline.
+    The pipeline produces ``FaceCandidateTrace`` instead, which carries
+    the full detection journey.  This type will be renamed to ``FaceLabel``
+    (task-095a).
 
     Coordinates are in normalised [0, 1] image space.
     Coords are None for legacy boxes that pre-date coordinate recording.
