@@ -6,11 +6,11 @@ import pytest
 from PIL import Image
 
 from benchmarking.ground_truth import (
-    BibBox,
+    BibLabel,
     BibFaceLink,
     BibGroundTruth,
     BibPhotoLabel,
-    FaceBox,
+    FaceLabel,
     FaceGroundTruth,
     FacePhotoLabel,
     LinkGroundTruth,
@@ -39,11 +39,11 @@ def patch_paths(benchmark_paths):
 
 
 def _make_face_box(scope="keep", identity=None, tags=None):
-    return FaceBox(x=0.1, y=0.2, w=0.3, h=0.4, scope=scope, identity=identity, tags=tags or [])
+    return FaceLabel(x=0.1, y=0.2, w=0.3, h=0.4, scope=scope, identity=identity, tags=tags or [])
 
 
 def _make_bib_box(number="42"):
-    return BibBox(x=0.1, y=0.5, w=0.2, h=0.1, number=number, scope="bib")
+    return BibLabel(x=0.1, y=0.5, w=0.2, h=0.1, number=number, scope="bib")
 
 
 def _save_face_gt(photos: dict[str, FacePhotoLabel]):
@@ -112,7 +112,7 @@ class TestGetIdentityGallery:
         """Legacy boxes without coordinates are excluded."""
         _save_face_gt({
             HASH_A: FacePhotoLabel(content_hash=HASH_A, boxes=[
-                FaceBox(x=0, y=0, w=0, h=0, scope="keep", identity="Iva"),
+                FaceLabel(x=0, y=0, w=0, h=0, scope="keep", identity="Iva"),
                 _make_face_box(identity="Iva"),
             ], labeled=True),
         })

@@ -34,17 +34,16 @@ FACE_BOX_TAGS = frozenset({"tiny", "blurry", "occluded", "profile", "looking_dow
 
 
 # =============================================================================
-# Bib box
+# Bib label (ground truth)
 # =============================================================================
 
 
-class BibBox(BaseModel):
+class BibLabel(BaseModel):
     """A human-labeled bib bounding box for ground truth.
 
     Used only for benchmark labeling and scoring — not by the pipeline.
     The pipeline produces ``BibCandidateTrace`` instead, which carries the
-    full detection journey.  This type will be renamed to ``BibLabel``
-    (task-095a).
+    full detection journey.
 
     Coordinates are in normalised [0, 1] image space.
     Legacy migrated boxes have x=y=w=h=0 (see ``has_coords``).
@@ -93,8 +92,7 @@ class BibCandidateTrace(BaseModel):
     candidate's full journey: region detection → validation → OCR →
     acceptance.  Every candidate is traced, whether accepted or rejected.
 
-    Not used for human labeling — see ``BibBox`` (future ``BibLabel``)
-    for ground truth.
+    Not used for human labeling — see ``BibLabel`` for ground truth.
 
     Coordinates are normalised [0, 1] image space.
     """
@@ -124,15 +122,15 @@ class BibCandidateTrace(BaseModel):
     accepted: bool = False
     bib_number: str | None = None
 
-    def to_bib_box(self) -> BibBox:
-        """Convert an accepted trace to a BibBox.
+    def to_bib_label(self) -> BibLabel:
+        """Convert an accepted trace to a BibLabel.
 
         Raises:
             ValueError: If this trace was not accepted.
         """
         if not self.accepted:
-            raise ValueError("Cannot convert unaccepted trace to BibBox")
-        return BibBox(
+            raise ValueError("Cannot convert unaccepted trace to BibLabel")
+        return BibLabel(
             x=self.x, y=self.y, w=self.w, h=self.h,
             number=self.bib_number or "",
             confidence=self.ocr_confidence,
@@ -152,8 +150,7 @@ class FaceCandidateTrace(BaseModel):
     acceptance → embedding → clustering.  Every candidate is traced,
     whether accepted or rejected.
 
-    Not used for human labeling — see ``FaceBox`` (future ``FaceLabel``)
-    for ground truth.
+    Not used for human labeling — see ``FaceLabel`` for ground truth.
 
     Coordinates are normalised [0, 1] image space.
     """
@@ -185,15 +182,15 @@ class FaceCandidateTrace(BaseModel):
     cluster_distance: float | None = None
     nearest_other_distance: float | None = None
 
-    def to_face_box(self) -> FaceBox:
-        """Convert an accepted trace to a FaceBox.
+    def to_face_label(self) -> FaceLabel:
+        """Convert an accepted trace to a FaceLabel.
 
         Raises:
             ValueError: If this trace was not accepted.
         """
         if not self.accepted:
-            raise ValueError("Cannot convert unaccepted trace to FaceBox")
-        return FaceBox(
+            raise ValueError("Cannot convert unaccepted trace to FaceLabel")
+        return FaceLabel(
             x=self.x, y=self.y, w=self.w, h=self.h,
             confidence=self.confidence,
         )
@@ -211,17 +208,16 @@ class FaceCandidateTrace(BaseModel):
 
 
 # =============================================================================
-# Face box
+# Face label (ground truth)
 # =============================================================================
 
 
-class FaceBox(BaseModel):
+class FaceLabel(BaseModel):
     """A human-labeled face bounding box for ground truth.
 
     Used only for benchmark labeling and scoring — not by the pipeline.
     The pipeline produces ``FaceCandidateTrace`` instead, which carries
-    the full detection journey.  This type will be renamed to ``FaceLabel``
-    (task-095a).
+    the full detection journey.
 
     Coordinates are in normalised [0, 1] image space.
     Coords are None for legacy boxes that pre-date coordinate recording.
@@ -303,11 +299,11 @@ class BibFaceLink(BaseModel):
 class AutolinkResult:
     """Result of the autolink predictor for a single photo."""
 
-    pairs: list[tuple[BibBox, FaceBox]] = field(default_factory=list)
+    pairs: list[tuple[BibLabel, FaceLabel]] = field(default_factory=list)
     provenance: list[str] = field(default_factory=list)
 
 
-def _torso_region(face_box: FaceBox) -> tuple[float, float, float, float]:
+def _torso_region(face_box: FaceLabel) -> tuple[float, float, float, float]:
     """Return estimated torso bounding box (x, y, w, h) in normalised [0,1] coords.
 
     Uses empirically-derived multipliers from config (task-042).
@@ -324,8 +320,8 @@ def _torso_region(face_box: FaceBox) -> tuple[float, float, float, float]:
 
 
 def predict_links(
-    bib_boxes: list[BibBox],
-    face_boxes: list[FaceBox],
+    bib_boxes: list[BibLabel],
+    face_boxes: list[FaceLabel],
     bib_confidence_threshold: float = 0.5,
 ) -> AutolinkResult:
     """Rule-based autolink predictor for a single photo.
@@ -337,7 +333,7 @@ def predict_links(
        falls inside the face's estimated torso region. One bib per face max.
 
     ``bib_confidence_threshold`` gates eligibility: all bibs are treated as
-    having full confidence (1.0) because ``BibBox`` carries no confidence
+    having full confidence (1.0) because ``BibLabel`` carries no confidence
     field. Passing a threshold ≥ 1.0 therefore suppresses all links, which
     is useful in tests.
 
@@ -371,7 +367,7 @@ def predict_links(
         )
 
     # Rule 2: multi-face spatial matching.
-    pairs: list[tuple[BibBox, FaceBox]] = []
+    pairs: list[tuple[BibLabel, FaceLabel]] = []
     provenance: list[str] = []
     used_bibs: set[int] = set()
 
@@ -398,3 +394,8 @@ def predict_links(
             used_bibs.add(best_bi)
 
     return AutolinkResult(pairs=pairs, provenance=provenance)
+
+
+# Backward-compat aliases (task-095a). Remove once all external consumers are updated.
+BibBox = BibLabel
+FaceBox = FaceLabel

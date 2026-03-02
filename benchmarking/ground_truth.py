@@ -17,8 +17,8 @@ from pydantic import BaseModel, ConfigDict, Field
 # Re-export shared types from pipeline.types (canonical location).
 # All existing importers continue to work via these re-exports.
 from pipeline.types import (  # noqa: F401
-    BibBox,
-    FaceBox,
+    BibLabel,
+    FaceLabel,
     BibFaceLink,
     BIB_BOX_SCOPES,
     _BIB_BOX_UNSCORED,
@@ -75,7 +75,7 @@ class BibPhotoLabel(BaseModel):
     """
 
     content_hash: str
-    boxes: list[BibBox] = Field(default_factory=list)
+    boxes: list[BibLabel] = Field(default_factory=list)
     labeled: bool = False
 
     model_config = ConfigDict(extra="ignore")
@@ -154,7 +154,7 @@ class FacePhotoLabel(BaseModel):
     """
 
     content_hash: str
-    boxes: list[FaceBox] = Field(default_factory=list)
+    boxes: list[FaceLabel] = Field(default_factory=list)
     labeled: bool = False  # True once a human has explicitly saved face labels for this photo
 
     model_config = ConfigDict(extra="ignore")
@@ -311,7 +311,7 @@ def migrate_from_legacy(
     """Convert a v2 ground_truth.json dict to the new split schema.
 
     Each legacy photo becomes one ``BibPhotoLabel`` and one
-    ``FacePhotoLabel``.  Bib numbers become ``BibBox`` entries with
+    ``FacePhotoLabel``.  Bib numbers become ``BibLabel`` entries with
     zero-area coordinates (``has_coords == False``).  ``face_count`` is
     dropped (now derived from keep-scoped face boxes).
 
@@ -323,10 +323,10 @@ def migrate_from_legacy(
 
     for content_hash, photo in legacy_data.get("photos", {}).items():
         # --- bib side ---
-        bib_boxes: list[BibBox] = []
+        bib_boxes: list[BibLabel] = []
         for bib_number in photo.get("bibs", []):
             bib_boxes.append(
-                BibBox(x=0, y=0, w=0, h=0, number=str(bib_number), scope="bib")
+                BibLabel(x=0, y=0, w=0, h=0, number=str(bib_number), scope="bib")
             )
 
         # Filter tags: only keep those that belong to BIB_PHOTO_TAGS

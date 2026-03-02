@@ -1,6 +1,6 @@
 """Pydantic schemas for API request bodies and response models.
 
-Domain model classes (BibBox, FaceBox, etc.) live in ground_truth.py.
+Domain model classes (BibLabel, FaceLabel, etc.) live in ground_truth.py.
 These schemas define the exact wire format accepted / returned by each endpoint.
 """
 

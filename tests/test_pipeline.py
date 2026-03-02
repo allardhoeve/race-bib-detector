@@ -338,7 +338,7 @@ class TestBibTrace:
         assert boxes1 is boxes2  # cached, same list object
 
     def test_bib_boxes_identity_with_autolink(self):
-        """Autolink pairs reference the same BibBox instances as bib_boxes."""
+        """Autolink pairs reference the same BibLabel instances as bib_boxes."""
         from pipeline import run_single_photo
 
         det = Detection(
@@ -473,7 +473,7 @@ class TestFaceTrace:
         assert bboxes1 is bboxes2  # cached
 
     def test_face_boxes_identity_with_autolink(self):
-        """Autolink pairs reference the same FaceBox instances as face_boxes."""
+        """Autolink pairs reference the same FaceLabel instances as face_boxes."""
         from pipeline import run_single_photo
 
         det = Detection(

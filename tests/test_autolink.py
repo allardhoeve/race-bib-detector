@@ -4,15 +4,15 @@ from __future__ import annotations
 
 import pytest
 
-from pipeline.types import AutolinkResult, BibBox, FaceBox, predict_links
+from pipeline.types import AutolinkResult, BibLabel, FaceLabel, predict_links
 
 
 def _bib(x=0.1, y=0.5, w=0.1, h=0.1, number="1"):
-    return BibBox(x=x, y=y, w=w, h=h, number=number)
+    return BibLabel(x=x, y=y, w=w, h=h, number=number)
 
 
 def _face(x=0.1, y=0.1, w=0.1, h=0.1):
-    return FaceBox(x=x, y=y, w=w, h=h)
+    return FaceLabel(x=x, y=y, w=w, h=h)
 
 
 class TestSingleFaceRule:

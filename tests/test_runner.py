@@ -10,10 +10,10 @@ import numpy as np
 import pytest
 
 from benchmarking.ground_truth import (
-    BibBox,
+    BibLabel,
     BibFaceLink,
     BibPhotoLabel,
-    FaceBox,
+    FaceLabel,
     FaceGroundTruth,
     FacePhotoLabel,
     LinkGroundTruth,
@@ -98,7 +98,7 @@ class TestFaceScorecardPopulated:
         face_gt = FaceGroundTruth()
         face_gt.add_photo(FacePhotoLabel(
             content_hash=content_hash,
-            boxes=[FaceBox(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
+            boxes=[FaceLabel(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
         ))
 
         bib_label = BibPhotoLabel(content_hash=content_hash)
@@ -179,7 +179,7 @@ class TestRunSinglePhotoBibDetection:
     """Test bib detection through the unified pipeline."""
 
     def test_detection_returns_normalised_boxes_and_dims(self):
-        """Known detection -> normalised BibBox and correct dims."""
+        """Known detection -> normalised BibLabel and correct dims."""
         from pipeline import run_single_photo
         from detection.types import DetectionResult, Detection
         from geometry import rect_to_bbox as _rtb
@@ -235,7 +235,7 @@ class TestRunSinglePhotoFaceDetection:
     """Test face detection through the unified pipeline."""
 
     def test_passed_candidates_normalised_correctly(self):
-        """Passed face candidate -> FaceBox with correct normalised coords."""
+        """Passed face candidate -> FaceLabel with correct normalised coords."""
         from pipeline import run_single_photo
 
         sp = run_single_photo(
@@ -254,7 +254,7 @@ class TestRunSinglePhotoFaceDetection:
         assert sp.face_detect_time_ms >= 0
 
     def test_face_box_has_confidence(self):
-        """Predicted FaceBox carries confidence from FaceCandidate."""
+        """Predicted FaceLabel carries confidence from FaceCandidate."""
         from pipeline import run_single_photo
 
         sp = run_single_photo(
@@ -449,7 +449,7 @@ class TestDetectionLoopStoresBoxes:
         _make_png_image(tmp_path)
         index = {content_hash: ["photo.png"]}
 
-        gt_bib_boxes = [BibBox(x=0.1, y=0.1, w=0.2, h=0.2, number="42")]
+        gt_bib_boxes = [BibLabel(x=0.1, y=0.1, w=0.2, h=0.2, number="42")]
         bib_label = BibPhotoLabel(
             content_hash=content_hash,
             boxes=gt_bib_boxes,
@@ -484,7 +484,7 @@ class TestDetectionLoopStoresBoxes:
         face_gt = FaceGroundTruth()
         face_gt.add_photo(FacePhotoLabel(
             content_hash=content_hash,
-            boxes=[FaceBox(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
+            boxes=[FaceLabel(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
         ))
         pr, _ = self._run_loop(tmp_path, face_backend=FakeFaceBackend(), face_gt=face_gt)
         assert pr.pred_face_boxes is not None
@@ -529,13 +529,13 @@ class TestPredLinks:
         index = {content_hash: ["photo.png"]}
         bib_label = BibPhotoLabel(
             content_hash=content_hash,
-            boxes=[BibBox(x=0.1, y=0.5, w=0.3, h=0.2, number="42")],
+            boxes=[BibLabel(x=0.1, y=0.5, w=0.3, h=0.2, number="42")],
         )
 
         face_gt = FaceGroundTruth()
         face_gt.add_photo(FacePhotoLabel(
             content_hash=content_hash,
-            boxes=[FaceBox(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
+            boxes=[FaceLabel(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
         ))
 
         link_gt = LinkGroundTruth()
@@ -620,12 +620,12 @@ class TestScorecardAndConfidence:
         index = {content_hash: ["photo.png"]}
         bib_label = BibPhotoLabel(
             content_hash=content_hash,
-            boxes=[BibBox(x=0.1, y=0.1, w=0.2, h=0.2, number="42")],
+            boxes=[BibLabel(x=0.1, y=0.1, w=0.2, h=0.2, number="42")],
         )
         face_gt = FaceGroundTruth()
         face_gt.add_photo(FacePhotoLabel(
             content_hash=content_hash,
-            boxes=[FaceBox(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
+            boxes=[FaceLabel(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
         ))
 
         results, _, _, _ = _run_detection_loop(

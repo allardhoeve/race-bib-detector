@@ -13,7 +13,7 @@ from benchmarking.scoring import (
     score_faces,
     format_scorecard,
 )
-from pipeline.types import BibBox, FaceBox
+from pipeline.types import BibLabel, FaceLabel
 
 
 # =============================================================================
@@ -264,12 +264,12 @@ class TestScoreBibs:
     def test_perfect_detection_and_ocr(self):
         """Predicted boxes match GT boxes with correct numbers."""
         gt = [
-            BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42"),
-            BibBox(x=0.6, y=0.6, w=0.2, h=0.2, number="99"),
+            BibLabel(x=0.1, y=0.1, w=0.3, h=0.2, number="42"),
+            BibLabel(x=0.6, y=0.6, w=0.2, h=0.2, number="99"),
         ]
         pred = [
-            BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42"),
-            BibBox(x=0.6, y=0.6, w=0.2, h=0.2, number="99"),
+            BibLabel(x=0.1, y=0.1, w=0.3, h=0.2, number="42"),
+            BibLabel(x=0.6, y=0.6, w=0.2, h=0.2, number="99"),
         ]
         sc = score_bibs(pred, gt)
         assert sc.detection_tp == 2
@@ -280,8 +280,8 @@ class TestScoreBibs:
 
     def test_correct_detection_wrong_ocr(self):
         """Box matches but number is wrong → counted as detection TP but OCR miss."""
-        gt = [BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
-        pred = [BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="43")]
+        gt = [BibLabel(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
+        pred = [BibLabel(x=0.1, y=0.1, w=0.3, h=0.2, number="43")]
         sc = score_bibs(pred, gt)
         assert sc.detection_tp == 1
         assert sc.ocr_correct == 0
@@ -289,22 +289,22 @@ class TestScoreBibs:
 
     def test_missed_gt_box(self):
         """GT box not detected → FN."""
-        gt = [BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
+        gt = [BibLabel(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
         sc = score_bibs([], gt)
         assert sc.detection_fn == 1
         assert sc.detection_tp == 0
 
     def test_extra_predicted_box(self):
         """Predicted box with no GT match → FP."""
-        pred = [BibBox(x=0.5, y=0.5, w=0.2, h=0.2, number="99")]
+        pred = [BibLabel(x=0.5, y=0.5, w=0.2, h=0.2, number="99")]
         sc = score_bibs(pred, [])
         assert sc.detection_fp == 1
         assert sc.detection_tp == 0
 
     def test_gt_without_coords_skipped(self):
         """GT boxes with zero-area coords (legacy) are excluded from IoU scoring."""
-        gt = [BibBox(x=0, y=0, w=0, h=0, number="42")]
-        pred = [BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
+        gt = [BibLabel(x=0, y=0, w=0, h=0, number="42")]
+        pred = [BibLabel(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
         sc = score_bibs(pred, gt)
         # No IoU matching possible — GT box has no coords
         assert sc.detection_tp == 0
@@ -314,10 +314,10 @@ class TestScoreBibs:
     def test_not_bib_scope_excluded(self):
         """GT boxes scoped as 'not_bib' should be excluded from scoring."""
         gt = [
-            BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42"),
-            BibBox(x=0.5, y=0.5, w=0.2, h=0.2, number="0", scope="not_bib"),
+            BibLabel(x=0.1, y=0.1, w=0.3, h=0.2, number="42"),
+            BibLabel(x=0.5, y=0.5, w=0.2, h=0.2, number="0", scope="not_bib"),
         ]
-        pred = [BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
+        pred = [BibLabel(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
         sc = score_bibs(pred, gt)
         assert sc.detection_tp == 1
         assert sc.detection_fn == 0  # not_bib GT excluded
@@ -325,10 +325,10 @@ class TestScoreBibs:
     def test_bib_obscured_scope_excluded(self):
         """GT boxes scoped as 'bib_obscured' should be excluded from scoring."""
         gt = [
-            BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42"),
-            BibBox(x=0.5, y=0.5, w=0.2, h=0.2, number="99", scope="bib_obscured"),
+            BibLabel(x=0.1, y=0.1, w=0.3, h=0.2, number="42"),
+            BibLabel(x=0.5, y=0.5, w=0.2, h=0.2, number="99", scope="bib_obscured"),
         ]
-        pred = [BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
+        pred = [BibLabel(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
         sc = score_bibs(pred, gt)
         assert sc.detection_tp == 1
         assert sc.detection_fn == 0  # bib_obscured GT excluded
@@ -336,10 +336,10 @@ class TestScoreBibs:
     def test_bib_clipped_scope_scored(self):
         """GT boxes scoped as 'bib_clipped' should be included in scoring."""
         gt = [
-            BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42"),
-            BibBox(x=0.5, y=0.5, w=0.2, h=0.2, number="99", scope="bib_clipped"),
+            BibLabel(x=0.1, y=0.1, w=0.3, h=0.2, number="42"),
+            BibLabel(x=0.5, y=0.5, w=0.2, h=0.2, number="99", scope="bib_clipped"),
         ]
-        pred = [BibBox(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
+        pred = [BibLabel(x=0.1, y=0.1, w=0.3, h=0.2, number="42")]
         sc = score_bibs(pred, gt)
         assert sc.detection_tp == 1
         assert sc.detection_fn == 1  # bib_clipped GT is scored
@@ -362,12 +362,12 @@ class TestScoreFaces:
 
     def test_perfect_detection(self):
         gt = [
-            FaceBox(x=0.1, y=0.1, w=0.15, h=0.2, scope="keep"),
-            FaceBox(x=0.5, y=0.5, w=0.15, h=0.2, scope="keep"),
+            FaceLabel(x=0.1, y=0.1, w=0.15, h=0.2, scope="keep"),
+            FaceLabel(x=0.5, y=0.5, w=0.15, h=0.2, scope="keep"),
         ]
         pred = [
-            FaceBox(x=0.1, y=0.1, w=0.15, h=0.2),
-            FaceBox(x=0.5, y=0.5, w=0.15, h=0.2),
+            FaceLabel(x=0.1, y=0.1, w=0.15, h=0.2),
+            FaceLabel(x=0.5, y=0.5, w=0.15, h=0.2),
         ]
         sc = score_faces(pred, gt)
         assert sc.detection_tp == 2
@@ -377,18 +377,18 @@ class TestScoreFaces:
     def test_exclude_scoped_gt_excluded(self):
         """GT faces with scope='exclude' should not count as FN."""
         gt = [
-            FaceBox(x=0.1, y=0.1, w=0.15, h=0.2, scope="keep"),
-            FaceBox(x=0.5, y=0.5, w=0.15, h=0.2, scope="exclude"),
+            FaceLabel(x=0.1, y=0.1, w=0.15, h=0.2, scope="keep"),
+            FaceLabel(x=0.5, y=0.5, w=0.15, h=0.2, scope="exclude"),
         ]
-        pred = [FaceBox(x=0.1, y=0.1, w=0.15, h=0.2)]
+        pred = [FaceLabel(x=0.1, y=0.1, w=0.15, h=0.2)]
         sc = score_faces(pred, gt)
         assert sc.detection_tp == 1
         assert sc.detection_fn == 0  # exclude-scoped excluded
 
     def test_uncertain_scoped_gt_excluded(self):
         """GT faces with scope='uncertain' should be excluded from scoring."""
-        gt = [FaceBox(x=0.1, y=0.1, w=0.15, h=0.2, scope="uncertain")]
-        pred = [FaceBox(x=0.1, y=0.1, w=0.15, h=0.2)]
+        gt = [FaceLabel(x=0.1, y=0.1, w=0.15, h=0.2, scope="uncertain")]
+        pred = [FaceLabel(x=0.1, y=0.1, w=0.15, h=0.2)]
         sc = score_faces(pred, gt)
         # uncertain GT is not scored — pred becomes FP
         assert sc.detection_tp == 0
@@ -396,8 +396,8 @@ class TestScoreFaces:
 
     def test_gt_without_coords_skipped(self):
         """GT face boxes without coords should be excluded."""
-        gt = [FaceBox(x=0, y=0, w=0, h=0, scope="keep")]
-        pred = [FaceBox(x=0.1, y=0.1, w=0.15, h=0.2)]
+        gt = [FaceLabel(x=0, y=0, w=0, h=0, scope="keep")]
+        pred = [FaceLabel(x=0.1, y=0.1, w=0.15, h=0.2)]
         sc = score_faces(pred, gt)
         assert sc.detection_tp == 0
         assert sc.detection_fn == 0

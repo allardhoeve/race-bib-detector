@@ -2,7 +2,7 @@
 
 import pytest
 
-from benchmarking.ground_truth import FacePhotoLabel, FaceBox, save_face_ground_truth, load_face_ground_truth
+from benchmarking.ground_truth import FacePhotoLabel, FaceLabel, save_face_ground_truth, load_face_ground_truth
 from benchmarking.photo_index import save_photo_index
 from benchmarking.routes.api.faces import _get_face_label, _save_face_label, _get_face_crop_jpeg
 
@@ -29,15 +29,15 @@ def test_save_face_label_empty_boxes():
 
 
 def test_save_face_label_invalid_scope():
-    """FaceBox rejects invalid scope at construction time."""
+    """FaceLabel rejects invalid scope at construction time."""
     with pytest.raises((ValueError, TypeError)):
-        FaceBox(x=0.1, y=0.2, w=0.1, h=0.1, scope="bad_scope")
+        FaceLabel(x=0.1, y=0.2, w=0.1, h=0.1, scope="bad_scope")
 
 
 def test_get_face_crop_jpeg_no_coords(tmp_path):
     """Box with has_coords=False (legacy) returns None."""
     face_gt = load_face_ground_truth()
-    box = FaceBox(x=0, y=0, w=0, h=0, scope="keep")
+    box = FaceLabel(x=0, y=0, w=0, h=0, scope="keep")
     label = FacePhotoLabel(content_hash=HASH_A, boxes=[box])
     face_gt.add_photo(label)
     save_face_ground_truth(face_gt)

@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 
 from benchmarking.ground_truth import (
-    BibBox,
+    BibLabel,
     BibPhotoLabel,
     load_bib_ground_truth,
     save_bib_ground_truth,
@@ -220,8 +220,8 @@ def cmd_label(args: argparse.Namespace) -> int:
 
     content_hash = matches[0]
 
-    # Parse bibs → BibBox entries (zero-area coords for CLI-entered numbers)
-    bib_boxes: list[BibBox] | None = None
+    # Parse bibs → BibLabel entries (zero-area coords for CLI-entered numbers)
+    bib_boxes: list[BibLabel] | None = None
     if args.bibs is not None:
         bib_boxes = []
         for b in args.bibs.split(","):
@@ -232,7 +232,7 @@ def cmd_label(args: argparse.Namespace) -> int:
                 except ValueError:
                     print(f"Invalid bib number: {b}")
                     return 1
-                bib_boxes.append(BibBox(x=0, y=0, w=0, h=0, number=b, scope="bib"))
+                bib_boxes.append(BibLabel(x=0, y=0, w=0, h=0, number=b, scope="bib"))
 
     # Parse tags
     tags: list[str] | None = None

@@ -20,7 +20,7 @@ from detection import detect_bib_numbers
 from detection.types import DetectionResult
 from faces.types import FaceCandidate
 from geometry import Bbox, bbox_to_rect, rect_iou
-from pipeline.types import AutolinkResult, BibBox, BibCandidateTrace, FaceCandidateTrace, FaceBox, predict_links
+from pipeline.types import AutolinkResult, BibLabel, BibCandidateTrace, FaceCandidateTrace, FaceLabel, predict_links
 
 if TYPE_CHECKING:
     import easyocr
@@ -52,20 +52,20 @@ class SinglePhotoResult:
     image_rgb: np.ndarray | None = None
 
     # Cached bib boxes (computed once, same instances used by autolink)
-    _bib_boxes_cache: list[BibBox] = field(default_factory=list, repr=False)
+    _bib_boxes_cache: list[BibLabel] = field(default_factory=list, repr=False)
 
     # Cached face boxes/pixel bboxes (computed once, identity matters for autolink)
-    _face_boxes_cache: list[FaceBox] = field(default_factory=list, repr=False)
+    _face_boxes_cache: list[FaceLabel] = field(default_factory=list, repr=False)
     _face_pixel_bboxes_cache: list[Bbox] = field(default_factory=list, repr=False)
 
     @property
-    def bib_boxes(self) -> list[BibBox]:
-        """Normalised BibBox list derived from bib_trace (cached)."""
+    def bib_boxes(self) -> list[BibLabel]:
+        """Normalised BibLabel list derived from bib_trace (cached)."""
         return self._bib_boxes_cache
 
     @property
-    def face_boxes(self) -> list[FaceBox]:
-        """Normalised FaceBox list for accepted traces (cached)."""
+    def face_boxes(self) -> list[FaceLabel]:
+        """Normalised FaceLabel list for accepted traces (cached)."""
         return self._face_boxes_cache
 
     @property
@@ -78,11 +78,11 @@ def _build_bib_trace(
     result: DetectionResult,
     img_w: int,
     img_h: int,
-) -> tuple[list[BibCandidateTrace], list[BibBox]]:
-    """Build bib candidate trace and corresponding BibBox list.
+) -> tuple[list[BibCandidateTrace], list[BibLabel]]:
+    """Build bib candidate trace and corresponding BibLabel list.
 
-    Returns both the full trace (all candidates) and the accepted BibBox
-    list.  The BibBox instances are created once here and must be reused
+    Returns both the full trace (all candidates) and the accepted BibLabel
+    list.  The BibLabel instances are created once here and must be reused
     for autolink (object identity matters for ``list.index()``).
     """
     if img_w <= 0 or img_h <= 0:
@@ -98,7 +98,7 @@ def _build_bib_trace(
             accepted_by_candidate[cand_id] = (det.bib_number, det.confidence)
 
     traces: list[BibCandidateTrace] = []
-    bib_boxes: list[BibBox] = []
+    bib_boxes: list[BibLabel] = []
 
     for cand in result.all_candidates:
         # Normalise candidate bbox from OCR coords to [0, 1]
@@ -131,18 +131,18 @@ def _build_bib_trace(
         traces.append(trace)
 
         if is_accepted:
-            bib_boxes.append(BibBox(
+            bib_boxes.append(BibLabel(
                 x=nx, y=ny, w=nw, h=nh,
                 number=bib_number or "",
                 confidence=det_confidence,
             ))
 
-    # Also create BibBox for detections without a source candidate
+    # Also create BibLabel for detections without a source candidate
     # (e.g. from test stubs that don't set source_candidate)
     for det in result.detections:
         if det.source_candidate is None:
             x1, y1, x2, y2 = bbox_to_rect(det.bbox)
-            bib_boxes.append(BibBox(
+            bib_boxes.append(BibLabel(
                 x=x1 / img_w, y=y1 / img_h,
                 w=(x2 - x1) / img_w, h=(y2 - y1) / img_h,
                 number=det.bib_number,
@@ -157,20 +157,20 @@ def _build_face_trace(
     accepted_bboxes: set[int],
     img_w: int,
     img_h: int,
-) -> tuple[list[FaceCandidateTrace], list[FaceBox], list[Bbox]]:
-    """Build face candidate trace, FaceBox list, and pixel bbox list.
+) -> tuple[list[FaceCandidateTrace], list[FaceLabel], list[Bbox]]:
+    """Build face candidate trace, FaceLabel list, and pixel bbox list.
 
     ``accepted_bboxes`` is a set of ``id(bbox)`` for bboxes that survived
     the fallback chain.  Every candidate gets a trace entry; accepted ones
-    also produce a FaceBox + pixel Bbox.
+    also produce a FaceLabel + pixel Bbox.
 
     Returns:
-        (face_trace, face_boxes, face_pixel_bboxes) — the FaceBox and Bbox
+        (face_trace, face_boxes, face_pixel_bboxes) — the FaceLabel and Bbox
         lists are created once here and must be reused for autolink (object
         identity matters for ``list.index()``).
     """
     traces: list[FaceCandidateTrace] = []
-    face_boxes: list[FaceBox] = []
+    face_boxes: list[FaceLabel] = []
     pixel_bboxes: list[Bbox] = []
 
     for cand in all_candidates:
@@ -193,7 +193,7 @@ def _build_face_trace(
         traces.append(trace)
 
         if is_accepted:
-            fb = FaceBox(
+            fb = FaceLabel(
                 x=nx, y=ny, w=nw, h=nh,
                 confidence=cand.confidence,
             )
@@ -324,7 +324,7 @@ def run_single_photo(
         scale_factor=1.0,
     )
     bib_trace: list[BibCandidateTrace] = []
-    bib_boxes: list[BibBox] = []
+    bib_boxes: list[BibLabel] = []
     bib_time_ms = 0.0
 
     if run_bibs:
@@ -338,7 +338,7 @@ def run_single_photo(
 
     # --- Face detection ---
     face_trace: list[FaceCandidateTrace] = []
-    face_boxes: list[FaceBox] = []
+    face_boxes: list[FaceLabel] = []
     face_pixel_bboxes: list[Bbox] = []
     face_time_ms = 0.0
 
@@ -356,7 +356,7 @@ def run_single_photo(
             all_candidates, passed_bboxes,
         )
 
-        # Build trace + cached FaceBox/pixel_bbox lists
+        # Build trace + cached FaceLabel/pixel_bbox lists
         accepted_bbox_ids = {id(bbox) for bbox in passed_bboxes}
         face_trace, face_boxes, face_pixel_bboxes = _build_face_trace(
             all_candidates, accepted_bbox_ids, img_w, img_h,

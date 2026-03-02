@@ -4,11 +4,11 @@ from __future__ import annotations
 import pytest
 
 from benchmarking.ground_truth import (
-    BibBox,
+    BibLabel,
     BibFaceLink,
     BibPhotoLabel,
     BibGroundTruth,
-    FaceBox,
+    FaceLabel,
     FacePhotoLabel,
     FaceGroundTruth,
     LinkGroundTruth,
@@ -152,7 +152,7 @@ class TestGetUnderlinkedHashes:
         bib_gt = BibGroundTruth()
         bib_gt.add_photo(BibPhotoLabel(
             content_hash=HASH_A, labeled=True,
-            boxes=[BibBox(x=0, y=0, w=0.1, h=0.1, number='42', scope='bib')],
+            boxes=[BibLabel(x=0, y=0, w=0.1, h=0.1, number='42', scope='bib')],
         ))
         save_bib_ground_truth(bib_gt)
         save_link_ground_truth(LinkGroundTruth())
@@ -174,7 +174,7 @@ class TestGetUnderlinkedHashes:
         bib_gt = BibGroundTruth()
         bib_gt.add_photo(BibPhotoLabel(
             content_hash=HASH_A, labeled=True,
-            boxes=[BibBox(x=0, y=0, w=0.1, h=0.1, number='42', scope='bib')],
+            boxes=[BibLabel(x=0, y=0, w=0.1, h=0.1, number='42', scope='bib')],
         ))
         face_gt = FaceGroundTruth()
         face_gt.add_photo(_face_label(HASH_A))
@@ -193,8 +193,8 @@ class TestGetUnderlinkedHashes:
         bib_gt.add_photo(BibPhotoLabel(
             content_hash=HASH_A, labeled=True,
             boxes=[
-                BibBox(x=0, y=0, w=0.1, h=0.1, number='42', scope='bib'),
-                BibBox(x=0.5, y=0, w=0.1, h=0.1, number='99', scope='bib'),
+                BibLabel(x=0, y=0, w=0.1, h=0.1, number='42', scope='bib'),
+                BibLabel(x=0.5, y=0, w=0.1, h=0.1, number='99', scope='bib'),
             ],
         ))
         face_gt = FaceGroundTruth()
@@ -214,8 +214,8 @@ class TestGetUnderlinkedHashes:
         bib_gt.add_photo(BibPhotoLabel(
             content_hash=HASH_A, labeled=True,
             boxes=[
-                BibBox(x=0, y=0, w=0.1, h=0.1, number='42', scope='not_bib'),
-                BibBox(x=0.5, y=0, w=0.1, h=0.1, number='99', scope='bib_obscured'),
+                BibLabel(x=0, y=0, w=0.1, h=0.1, number='42', scope='not_bib'),
+                BibLabel(x=0.5, y=0, w=0.1, h=0.1, number='99', scope='bib_obscured'),
             ],
         ))
         face_gt = FaceGroundTruth()
@@ -234,7 +234,7 @@ class TestGetUnderlinkedHashes:
         bib_gt = BibGroundTruth()
         bib_gt.add_photo(BibPhotoLabel(
             content_hash=HASH_A, labeled=True,
-            boxes=[BibBox(x=0, y=0, w=0.1, h=0.1, number='42', scope='bib')],
+            boxes=[BibLabel(x=0, y=0, w=0.1, h=0.1, number='42', scope='bib')],
         ))
         face_gt = FaceGroundTruth()
         face_gt.add_photo(_face_label(HASH_A))

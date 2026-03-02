@@ -61,10 +61,10 @@ Every file that imports `BibBox` or `FaceBox` needs updating:
 
 ## Acceptance criteria
 
-- [ ] `BibBox` renamed to `BibLabel` everywhere
-- [ ] `FaceBox` renamed to `FaceLabel` everywhere
-- [ ] All existing tests pass
-- [ ] No behavioral changes
+- [x] `BibBox` renamed to `BibLabel` everywhere
+- [x] `FaceBox` renamed to `FaceLabel` everywhere
+- [x] All existing tests pass (671 passed, 8 skipped)
+- [x] No behavioral changes
 
 ## Scope boundaries
 

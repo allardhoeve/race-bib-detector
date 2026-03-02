@@ -35,7 +35,7 @@ from benchmarking.schemas import (
     SaveBibBoxesRequest,
 )
 from config import ITERATION_SPLIT_PROBABILITY
-from pipeline.types import BibBox
+from pipeline.types import BibLabel
 
 PHOTOS_DIR = Path(__file__).resolve().parent.parent.parent.parent / "photos"
 
@@ -47,7 +47,7 @@ api_bibs_router = APIRouter()
 
 class BibLabelData(TypedDict):
     full_hash: str
-    boxes: list[BibBox]
+    boxes: list[BibLabel]
     suggestions: list[BibSuggestion]
     tags: list[str]
     split: str
@@ -90,15 +90,15 @@ def _get_bib_label(content_hash: str) -> BibLabelData | None:
     )
 
 
-def _save_bib_label(content_hash: str, boxes: list[BibBox] | None,
+def _save_bib_label(content_hash: str, boxes: list[BibLabel] | None,
                     bibs_legacy: list[int] | None, tags: list[str],
                     split: str) -> None:
     """Construct a BibPhotoLabel and persist it, plus save tags/split to PhotoMetadata."""
     bib_gt = load_bib_ground_truth()
     if boxes is not None:
-        pass  # already validated BibBox objects
+        pass  # already validated BibLabel objects
     elif bibs_legacy is not None:
-        boxes = [BibBox(x=0, y=0, w=0, h=0, number=str(b), scope="bib")
+        boxes = [BibLabel(x=0, y=0, w=0, h=0, number=str(b), scope="bib")
                  for b in bibs_legacy]
     else:
         boxes = []
@@ -224,7 +224,7 @@ async def save_bib_label(content_hash: str, request: SaveBibBoxesRequest):
     require_not_frozen(full_hash)
 
     try:
-        boxes = [BibBox.model_validate(b.model_dump()) for b in request.boxes] if request.boxes is not None else None
+        boxes = [BibLabel.model_validate(b.model_dump()) for b in request.boxes] if request.boxes is not None else None
         _save_bib_label(
             content_hash=full_hash,
             boxes=boxes,

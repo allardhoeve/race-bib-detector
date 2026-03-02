@@ -100,7 +100,7 @@ def _make_tuner_context(tmp_path, *, split="full", content_hash=None):
     from benchmarking.ground_truth import (
         BibGroundTruth,
         BibPhotoLabel,
-        FaceBox,
+        FaceLabel,
         FaceGroundTruth,
         FacePhotoLabel,
     )
@@ -121,7 +121,7 @@ def _make_tuner_context(tmp_path, *, split="full", content_hash=None):
     face_gt.add_photo(
         FacePhotoLabel(
             content_hash=content_hash,
-            boxes=[FaceBox(x=0.1, y=0.1, w=0.2, h=0.2, scope="keep")],
+            boxes=[FaceLabel(x=0.1, y=0.1, w=0.2, h=0.2, scope="keep")],
         )
     )
 
@@ -402,7 +402,7 @@ def test_run_face_sweep_filters_by_frozen_set(tmp_path):
     from benchmarking.ground_truth import (
         BibGroundTruth,
         BibPhotoLabel,
-        FaceBox,
+        FaceLabel,
         FaceGroundTruth,
         FacePhotoLabel,
     )
@@ -424,7 +424,7 @@ def test_run_face_sweep_filters_by_frozen_set(tmp_path):
     face_gt = FaceGroundTruth()
     for h in (hash_in, hash_out):
         face_gt.add_photo(
-            FacePhotoLabel(content_hash=h, boxes=[FaceBox(x=0.1, y=0.1, w=0.2, h=0.2, scope="keep")])
+            FacePhotoLabel(content_hash=h, boxes=[FaceLabel(x=0.1, y=0.1, w=0.2, h=0.2, scope="keep")])
         )
 
     index = {hash_in: [str(img_in)], hash_out: [str(img_out)]}

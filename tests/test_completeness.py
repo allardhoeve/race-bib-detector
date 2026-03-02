@@ -4,10 +4,10 @@ import pytest
 
 from benchmarking.completeness import PhotoCompleteness, photo_completeness, get_all_completeness
 from benchmarking.ground_truth import (
-    BibBox,
+    BibLabel,
     BibPhotoLabel,
     BibGroundTruth,
-    FaceBox,
+    FaceLabel,
     FacePhotoLabel,
     FaceGroundTruth,
     save_bib_ground_truth,
@@ -39,7 +39,7 @@ def patch_gt_paths(tmp_path, monkeypatch):
 
 
 def _bib_gt_with(hashes_boxes: dict) -> BibGroundTruth:
-    """Build a BibGroundTruth with each hash mapped to a list of BibBox objects."""
+    """Build a BibGroundTruth with each hash mapped to a list of BibLabel objects."""
     gt = BibGroundTruth()
     for h, boxes in hashes_boxes.items():
         gt.add_photo(BibPhotoLabel(content_hash=h, boxes=boxes, labeled=True))
@@ -47,19 +47,19 @@ def _bib_gt_with(hashes_boxes: dict) -> BibGroundTruth:
 
 
 def _face_gt_with(hashes_boxes: dict) -> FaceGroundTruth:
-    """Build a FaceGroundTruth with each hash mapped to a list of FaceBox objects."""
+    """Build a FaceGroundTruth with each hash mapped to a list of FaceLabel objects."""
     gt = FaceGroundTruth()
     for h, boxes in hashes_boxes.items():
         gt.add_photo(FacePhotoLabel(content_hash=h, boxes=boxes, labeled=True))
     return gt
 
 
-def _bib_box(number: str = "42") -> BibBox:
-    return BibBox(x=0.1, y=0.1, w=0.2, h=0.2, number=number, scope="bib")
+def _bib_box(number: str = "42") -> BibLabel:
+    return BibLabel(x=0.1, y=0.1, w=0.2, h=0.2, number=number, scope="bib")
 
 
-def _face_box() -> FaceBox:
-    return FaceBox(x=0.1, y=0.1, w=0.2, h=0.2, scope="keep")
+def _face_box() -> FaceLabel:
+    return FaceLabel(x=0.1, y=0.1, w=0.2, h=0.2, scope="keep")
 
 
 class TestPhotoCompleteness:

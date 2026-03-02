@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 
 from benchmarking.ground_truth import (
-    BibBox,
-    FaceBox,
+    BibLabel,
+    FaceLabel,
     BibPhotoLabel,
     FacePhotoLabel,
     BibGroundTruth,
@@ -16,37 +16,37 @@ from benchmarking.ground_truth import (
 
 
 # =============================================================================
-# BibBox
+# BibLabel
 # =============================================================================
 
 
-class TestBibBox:
+class TestBibLabel:
     def test_invalid_scope_raises(self):
         with pytest.raises(ValueError, match="Invalid bib box scope"):
-            BibBox(x=0, y=0, w=0, h=0, number="1", scope="invalid")
+            BibLabel(x=0, y=0, w=0, h=0, number="1", scope="invalid")
 
     def test_has_coords_true(self):
-        box = BibBox(x=0.1, y=0.2, w=0.05, h=0.03, number="1")
+        box = BibLabel(x=0.1, y=0.2, w=0.05, h=0.03, number="1")
         assert box.has_coords
 
     def test_has_coords_false_zeroes(self):
-        box = BibBox(x=0, y=0, w=0, h=0, number="1")
+        box = BibLabel(x=0, y=0, w=0, h=0, number="1")
         assert not box.has_coords
 
 
 # =============================================================================
-# FaceBox
+# FaceLabel
 # =============================================================================
 
 
-class TestFaceBox:
+class TestFaceLabel:
     def test_invalid_scope_raises(self):
         with pytest.raises(ValueError, match="Invalid face scope"):
-            FaceBox(x=0, y=0, w=0, h=0, scope="maybe")
+            FaceLabel(x=0, y=0, w=0, h=0, scope="maybe")
 
     def test_invalid_box_tag_raises(self):
         with pytest.raises(ValueError, match="Invalid face box tags"):
-            FaceBox(x=0, y=0, w=0.1, h=0.1, tags=["not_a_real_tag"])
+            FaceLabel(x=0, y=0, w=0.1, h=0.1, tags=["not_a_real_tag"])
 
 
 # =============================================================================
@@ -63,10 +63,10 @@ class TestBibPhotoLabel:
 
     def test_bib_numbers_int(self):
         boxes = [
-            BibBox(x=0, y=0, w=0, h=0, number="231"),
-            BibBox(x=0, y=0, w=0, h=0, number="62?", scope="bib_obscured"),
-            BibBox(x=0, y=0, w=0, h=0, number="100", scope="not_bib"),
-            BibBox(x=0, y=0, w=0, h=0, number="55", scope="bib_clipped"),
+            BibLabel(x=0, y=0, w=0, h=0, number="231"),
+            BibLabel(x=0, y=0, w=0, h=0, number="62?", scope="bib_obscured"),
+            BibLabel(x=0, y=0, w=0, h=0, number="100", scope="not_bib"),
+            BibLabel(x=0, y=0, w=0, h=0, number="55", scope="bib_clipped"),
         ]
         label = BibPhotoLabel(content_hash="abc", boxes=boxes)
         # "bib" and "bib_clipped" with parseable numbers are included
@@ -79,8 +79,8 @@ class TestBibPhotoLabel:
 
     def test_bib_numbers_int_deduplicates(self):
         boxes = [
-            BibBox(x=0.1, y=0.1, w=0.1, h=0.1, number="231"),
-            BibBox(x=0.5, y=0.5, w=0.1, h=0.1, number="231"),
+            BibLabel(x=0.1, y=0.1, w=0.1, h=0.1, number="231"),
+            BibLabel(x=0.5, y=0.5, w=0.1, h=0.1, number="231"),
         ]
         label = BibPhotoLabel(content_hash="abc", boxes=boxes)
         assert label.bib_numbers_int == [231]
@@ -113,7 +113,7 @@ class TestFacePhotoLabel:
 
     def test_from_dict_with_boxes_no_labeled_stays_false(self):
         """Old JSON with boxes but no 'labeled' key does NOT get backfilled."""
-        from benchmarking.ground_truth import FaceGroundTruth, FaceBox
+        from benchmarking.ground_truth import FaceGroundTruth, FaceLabel
         old_json = {
             "version": 3,
             "photos": {
@@ -128,10 +128,10 @@ class TestFacePhotoLabel:
 
     def test_face_count_from_keep_scoped_boxes(self):
         boxes = [
-            FaceBox(x=0.1, y=0.1, w=0.1, h=0.1, scope="keep"),
-            FaceBox(x=0.2, y=0.2, w=0.1, h=0.1, scope="keep"),
-            FaceBox(x=0.3, y=0.3, w=0.1, h=0.1, scope="exclude"),
-            FaceBox(x=0.4, y=0.4, w=0.1, h=0.1, scope="uncertain"),
+            FaceLabel(x=0.1, y=0.1, w=0.1, h=0.1, scope="keep"),
+            FaceLabel(x=0.2, y=0.2, w=0.1, h=0.1, scope="keep"),
+            FaceLabel(x=0.3, y=0.3, w=0.1, h=0.1, scope="exclude"),
+            FaceLabel(x=0.4, y=0.4, w=0.1, h=0.1, scope="uncertain"),
         ]
         label = FacePhotoLabel(content_hash="abc", boxes=boxes)
         assert label.face_count == 2

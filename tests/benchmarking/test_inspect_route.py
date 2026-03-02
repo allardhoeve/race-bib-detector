@@ -7,7 +7,7 @@ import json
 import pytest
 from starlette.testclient import TestClient
 
-from benchmarking.ground_truth import BibBox, BibFaceLink, FaceBox
+from benchmarking.ground_truth import BibLabel, BibFaceLink, FaceLabel
 from benchmarking.runner import (
     BenchmarkMetrics,
     BenchmarkRun,
@@ -41,10 +41,10 @@ def _make_metrics() -> BenchmarkMetrics:
 
 def _make_photo_result(
     content_hash: str = "a" * 64,
-    pred_bib_boxes: list[BibBox] | None = None,
-    pred_face_boxes: list[FaceBox] | None = None,
-    gt_bib_boxes: list[BibBox] | None = None,
-    gt_face_boxes: list[FaceBox] | None = None,
+    pred_bib_boxes: list[BibLabel] | None = None,
+    pred_face_boxes: list[FaceLabel] | None = None,
+    gt_bib_boxes: list[BibLabel] | None = None,
+    gt_face_boxes: list[FaceLabel] | None = None,
 ) -> PhotoResult:
     return PhotoResult(
         content_hash=content_hash,
@@ -107,7 +107,7 @@ def _save_run(tmp_path, run: BenchmarkRun) -> None:
 
 class TestInspectJsonBoxFields:
     def test_includes_pred_bib_boxes(self, client, tmp_path):
-        bib_boxes = [BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42", scope="bib")]
+        bib_boxes = [BibLabel(x=0.1, y=0.2, w=0.3, h=0.4, number="42", scope="bib")]
         pr = _make_photo_result(pred_bib_boxes=bib_boxes, gt_bib_boxes=bib_boxes)
         _save_run(tmp_path, _make_run([pr]))
 
@@ -121,7 +121,7 @@ class TestInspectJsonBoxFields:
         assert data[0]["pred_bib_boxes"][0]["number"] == "42"
 
     def test_includes_gt_bib_boxes(self, client, tmp_path):
-        gt_boxes = [BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="7", scope="bib")]
+        gt_boxes = [BibLabel(x=0.1, y=0.2, w=0.3, h=0.4, number="7", scope="bib")]
         pr = _make_photo_result(gt_bib_boxes=gt_boxes)
         _save_run(tmp_path, _make_run([pr]))
 
@@ -131,8 +131,8 @@ class TestInspectJsonBoxFields:
         assert data[0]["gt_bib_boxes"][0]["number"] == "7"
 
     def test_includes_face_boxes(self, client, tmp_path):
-        pred_faces = [FaceBox(x=0.5, y=0.5, w=0.1, h=0.1, scope="keep")]
-        gt_faces = [FaceBox(x=0.5, y=0.5, w=0.1, h=0.1, scope="keep", identity="alice")]
+        pred_faces = [FaceLabel(x=0.5, y=0.5, w=0.1, h=0.1, scope="keep")]
+        gt_faces = [FaceLabel(x=0.5, y=0.5, w=0.1, h=0.1, scope="keep", identity="alice")]
         pr = _make_photo_result(pred_face_boxes=pred_faces, gt_face_boxes=gt_faces)
         _save_run(tmp_path, _make_run([pr]))
 

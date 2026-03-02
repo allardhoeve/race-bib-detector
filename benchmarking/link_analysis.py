@@ -13,8 +13,8 @@ import math
 import statistics
 
 from benchmarking.ground_truth import (
-    BibBox,
-    FaceBox,
+    BibLabel,
+    FaceLabel,
     load_bib_ground_truth,
     load_face_ground_truth,
     load_link_ground_truth,
@@ -23,12 +23,12 @@ from config import AUTOLINK_TORSO_BOTTOM, AUTOLINK_TORSO_HALF_WIDTH, AUTOLINK_TO
 from pipeline.types import _torso_region
 
 
-def _box_center(box: BibBox | FaceBox) -> tuple[float, float]:
+def _box_center(box: BibLabel | FaceLabel) -> tuple[float, float]:
     """Return (cx, cy) of a box."""
     return (box.x + box.w / 2, box.y + box.h / 2)
 
 
-def _inside_torso(bib_cx: float, bib_cy: float, face: FaceBox) -> bool:
+def _inside_torso(bib_cx: float, bib_cy: float, face: FaceLabel) -> bool:
     """Check if a bib centroid falls inside the _torso_region() of a face."""
     tx, ty, tw, th = _torso_region(face)
     return tx <= bib_cx <= tx + tw and ty <= bib_cy <= ty + th

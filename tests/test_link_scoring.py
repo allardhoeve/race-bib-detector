@@ -2,7 +2,7 @@
 
 import pytest
 
-from pipeline.types import BibBox, BibFaceLink, FaceBox
+from pipeline.types import BibLabel, BibFaceLink, FaceLabel
 from benchmarking.scoring import LinkScorecard, score_links
 
 
@@ -11,11 +11,11 @@ from benchmarking.scoring import LinkScorecard, score_links
 # ---------------------------------------------------------------------------
 
 def _bib(x, y, w, h, number="1"):
-    return BibBox(x=x, y=y, w=w, h=h, number=number)
+    return BibLabel(x=x, y=y, w=w, h=h, number=number)
 
 
 def _face(x, y, w, h):
-    return FaceBox(x=x, y=y, w=w, h=h, scope="keep")
+    return FaceLabel(x=x, y=y, w=w, h=h, scope="keep")
 
 
 def _link(bib_idx, face_idx):

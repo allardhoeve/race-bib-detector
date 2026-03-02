@@ -22,7 +22,7 @@ import numpy as np
 from benchmarking.ground_truth import (
     BibGroundTruth,
     BibPhotoLabel,
-    FaceBox,
+    FaceLabel,
     FaceGroundTruth,
     load_bib_ground_truth,
     load_face_ground_truth,
@@ -226,12 +226,12 @@ def run_face_sweep(
             gt_face_boxes = face_label.boxes if face_label else []
 
             candidates = backend.detect_face_candidates(image_rgb)
-            pred_face_boxes: list[FaceBox] = []
+            pred_face_boxes: list[FaceLabel] = []
             for cand in candidates:
                 if not cand.passed:
                     continue
                 x1, y1, x2, y2 = bbox_to_rect(cand.bbox)
-                pred_face_boxes.append(FaceBox(
+                pred_face_boxes.append(FaceLabel(
                     x=x1 / face_w, y=y1 / face_h,
                     w=(x2 - x1) / face_w, h=(y2 - y1) / face_h,
                 ))
@@ -299,12 +299,12 @@ def _evaluate_single_combo(
         gt_face_boxes = face_label.boxes if face_label else []
 
         candidates = backend.detect_face_candidates(image_rgb)
-        pred_face_boxes: list[FaceBox] = []
+        pred_face_boxes: list[FaceLabel] = []
         for cand in candidates:
             if not cand.passed:
                 continue
             x1, y1, x2, y2 = bbox_to_rect(cand.bbox)
-            pred_face_boxes.append(FaceBox(
+            pred_face_boxes.append(FaceLabel(
                 x=x1 / face_w, y=y1 / face_h,
                 w=(x2 - x1) / face_w, h=(y2 - y1) / face_h,
             ))

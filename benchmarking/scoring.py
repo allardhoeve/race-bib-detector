@@ -15,7 +15,7 @@ from typing import Sequence
 
 from pydantic import BaseModel, computed_field
 
-from pipeline.types import BibBox, BibFaceLink, FaceBox, _BIB_BOX_UNSCORED
+from pipeline.types import BibLabel, BibFaceLink, FaceLabel, _BIB_BOX_UNSCORED
 
 # Type alias for a box as (x, y, w, h) tuple
 Box = tuple[float, float, float, float]
@@ -286,17 +286,17 @@ class LinkScorecard(BaseModel):
 # =============================================================================
 
 
-def _bibbox_to_tuple(b: BibBox) -> Box:
+def _bibbox_to_tuple(b: BibLabel) -> Box:
     return (b.x, b.y, b.w, b.h)
 
 
-def _facebox_to_tuple(b: FaceBox) -> Box:
+def _facebox_to_tuple(b: FaceLabel) -> Box:
     return (b.x, b.y, b.w, b.h)
 
 
 def score_bibs(
-    predicted: Sequence[BibBox],
-    ground_truth: Sequence[BibBox],
+    predicted: Sequence[BibLabel],
+    ground_truth: Sequence[BibLabel],
     iou_threshold: float = 0.5,
 ) -> BibScorecard:
     """Score bib detections against ground truth.
@@ -358,8 +358,8 @@ def score_bibs(
 
 
 def score_faces(
-    predicted: Sequence[FaceBox],
-    ground_truth: Sequence[FaceBox],
+    predicted: Sequence[FaceLabel],
+    ground_truth: Sequence[FaceLabel],
     iou_threshold: float = 0.5,
 ) -> FaceScorecard:
     """Score face detections against ground truth.
@@ -394,9 +394,9 @@ def score_faces(
 
 
 def score_links(
-    predicted_pairs: Sequence[tuple[BibBox, FaceBox]],
-    gt_bib_boxes: Sequence[BibBox],
-    gt_face_boxes: Sequence[FaceBox],
+    predicted_pairs: Sequence[tuple[BibLabel, FaceLabel]],
+    gt_bib_boxes: Sequence[BibLabel],
+    gt_face_boxes: Sequence[FaceLabel],
     gt_links: Sequence[BibFaceLink],
     bib_iou_threshold: float = 0.5,
     face_iou_threshold: float = 0.5,

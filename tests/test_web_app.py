@@ -38,7 +38,7 @@ def app_client(benchmark_paths):
 # =============================================================================
 
 
-class TestBibBoxApi:
+class TestBibLabelApi:
     def test_get_bib_boxes_empty(self, app_client):
         """GET bib boxes for a photo with no GT returns empty boxes."""
         resp = app_client.get(f"/api/bibs/{HASH_A}")
@@ -156,7 +156,7 @@ class TestBibBoxApi:
 # =============================================================================
 
 
-class TestFaceBoxApi:
+class TestFaceLabelApi:
     def test_get_face_boxes_empty(self, app_client):
         resp = app_client.get(f"/api/faces/{HASH_A}")
         assert resp.status_code == 200

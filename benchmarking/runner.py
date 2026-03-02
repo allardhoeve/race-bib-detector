@@ -43,11 +43,11 @@ from .ground_truth import (
     load_bib_ground_truth,
     load_face_ground_truth,
     load_link_ground_truth,
-    BibBox,
+    BibLabel,
     BibFaceLink,
     BibPhotoLabel,
     FaceGroundTruth,
-    FaceBox,
+    FaceLabel,
     LinkGroundTruth,
 )
 from .photo_index import load_photo_index, get_path_for_hash
@@ -85,10 +85,10 @@ class PhotoResult(BaseModel):
     artifact_paths: dict[str, str] = Field(default_factory=dict)
     preprocess_metadata: dict[str, Any] = Field(default_factory=dict)
     # Prediction + GT boxes for inspect overlay (task-049)
-    pred_bib_boxes: list[BibBox] | None = None
-    pred_face_boxes: list[FaceBox] | None = None
-    gt_bib_boxes: list[BibBox] | None = None
-    gt_face_boxes: list[FaceBox] | None = None
+    pred_bib_boxes: list[BibLabel] | None = None
+    pred_face_boxes: list[FaceLabel] | None = None
+    gt_bib_boxes: list[BibLabel] | None = None
+    gt_face_boxes: list[FaceLabel] | None = None
     # Predicted bib↔face links from autolink (task-060)
     pred_links: list[BibFaceLink] | None = None
     # Per-photo IoU scorecards (task-061)

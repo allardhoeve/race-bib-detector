@@ -7,9 +7,9 @@ import numpy as np
 import pytest
 
 from benchmarking.ground_truth import (
-    BibBox,
+    BibLabel,
     BibPhotoLabel,
-    FaceBox,
+    FaceLabel,
     FaceGroundTruth,
     FacePhotoLabel,
     LinkGroundTruth,
@@ -75,12 +75,12 @@ class TestLinkScorecard:
         # One GT bib box and one GT face box
         bib_label = BibPhotoLabel(
             content_hash=content_hash,
-            boxes=[BibBox(x=0.1, y=0.5, w=0.1, h=0.1, number="1")],
+            boxes=[BibLabel(x=0.1, y=0.5, w=0.1, h=0.1, number="1")],
         )
         face_gt = FaceGroundTruth()
         face_gt.add_photo(FacePhotoLabel(
             content_hash=content_hash,
-            boxes=[FaceBox(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
+            boxes=[FaceLabel(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
         ))
         link_gt = LinkGroundTruth()
         link_gt.set_links(content_hash, [BibFaceLink(bib_index=0, face_index=0)])
@@ -111,7 +111,7 @@ class TestLinkScorecard:
         face_gt = FaceGroundTruth()
         face_gt.add_photo(FacePhotoLabel(
             content_hash=content_hash,
-            boxes=[FaceBox(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
+            boxes=[FaceLabel(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
         ))
         link_gt = LinkGroundTruth()  # no links for this hash
 

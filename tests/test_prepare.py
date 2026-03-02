@@ -8,7 +8,7 @@ import pytest
 
 from benchmarking.prepare import prepare_benchmark, PrepareResult
 from benchmarking.ground_truth import (
-    BibBox,
+    BibLabel,
     BibPhotoLabel,
     FacePhotoLabel,
     BibGroundTruth,
@@ -222,7 +222,7 @@ class TestGroundTruthEntries:
         bib_gt = BibGroundTruth()
         bib_gt.add_photo(BibPhotoLabel(
             content_hash=hash_val,
-            boxes=[BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42")],
+            boxes=[BibLabel(x=0.1, y=0.2, w=0.3, h=0.4, number="42")],
             labeled=True,
         ))
         save_bib_ground_truth(bib_gt, workspace["bib_gt_path"])
@@ -267,7 +267,7 @@ class TestResetLabels:
         bib_gt = BibGroundTruth()
         bib_gt.add_photo(BibPhotoLabel(
             content_hash=hash_val,
-            boxes=[BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42")],
+            boxes=[BibLabel(x=0.1, y=0.2, w=0.3, h=0.4, number="42")],
             labeled=True,
         ))
         save_bib_ground_truth(bib_gt, workspace["bib_gt_path"])
@@ -283,14 +283,14 @@ class TestResetLabels:
         assert label.boxes == []
 
     def test_clears_face_labels(self, workspace):
-        from benchmarking.ground_truth import FaceBox
+        from benchmarking.ground_truth import FaceLabel
         _make_image(workspace["source_dir"] / "photo.jpg", b"face-reset")
         hash_val = compute_content_hash(workspace["source_dir"] / "photo.jpg")
 
         face_gt = FaceGroundTruth()
         face_gt.add_photo(FacePhotoLabel(
             content_hash=hash_val,
-            boxes=[FaceBox(x=0.1, y=0.2, w=0.15, h=0.2, scope="keep")],
+            boxes=[FaceLabel(x=0.1, y=0.2, w=0.15, h=0.2, scope="keep")],
         ))
         save_face_ground_truth(face_gt, workspace["face_gt_path"])
 

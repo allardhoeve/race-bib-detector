@@ -2,8 +2,8 @@
 
 from .scanner import scan_photos, compute_content_hash, build_photo_index
 from .ground_truth import (
-    BibBox,
-    FaceBox,
+    BibLabel,
+    FaceLabel,
     BibPhotoLabel,
     FacePhotoLabel,
     BibGroundTruth,
@@ -59,8 +59,8 @@ __all__ = [
     "compute_content_hash",
     "build_photo_index",
     # Ground truth
-    "BibBox",
-    "FaceBox",
+    "BibLabel",
+    "FaceLabel",
     "BibPhotoLabel",
     "FacePhotoLabel",
     "BibGroundTruth",

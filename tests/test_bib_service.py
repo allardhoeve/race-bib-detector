@@ -2,7 +2,7 @@
 
 import pytest
 
-from pipeline.types import BibBox
+from pipeline.types import BibLabel
 from benchmarking.photo_index import save_photo_index
 from benchmarking.routes.api.bibs import _get_bib_label, _save_bib_label
 
@@ -32,7 +32,7 @@ def test_get_bib_label_no_existing_label():
 def test_save_bib_label_boxes():
     _save_bib_label(
         content_hash=HASH_A,
-        boxes=[BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42", scope="bib")],
+        boxes=[BibLabel(x=0.1, y=0.2, w=0.3, h=0.4, number="42", scope="bib")],
         bibs_legacy=None,
         tags=["dark_bib"],
         split="full",
@@ -61,6 +61,6 @@ def test_save_bib_label_legacy_bibs():
 
 
 def test_save_bib_label_invalid_scope():
-    """BibBox rejects invalid scope at construction time."""
+    """BibLabel rejects invalid scope at construction time."""
     with pytest.raises(ValueError):
-        BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="1", scope="invalid_scope")
+        BibLabel(x=0.1, y=0.2, w=0.3, h=0.4, number="1", scope="invalid_scope")

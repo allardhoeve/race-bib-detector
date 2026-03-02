@@ -39,7 +39,7 @@ from benchmarking.schemas import (
     IdentitySuggestionsResponse,
     SaveFaceBoxesRequest,
 )
-from pipeline.types import FaceBox
+from pipeline.types import FaceLabel
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +53,7 @@ api_faces_router = APIRouter()
 
 class FaceLabelData(TypedDict):
     full_hash: str
-    boxes: list[FaceBox]
+    boxes: list[FaceLabel]
     suggestions: list[FaceSuggestion]
     tags: list[str]
 
@@ -122,7 +122,7 @@ def _get_face_label(content_hash: str) -> FaceLabelData | None:
     )
 
 
-def _save_face_label(content_hash: str, boxes: list[FaceBox],
+def _save_face_label(content_hash: str, boxes: list[FaceLabel],
                      tags: list[str]) -> None:
     """Construct a FacePhotoLabel and persist it, plus save tags to PhotoMetadata."""
     face_gt = load_face_ground_truth()
@@ -235,7 +235,7 @@ async def save_face_label(content_hash: str, request: SaveFaceBoxesRequest):
     require_not_frozen(full_hash)
 
     try:
-        boxes = [FaceBox.model_validate(b.model_dump()) for b in request.boxes]
+        boxes = [FaceLabel.model_validate(b.model_dump()) for b in request.boxes]
         _save_face_label(
             content_hash=full_hash,
             boxes=boxes,

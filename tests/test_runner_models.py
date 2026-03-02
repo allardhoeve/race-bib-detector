@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from pipeline.types import BibBox, BibCandidateTrace, BibFaceLink, FaceCandidateTrace, FaceBox
+from pipeline.types import BibLabel, BibCandidateTrace, BibFaceLink, FaceCandidateTrace, FaceLabel
 from benchmarking.runner import FacePipelineConfig, PhotoResult, PipelineConfig, RunMetadata
 from benchmarking.scoring import BibScorecard, FaceScorecard, LinkScorecard
 
@@ -168,8 +168,8 @@ class TestPhotoResultBoxFields:
         assert pr.gt_face_boxes is None
 
     def test_with_boxes_roundtrip(self):
-        bib_boxes = [BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42", scope="bib")]
-        face_boxes = [FaceBox(x=0.5, y=0.6, w=0.1, h=0.1, scope="keep")]
+        bib_boxes = [BibLabel(x=0.1, y=0.2, w=0.3, h=0.4, number="42", scope="bib")]
+        face_boxes = [FaceLabel(x=0.5, y=0.6, w=0.1, h=0.1, scope="keep")]
         pr = PhotoResult(**_photo_result_dict(
             pred_bib_boxes=bib_boxes,
             pred_face_boxes=face_boxes,
@@ -255,24 +255,24 @@ class TestPhotoResultScorecards:
 
 class TestBoxConfidence:
     def test_bib_box_confidence_optional(self):
-        box = BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42")
+        box = BibLabel(x=0.1, y=0.2, w=0.3, h=0.4, number="42")
         assert box.confidence is None
-        box_with = BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42", confidence=0.85)
+        box_with = BibLabel(x=0.1, y=0.2, w=0.3, h=0.4, number="42", confidence=0.85)
         assert box_with.confidence == 0.85
 
     def test_face_box_confidence_optional(self):
-        box = FaceBox(x=0.1, y=0.2, w=0.3, h=0.4, scope="keep")
+        box = FaceLabel(x=0.1, y=0.2, w=0.3, h=0.4, scope="keep")
         assert box.confidence is None
-        box_with = FaceBox(x=0.1, y=0.2, w=0.3, h=0.4, scope="keep", confidence=0.9)
+        box_with = FaceLabel(x=0.1, y=0.2, w=0.3, h=0.4, scope="keep", confidence=0.9)
         assert box_with.confidence == 0.9
 
     def test_confidence_excluded_when_none(self):
-        box = BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42")
+        box = BibLabel(x=0.1, y=0.2, w=0.3, h=0.4, number="42")
         d = box.model_dump(exclude_none=True)
         assert "confidence" not in d
 
     def test_confidence_included_when_set(self):
-        box = BibBox(x=0.1, y=0.2, w=0.3, h=0.4, number="42", confidence=0.85)
+        box = BibLabel(x=0.1, y=0.2, w=0.3, h=0.4, number="42", confidence=0.85)
         d = box.model_dump(exclude_none=True)
         assert d["confidence"] == 0.85
 
@@ -339,12 +339,12 @@ class TestBibCandidateTrace:
         assert ct.ocr_confidence == 0.15
         assert ct.accepted is False
 
-    def test_to_bib_box(self):
+    def test_to_bib_label(self):
         ct = BibCandidateTrace(**_trace_dict(
             ocr_text="42", ocr_confidence=0.9,
             accepted=True, bib_number="42",
         ))
-        box = ct.to_bib_box()
+        box = ct.to_bib_label()
         assert box.x == ct.x
         assert box.y == ct.y
         assert box.w == ct.w
@@ -352,10 +352,10 @@ class TestBibCandidateTrace:
         assert box.number == "42"
         assert box.confidence == 0.9
 
-    def test_to_bib_box_unaccepted_raises(self):
+    def test_to_bib_label_unaccepted_raises(self):
         ct = BibCandidateTrace(**_trace_dict(accepted=False))
         with pytest.raises(ValueError):
-            ct.to_bib_box()
+            ct.to_bib_label()
 
 
 class TestPhotoResultBibTrace:
@@ -449,19 +449,19 @@ class TestFaceCandidateTrace:
         assert ft.cluster_distance is None
         assert ft.nearest_other_distance is None
 
-    def test_to_face_box(self):
+    def test_to_face_label(self):
         ft = FaceCandidateTrace(**_face_trace_dict())
-        box = ft.to_face_box()
+        box = ft.to_face_label()
         assert box.x == ft.x
         assert box.y == ft.y
         assert box.w == ft.w
         assert box.h == ft.h
         assert box.confidence == 0.85
 
-    def test_to_face_box_unaccepted_raises(self):
+    def test_to_face_label_unaccepted_raises(self):
         ft = FaceCandidateTrace(**_face_trace_dict(accepted=False))
         with pytest.raises(ValueError):
-            ft.to_face_box()
+            ft.to_face_label()
 
     def test_to_pixel_quad(self):
         ft = FaceCandidateTrace(**_face_trace_dict(pixel_bbox=(10, 20, 50, 60)))

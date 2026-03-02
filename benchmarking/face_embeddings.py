@@ -14,7 +14,7 @@ import cv2
 import numpy as np
 from pydantic import BaseModel, field_serializer
 
-from benchmarking.ground_truth import FaceGroundTruth, FaceBox
+from benchmarking.ground_truth import FaceGroundTruth, FaceLabel
 from benchmarking.photo_index import get_path_for_hash
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ def build_embedding_index(
     all_box_indices: list[int] = []
 
     for content_hash, label in face_gt.photos.items():
-        boxes_to_embed: list[tuple[int, FaceBox]] = []
+        boxes_to_embed: list[tuple[int, FaceLabel]] = []
         for i, box in enumerate(label.boxes):
             if box.scope == "keep" and box.identity and box.has_coords:
                 boxes_to_embed.append((i, box))

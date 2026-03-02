@@ -41,7 +41,7 @@ Entity-relationship diagram showing the target state after task-044 (Photo entit
      │            │          │     │               │
      ▼            ▼          │     │               │
 ┌──────────┐ ┌───────────┐  │     │               │
-│BibBox    │ │FaceBox    │  │     │               │
+│BibLabel  │ │FaceLabel  │  │     │               │
 │──────────│ │───────────│  │     │               │
 │x,y,w,h  │ │x,y,w,h   │  │     │    references │
 │number str│ │scope      │◄─┘     │               │
@@ -74,11 +74,11 @@ Entity-relationship diagram showing the target state after task-044 (Photo entit
 | PhotoMetadata | BibPhotoLabel | 1 : 0..1 | content_hash |
 | PhotoMetadata | FacePhotoLabel | 1 : 0..1 | content_hash |
 | PhotoMetadata | BibFaceLink | 1 : 0..N | content_hash |
-| BibPhotoLabel | BibBox | 1 : N | boxes[] index |
-| FacePhotoLabel | FaceBox | 1 : N | boxes[] index |
-| BibFaceLink | BibBox | N : 1 | bib_index → boxes[] |
-| BibFaceLink | FaceBox | N : 1 | face_index → boxes[] |
-| FaceBox | Identity | N : 1 | identity (name string) |
+| BibPhotoLabel | BibLabel | 1 : N | boxes[] index |
+| FacePhotoLabel | FaceLabel | 1 : N | boxes[] index |
+| BibFaceLink | BibLabel | N : 1 | bib_index → boxes[] |
+| BibFaceLink | FaceLabel | N : 1 | face_index → boxes[] |
+| FaceLabel | Identity | N : 1 | identity (name string) |
 | BenchmarkSnapshot | PhotoMetadata | N : N | hashes[] (but `frozen` field makes it effectively N:1) |
 
 ## Files on disk

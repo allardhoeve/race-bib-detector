@@ -60,7 +60,7 @@ google-photos-startnumber-recognizer/
 ├── benchmarking/            # FastAPI benchmark web app + labeling + runner
 │   ├── app.py               # create_app() — FastAPI application factory (canonical)
 │   ├── web_app.py           # Uvicorn shim: main() launches app on port 30002
-│   ├── ground_truth.py      # Schema v3: BibBox, FaceBox, BibGroundTruth, FaceGroundTruth
+│   ├── ground_truth.py      # Schema v3: BibLabel, FaceLabel, BibGroundTruth, FaceGroundTruth
 │   ├── scoring.py           # IoU utils, box matching, BibScorecard, FaceScorecard
 │   ├── runner.py            # Benchmark runner (Pydantic models, detection loop, results)
 │   ├── ghost.py             # Ghost labeling: run detection and store as suggestions.json
@@ -179,7 +179,7 @@ Legacy Flask viewer (`bnr serve`, port 30001) for browsing scan results stored i
 FastAPI application for benchmark labeling and inspection (`bnr benchmark ui`, port 30002). Key sub-areas:
 
 - **app.py** — `create_app()` registers all routers and serves static files; `web_app.py` is the uvicorn entry point.
-- **ground_truth.py** — schema v3 Pydantic models: `BibBox`, `FaceBox`, `BibGroundTruth`, `FaceGroundTruth`, persisted in `bib_ground_truth.json` and `face_ground_truth.json`.
+- **ground_truth.py** — schema v3 Pydantic models: `BibLabel`, `FaceLabel`, `BibGroundTruth`, `FaceGroundTruth`, persisted in `bib_ground_truth.json` and `face_ground_truth.json`.
 - **runner.py** — `run_benchmark()` evaluates detection accuracy against ground truth; Pydantic models for `PhotoResult`, `BenchmarkRun`, `PipelineConfig`, etc.
 - **scoring.py** — `compute_iou()`, `match_boxes()`, `BibScorecard`, `FaceScorecard` for precision/recall/F1 metrics.
 - **ghost.py** — pre-computes detection suggestions from the actual pipeline and stores them in `suggestions.json` for display in the labeling UI.

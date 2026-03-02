@@ -178,7 +178,7 @@ benchmarking/
 ├── routes/
 │   ├── api/           # FastAPI JSON API routers
 │   └── ui/            # FastAPI HTML page routers
-├── ground_truth.py    # Schema v3: BibBox, FaceBox, BibGroundTruth, FaceGroundTruth
+├── ground_truth.py    # Schema v3: BibLabel, FaceLabel, BibGroundTruth, FaceGroundTruth
 ├── runner.py          # Benchmark execution
 ├── scoring.py         # IoU utilities, BibScorecard, FaceScorecard
 ├── prepare.py         # Import photos, dedup, ghost labeling
