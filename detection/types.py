@@ -116,6 +116,8 @@ class BibCandidate:
     relative_area: float
     passed: bool = True
     rejection_reason: str | None = None
+    ocr_text: str | None = None
+    ocr_confidence: float | None = None
 
     @property
     def x(self) -> int:

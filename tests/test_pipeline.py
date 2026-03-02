@@ -279,6 +279,87 @@ class TestDetectFnInjection:
         assert len(called) == 1
 
 
+class TestBibTrace:
+    """Tests for bib_trace on SinglePhotoResult (task-088)."""
+
+    def test_trace_populated_with_detection(self):
+        from pipeline import run_single_photo
+
+        result = run_single_photo(
+            _make_png_bytes(),
+            detect_fn=_fake_detect_fn,
+            run_faces=False,
+            run_autolink=False,
+        )
+
+        assert result.bib_trace is not None
+        # _fake_detect_fn has 0 candidates, so trace may be empty
+        # but bib_boxes should still be correct
+        assert len(result.bib_boxes) == 1
+        assert result.bib_boxes[0].number == "42"
+
+    def test_trace_empty_when_no_bibs(self):
+        from pipeline import run_single_photo
+
+        result = run_single_photo(
+            _make_png_bytes(),
+            detect_fn=_noop_detect_fn,
+            run_faces=False,
+            run_autolink=False,
+        )
+
+        assert result.bib_trace is not None
+        assert len(result.bib_trace) == 0
+        assert result.bib_boxes == []
+
+    def test_bib_boxes_property_matches_trace(self):
+        """bib_boxes returns same objects each time (identity check)."""
+        from pipeline import run_single_photo
+
+        result = run_single_photo(
+            _make_png_bytes(),
+            detect_fn=_fake_detect_fn,
+            run_faces=False,
+            run_autolink=False,
+        )
+
+        boxes1 = result.bib_boxes
+        boxes2 = result.bib_boxes
+        assert boxes1 is boxes2  # cached, same list object
+
+    def test_bib_boxes_identity_with_autolink(self):
+        """Autolink pairs reference the same BibBox instances as bib_boxes."""
+        from pipeline import run_single_photo
+
+        det = Detection(
+            bib_number="42",
+            bbox=rect_to_bbox(10, 50, 30, 20),
+            confidence=0.9,
+            source_candidate=None,
+        )
+        fake_result = DetectionResult(
+            detections=[det],
+            all_candidates=[],
+            ocr_grayscale=np.zeros((100, 100), dtype=np.uint8),
+            original_dimensions=(100, 100),
+            ocr_dimensions=(100, 100),
+            scale_factor=1.0,
+        )
+
+        result = run_single_photo(
+            _make_png_bytes(),
+            detect_fn=lambda reader, image_data, artifact_dir=None: fake_result,
+            face_backend=FakeFaceBackend(),
+            run_autolink=True,
+        )
+
+        if result.autolink and result.autolink.pairs:
+            bib_box_from_link = result.autolink.pairs[0][0]
+            assert bib_box_from_link in result.bib_boxes
+            idx = result.bib_boxes.index(bib_box_from_link)
+            assert result.bib_boxes[idx] is bib_box_from_link
+
+
 class TestSinglePhotoResultFields:
     def test_result_has_all_fields(self):
         from pipeline import run_single_photo

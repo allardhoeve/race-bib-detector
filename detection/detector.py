@@ -79,19 +79,27 @@ def detect_bib_numbers(
         results = reader.readtext(region)
 
         region_detections: list[Detection] = []
+        best_bib_conf = 0.0
         for bbox, text, confidence in results:
             cleaned = text.strip().replace(" ", "")
 
-            if is_valid_bib_number(cleaned) and confidence > WHITE_REGION_CONFIDENCE_THRESHOLD:
-                # Adjust bbox coordinates to full OCR image (before scaling back)
-                bbox_adjusted = [[int(p[0]) + candidate.x, int(p[1]) + candidate.y] for p in bbox]
-                region_detections.append(Detection(
-                    bib_number=cleaned,
-                    confidence=float(confidence),
-                    bbox=bbox_adjusted,
-                    source="white_region",
-                    source_candidate=candidate,
-                ))
+            if is_valid_bib_number(cleaned):
+                # Track best valid bib regardless of threshold
+                if confidence > best_bib_conf:
+                    best_bib_conf = confidence
+                    candidate.ocr_text = cleaned
+                    candidate.ocr_confidence = float(confidence)
+
+                if confidence > WHITE_REGION_CONFIDENCE_THRESHOLD:
+                    # Adjust bbox coordinates to full OCR image (before scaling back)
+                    bbox_adjusted = [[int(p[0]) + candidate.x, int(p[1]) + candidate.y] for p in bbox]
+                    region_detections.append(Detection(
+                        bib_number=cleaned,
+                        confidence=float(confidence),
+                        bbox=bbox_adjusted,
+                        source="white_region",
+                        source_candidate=candidate,
+                    ))
 
         # Filter out tiny detections relative to this candidate region
         filtered = filter_small_detections(region_detections, candidate.area)

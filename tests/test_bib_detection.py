@@ -159,6 +159,41 @@ class TestDetectionResult:
         assert scaled[0].bbox == [[50, 50], [100, 50], [100, 100], [50, 100]]
 
 
+class TestBibCandidateOcrFields:
+    """Tests for BibCandidate OCR tracking fields (task-088)."""
+
+    def test_ocr_fields_default_none(self):
+        from detection import BibCandidate
+        c = BibCandidate(
+            bbox=(10, 20, 40, 20), area=800, aspect_ratio=2.0,
+            median_brightness=200, mean_brightness=195, relative_area=0.008,
+        )
+        assert c.ocr_text is None
+        assert c.ocr_confidence is None
+
+    def test_ocr_fields_settable(self):
+        from detection import BibCandidate
+        c = BibCandidate(
+            bbox=(10, 20, 40, 20), area=800, aspect_ratio=2.0,
+            median_brightness=200, mean_brightness=195, relative_area=0.008,
+        )
+        c.ocr_text = "42"
+        c.ocr_confidence = 0.85
+        assert c.ocr_text == "42"
+        assert c.ocr_confidence == 0.85
+
+    def test_rejected_candidate_can_have_ocr(self):
+        from detection import BibCandidate
+        c = BibCandidate.create_rejected(
+            bbox=(10, 20, 40, 20), area=800, aspect_ratio=2.0,
+            median_brightness=200, mean_brightness=195, relative_area=0.008,
+            reason="too_small",
+        )
+        # Rejected candidates don't get OCR in detector, but fields exist
+        assert c.ocr_text is None
+        assert c.ocr_confidence is None
+
+
 class TestBibCandidate:
     """Tests for BibCandidate — region extraction."""
 

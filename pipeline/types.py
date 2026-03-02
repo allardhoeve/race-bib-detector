@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 from config import AUTOLINK_TORSO_BOTTOM, AUTOLINK_TORSO_HALF_WIDTH, AUTOLINK_TORSO_TOP
 
@@ -73,6 +73,58 @@ class BibBox(BaseModel):
     @property
     def has_coords(self) -> bool:
         return self.w > 0 and self.h > 0
+
+
+# =============================================================================
+# Bib candidate trace (task-088)
+# =============================================================================
+
+
+class BibCandidateTrace(BaseModel):
+    """Full trace of a single bib candidate through the pipeline.
+
+    Records the candidate's journey: region detection → validation →
+    OCR → acceptance.  Coordinates are normalised [0, 1] image space.
+    """
+
+    # Normalised bounding box
+    x: float
+    y: float
+    w: float
+    h: float
+
+    # Region statistics (from BibCandidate)
+    area: int
+    aspect_ratio: float
+    median_brightness: float
+    mean_brightness: float
+    relative_area: float
+
+    # Validation stage
+    passed_validation: bool
+    rejection_reason: str | None = None
+
+    # OCR stage (best valid bib result, even if below threshold)
+    ocr_text: str | None = None
+    ocr_confidence: float | None = None
+
+    # Acceptance stage
+    accepted: bool = False
+    bib_number: str | None = None
+
+    def to_bib_box(self) -> BibBox:
+        """Convert an accepted trace to a BibBox.
+
+        Raises:
+            ValueError: If this trace was not accepted.
+        """
+        if not self.accepted:
+            raise ValueError("Cannot convert unaccepted trace to BibBox")
+        return BibBox(
+            x=self.x, y=self.y, w=self.w, h=self.h,
+            number=self.bib_number or "",
+            confidence=self.ocr_confidence,
+        )
 
 
 # =============================================================================

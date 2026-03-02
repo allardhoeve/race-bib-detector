@@ -7,6 +7,7 @@ from pipeline.single_photo import SinglePhotoResult, run_single_photo
 from pipeline.types import (
     AutolinkResult,
     BibBox,
+    BibCandidateTrace,
     BibFaceLink,
     FaceBox,
     BIB_BOX_SCOPES,
@@ -22,6 +23,7 @@ __all__ = [
     "run_single_photo",
     "AutolinkResult",
     "BibBox",
+    "BibCandidateTrace",
     "BibFaceLink",
     "FaceBox",
     "BIB_BOX_SCOPES",

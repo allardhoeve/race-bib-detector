@@ -20,7 +20,7 @@ from detection import detect_bib_numbers
 from detection.types import DetectionResult
 from faces.types import FaceCandidate
 from geometry import Bbox, bbox_to_rect, rect_iou
-from pipeline.types import AutolinkResult, BibBox, FaceBox, predict_links
+from pipeline.types import AutolinkResult, BibBox, BibCandidateTrace, FaceBox, predict_links
 
 if TYPE_CHECKING:
     import easyocr
@@ -37,7 +37,7 @@ class SinglePhotoResult:
 
     # Bib detection
     bib_result: DetectionResult
-    bib_boxes: list[BibBox]
+    bib_trace: list[BibCandidateTrace]
     bib_detect_time_ms: float
 
     # Face detection
@@ -52,25 +52,91 @@ class SinglePhotoResult:
     # Decoded image (for consumers that need it for embedding/artifacts)
     image_rgb: np.ndarray | None = None
 
+    # Cached bib boxes (computed once, same instances used by autolink)
+    _bib_boxes_cache: list[BibBox] = field(default_factory=list, repr=False)
 
-def _detections_to_bib_boxes(
+    @property
+    def bib_boxes(self) -> list[BibBox]:
+        """Normalised BibBox list derived from bib_trace (cached)."""
+        return self._bib_boxes_cache
+
+
+def _build_bib_trace(
     result: DetectionResult,
     img_w: int,
     img_h: int,
-) -> list[BibBox]:
-    """Convert raw detections to normalised [0,1] BibBox list."""
+) -> tuple[list[BibCandidateTrace], list[BibBox]]:
+    """Build bib candidate trace and corresponding BibBox list.
+
+    Returns both the full trace (all candidates) and the accepted BibBox
+    list.  The BibBox instances are created once here and must be reused
+    for autolink (object identity matters for ``list.index()``).
+    """
     if img_w <= 0 or img_h <= 0:
-        return []
-    boxes: list[BibBox] = []
+        return [], []
+
+    sf = result.scale_factor  # OCR→original scale
+
+    # Map each accepted detection back to its source candidate
+    accepted_by_candidate: dict[int, tuple[str, float]] = {}
     for det in result.detections:
-        x1, y1, x2, y2 = bbox_to_rect(det.bbox)
-        boxes.append(BibBox(
-            x=x1 / img_w, y=y1 / img_h,
-            w=(x2 - x1) / img_w, h=(y2 - y1) / img_h,
-            number=det.bib_number,
-            confidence=det.confidence,
-        ))
-    return boxes
+        if det.source_candidate is not None:
+            cand_id = id(det.source_candidate)
+            accepted_by_candidate[cand_id] = (det.bib_number, det.confidence)
+
+    traces: list[BibCandidateTrace] = []
+    bib_boxes: list[BibBox] = []
+
+    for cand in result.all_candidates:
+        # Normalise candidate bbox from OCR coords to [0, 1]
+        nx = (cand.x * sf) / img_w
+        ny = (cand.y * sf) / img_h
+        nw = (cand.w * sf) / img_w
+        nh = (cand.h * sf) / img_h
+
+        cand_id = id(cand)
+        is_accepted = cand_id in accepted_by_candidate
+        bib_number: str | None = None
+        det_confidence: float | None = None
+        if is_accepted:
+            bib_number, det_confidence = accepted_by_candidate[cand_id]
+
+        trace = BibCandidateTrace(
+            x=nx, y=ny, w=nw, h=nh,
+            area=cand.area,
+            aspect_ratio=cand.aspect_ratio,
+            median_brightness=cand.median_brightness,
+            mean_brightness=cand.mean_brightness,
+            relative_area=cand.relative_area,
+            passed_validation=cand.passed,
+            rejection_reason=cand.rejection_reason,
+            ocr_text=cand.ocr_text,
+            ocr_confidence=cand.ocr_confidence,
+            accepted=is_accepted,
+            bib_number=bib_number,
+        )
+        traces.append(trace)
+
+        if is_accepted:
+            bib_boxes.append(BibBox(
+                x=nx, y=ny, w=nw, h=nh,
+                number=bib_number or "",
+                confidence=det_confidence,
+            ))
+
+    # Also create BibBox for detections without a source candidate
+    # (e.g. from test stubs that don't set source_candidate)
+    for det in result.detections:
+        if det.source_candidate is None:
+            x1, y1, x2, y2 = bbox_to_rect(det.bbox)
+            bib_boxes.append(BibBox(
+                x=x1 / img_w, y=y1 / img_h,
+                w=(x2 - x1) / img_w, h=(y2 - y1) / img_h,
+                number=det.bib_number,
+                confidence=det.confidence,
+            ))
+
+    return traces, bib_boxes
 
 
 def _candidates_to_face_boxes(
@@ -213,6 +279,7 @@ def run_single_photo(
         ocr_dimensions=(img_w, img_h),
         scale_factor=1.0,
     )
+    bib_trace: list[BibCandidateTrace] = []
     bib_boxes: list[BibBox] = []
     bib_time_ms = 0.0
 
@@ -223,7 +290,7 @@ def run_single_photo(
         bib_result = detect_fn(reader, image_data, artifact_dir=artifact_dir)
         bib_time_ms = (time.time() - start) * 1000
         bib_w, bib_h = bib_result.original_dimensions
-        bib_boxes = _detections_to_bib_boxes(bib_result, bib_w, bib_h)
+        bib_trace, bib_boxes = _build_bib_trace(bib_result, bib_w, bib_h)
 
     # --- Face detection ---
     face_candidates_all: list[FaceCandidate] = []
@@ -269,7 +336,7 @@ def run_single_photo(
     return SinglePhotoResult(
         image_dims=(img_w, img_h),
         bib_result=bib_result,
-        bib_boxes=bib_boxes,
+        bib_trace=bib_trace,
         bib_detect_time_ms=bib_time_ms,
         face_candidates_all=face_candidates_all,
         face_boxes=face_boxes,
@@ -277,4 +344,5 @@ def run_single_photo(
         face_detect_time_ms=face_time_ms,
         autolink=autolink,
         image_rgb=image_rgb,
+        _bib_boxes_cache=bib_boxes,
     )

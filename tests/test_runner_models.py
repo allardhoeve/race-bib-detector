@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import pytest
 
-from pipeline.types import BibBox, BibFaceLink, FaceBox
-from benchmarking.runner import BibCandidateSummary, FacePipelineConfig, PhotoResult, PipelineConfig, RunMetadata
+from pipeline.types import BibBox, BibCandidateTrace, BibFaceLink, FaceBox
+from benchmarking.runner import FacePipelineConfig, PhotoResult, PipelineConfig, RunMetadata
 from benchmarking.scoring import BibScorecard, FaceScorecard, LinkScorecard
 
 
@@ -278,56 +278,116 @@ class TestBoxConfidence:
 
 
 # =============================================================================
-# BibCandidateSummary — round-trip and PhotoResult integration (task-062)
+# BibCandidateTrace — round-trip and PhotoResult integration (task-088)
 # =============================================================================
 
 
-def _candidate_dict(**overrides) -> dict:
+def _trace_dict(**overrides) -> dict:
     base = {
         "x": 0.12, "y": 0.34, "w": 0.05, "h": 0.08,
         "area": 4200, "aspect_ratio": 1.6,
         "median_brightness": 220.0, "mean_brightness": 215.5,
-        "relative_area": 0.003, "passed": True,
+        "relative_area": 0.003, "passed_validation": True,
         "rejection_reason": None,
+        "ocr_text": None, "ocr_confidence": None,
+        "accepted": False, "bib_number": None,
     }
     return {**base, **overrides}
 
 
-class TestBibCandidateSummary:
+class TestBibCandidateTrace:
     def test_round_trip(self):
-        cs = BibCandidateSummary(**_candidate_dict())
-        d = cs.model_dump()
-        reloaded = BibCandidateSummary.model_validate(d)
-        assert reloaded.x == cs.x
+        ct = BibCandidateTrace(**_trace_dict())
+        d = ct.model_dump()
+        reloaded = BibCandidateTrace.model_validate(d)
+        assert reloaded.x == ct.x
         assert reloaded.area == 4200
-        assert reloaded.passed is True
+        assert reloaded.passed_validation is True
         assert reloaded.rejection_reason is None
+        assert reloaded.ocr_text is None
+        assert reloaded.accepted is False
+        assert reloaded.bib_number is None
+
+    def test_accepted_candidate_with_ocr(self):
+        ct = BibCandidateTrace(**_trace_dict(
+            ocr_text="42", ocr_confidence=0.9,
+            accepted=True, bib_number="42",
+        ))
+        d = ct.model_dump()
+        reloaded = BibCandidateTrace.model_validate(d)
+        assert reloaded.ocr_text == "42"
+        assert reloaded.ocr_confidence == 0.9
+        assert reloaded.accepted is True
+        assert reloaded.bib_number == "42"
 
     def test_rejected_candidate_preserves_reason(self):
-        cs = BibCandidateSummary(**_candidate_dict(
-            passed=False, rejection_reason="too_small",
+        ct = BibCandidateTrace(**_trace_dict(
+            passed_validation=False, rejection_reason="too_small",
         ))
-        d = cs.model_dump()
-        reloaded = BibCandidateSummary.model_validate(d)
-        assert reloaded.passed is False
+        d = ct.model_dump()
+        reloaded = BibCandidateTrace.model_validate(d)
+        assert reloaded.passed_validation is False
         assert reloaded.rejection_reason == "too_small"
 
+    def test_subthreshold_ocr_preserved(self):
+        """Candidate that passed validation, got OCR, but below threshold."""
+        ct = BibCandidateTrace(**_trace_dict(
+            ocr_text="42", ocr_confidence=0.15,
+            accepted=False, bib_number=None,
+        ))
+        assert ct.ocr_text == "42"
+        assert ct.ocr_confidence == 0.15
+        assert ct.accepted is False
 
-class TestPhotoResultBibCandidates:
-    def test_with_candidates_round_trip(self):
-        candidates = [
-            BibCandidateSummary(**_candidate_dict()),
-            BibCandidateSummary(**_candidate_dict(passed=False, rejection_reason="low_contrast")),
+    def test_to_bib_box(self):
+        ct = BibCandidateTrace(**_trace_dict(
+            ocr_text="42", ocr_confidence=0.9,
+            accepted=True, bib_number="42",
+        ))
+        box = ct.to_bib_box()
+        assert box.x == ct.x
+        assert box.y == ct.y
+        assert box.w == ct.w
+        assert box.h == ct.h
+        assert box.number == "42"
+        assert box.confidence == 0.9
+
+    def test_to_bib_box_unaccepted_raises(self):
+        ct = BibCandidateTrace(**_trace_dict(accepted=False))
+        with pytest.raises(ValueError):
+            ct.to_bib_box()
+
+
+class TestPhotoResultBibTrace:
+    def test_with_trace_round_trip(self):
+        traces = [
+            BibCandidateTrace(**_trace_dict(accepted=True, bib_number="42", ocr_text="42", ocr_confidence=0.9)),
+            BibCandidateTrace(**_trace_dict(passed_validation=False, rejection_reason="low_contrast")),
         ]
-        pr = PhotoResult(**_photo_result_dict(bib_candidates=candidates))
+        pr = PhotoResult(**_photo_result_dict(bib_trace=traces))
         d = pr.model_dump()
         reloaded = PhotoResult.model_validate(d)
-        assert len(reloaded.bib_candidates) == 2
-        assert reloaded.bib_candidates[0].passed is True
-        assert reloaded.bib_candidates[1].rejection_reason == "low_contrast"
+        assert len(reloaded.bib_trace) == 2
+        assert reloaded.bib_trace[0].accepted is True
+        assert reloaded.bib_trace[1].rejection_reason == "low_contrast"
 
-    def test_without_candidates_backward_compat(self):
+    def test_without_trace_backward_compat(self):
         old_dict = _photo_result_dict()
-        assert "bib_candidates" not in old_dict
+        assert "bib_trace" not in old_dict
         pr = PhotoResult.model_validate(old_dict)
-        assert pr.bib_candidates is None
+        assert pr.bib_trace is None
+
+    def test_old_bib_candidates_migrated_to_bib_trace(self):
+        """Backward compat: old 'bib_candidates' key migrated to 'bib_trace'."""
+        old_dict = _photo_result_dict(bib_candidates=[
+            {"x": 0.1, "y": 0.2, "w": 0.05, "h": 0.08,
+             "area": 4200, "aspect_ratio": 1.6,
+             "median_brightness": 220.0, "mean_brightness": 215.5,
+             "relative_area": 0.003, "passed": True,
+             "rejection_reason": None},
+        ])
+        pr = PhotoResult.model_validate(old_dict)
+        assert pr.bib_trace is not None
+        assert len(pr.bib_trace) == 1
+        assert pr.bib_trace[0].x == 0.1
+        assert pr.bib_trace[0].passed_validation is True

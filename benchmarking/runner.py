@@ -15,7 +15,7 @@ from typing import Any, Literal
 import cv2
 import numpy as np
 
-from pydantic import BaseModel, Field, field_serializer, field_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator, model_validator
 
 import config
 from config import (
@@ -36,7 +36,7 @@ from warnings_utils import suppress_torch_mps_pin_memory_warning
 from faces import FaceBackend, get_face_backend
 
 from pipeline import run_single_photo
-from pipeline.types import predict_links
+from pipeline.types import BibCandidateTrace, predict_links
 
 from .ground_truth import (
     load_bib_ground_truth,
@@ -70,21 +70,6 @@ Status = Literal["PASS", "PARTIAL", "MISS"]
 Judgement = Literal["IMPROVED", "REGRESSED", "NO_CHANGE"]
 
 
-class BibCandidateSummary(BaseModel):
-    """Serialisable summary of a BibCandidate from the detection pipeline."""
-    x: float
-    y: float
-    w: float
-    h: float
-    area: int
-    aspect_ratio: float
-    median_brightness: float
-    mean_brightness: float
-    relative_area: float
-    passed: bool
-    rejection_reason: str | None = None
-
-
 class PhotoResult(BaseModel):
     """Result of running detection on a single photo."""
     content_hash: str
@@ -110,8 +95,29 @@ class PhotoResult(BaseModel):
     face_scorecard: FaceScorecard | None = None
     link_scorecard: LinkScorecard | None = None
     face_detection_time_ms: float | None = None
-    # Bib candidate diagnostics (task-062)
-    bib_candidates: list[BibCandidateSummary] | None = None
+    # Bib candidate trace (task-088, replaces bib_candidates from task-062)
+    bib_trace: list[BibCandidateTrace] | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_bib_candidates(cls, values: dict) -> dict:
+        """Backward compat: migrate old ``bib_candidates`` key to ``bib_trace``."""
+        if not isinstance(values, dict):
+            return values
+        if "bib_candidates" in values and "bib_trace" not in values:
+            old = values.pop("bib_candidates")
+            if old is not None:
+                migrated = []
+                for item in old:
+                    d = dict(item) if not isinstance(item, dict) else item
+                    d.setdefault("passed_validation", d.pop("passed", True))
+                    d.setdefault("ocr_text", None)
+                    d.setdefault("ocr_confidence", None)
+                    d.setdefault("accepted", False)
+                    d.setdefault("bib_number", None)
+                    migrated.append(d)
+                values["bib_trace"] = migrated
+        return values
 
 
 class BenchmarkMetrics(BaseModel):
@@ -521,25 +527,9 @@ def _run_detection_loop(
         photo_result.preprocess_metadata = sp_result.bib_result.preprocess_metadata
         photo_results.append(photo_result)
 
-        # Bib candidate diagnostics
-        if img_w > 0 and img_h > 0:
-            sf = sp_result.bib_result.scale_factor
-            photo_result.bib_candidates = [
-                BibCandidateSummary(
-                    x=(c.x * sf) / img_w,
-                    y=(c.y * sf) / img_h,
-                    w=(c.w * sf) / img_w,
-                    h=(c.h * sf) / img_h,
-                    area=c.area,
-                    aspect_ratio=c.aspect_ratio,
-                    median_brightness=c.median_brightness,
-                    mean_brightness=c.mean_brightness,
-                    relative_area=c.relative_area,
-                    passed=c.passed,
-                    rejection_reason=c.rejection_reason,
-                )
-                for c in sp_result.bib_result.all_candidates
-            ]
+        # Bib candidate trace (built by run_single_photo, task-088)
+        if sp_result.bib_trace:
+            photo_result.bib_trace = sp_result.bib_trace
 
         # --- Bib IoU scoring ---
         if img_w > 0 and img_h > 0:
