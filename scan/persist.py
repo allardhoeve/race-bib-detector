@@ -40,6 +40,14 @@ if TYPE_CHECKING:
 
 
 @dataclass
+class _CandidateView:
+    """Adapter for save_face_candidates_preview (expects .bbox, .passed, .confidence)."""
+    bbox: list
+    passed: bool
+    confidence: float | None
+
+
+@dataclass
 class ImageInfo:
     """Metadata for an image to be scanned."""
 
@@ -247,14 +255,19 @@ def process_image(
             {"bib_number": det.bib_number, "confidence": det.confidence, "bbox": det.bbox}
             for det in result.detections
         ]
-        if sp.face_candidates_all:
-            save_face_candidates_preview(image_rgb, sp.face_candidates_all, candidates_path)
+        # Build adapter views for save_face_candidates_preview (expects .bbox, .passed, .confidence)
+        candidate_views = [
+            _CandidateView(t.to_pixel_quad(), t.passed, t.confidence)
+            for t in sp.face_trace if t.pixel_bbox is not None
+        ]
+        if candidate_views:
+            save_face_candidates_preview(image_rgb, candidate_views, candidates_path)
         save_face_evidence_json(
             evidence_path,
             photo_hash,
             face_detections,
             bib_evidence,
-            face_candidates=sp.face_candidates_all,
+            face_candidates=[t.model_dump() for t in sp.face_trace],
         )
 
     if run_face_detection:

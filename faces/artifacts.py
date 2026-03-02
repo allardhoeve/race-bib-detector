@@ -11,7 +11,9 @@ import numpy as np
 
 from config import FACE_SNIPPET_PADDING_RATIO
 from geometry import Bbox, bbox_to_rect
-from .types import FaceCandidate, FaceDetection
+from typing import Any
+
+from .types import FaceDetection
 
 logger = logging.getLogger(__name__)
 
@@ -80,11 +82,15 @@ def save_face_boxed_preview(
 
 def save_face_candidates_preview(
     image_rgb: np.ndarray,
-    candidates: list[FaceCandidate],
+    candidates: list[Any],
     output_path: Path,
     thickness: int = 2,
 ) -> bool:
-    """Save a visualization of face candidates (passed/rejected)."""
+    """Save a visualization of face candidates (passed/rejected).
+
+    Each candidate must have ``.bbox`` (pixel Bbox), ``.passed`` (bool),
+    and ``.confidence`` (float | None) attributes.
+    """
     try:
         _ensure_parent(output_path)
         image = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2BGR)
@@ -135,17 +141,16 @@ def save_face_evidence_json(
     photo_hash: str,
     face_detections: list[FaceDetection],
     bib_detections: list[dict],
-    face_candidates: list[FaceCandidate] | None = None,
+    face_candidates: list[dict] | None = None,
 ) -> bool:
     """Persist face/bib evidence metadata for later linking or inspection."""
     try:
         _ensure_parent(output_path)
-        candidates = face_candidates or []
         payload = {
             "photo_hash": photo_hash,
             "faces": [face.to_dict(include_embedding=False) for face in face_detections],
             "bibs": bib_detections,
-            "face_candidates": [candidate.to_dict() for candidate in candidates],
+            "face_candidates": face_candidates or [],
         }
         with open(output_path, "w") as f:
             json.dump(payload, f, indent=2)

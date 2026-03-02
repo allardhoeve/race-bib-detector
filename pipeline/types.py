@@ -14,6 +14,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator
 
 from config import AUTOLINK_TORSO_BOTTOM, AUTOLINK_TORSO_HALF_WIDTH, AUTOLINK_TORSO_TOP
+from geometry import Bbox, rect_to_bbox
 
 # --- Tag sets ----------------------------------------------------------------
 
@@ -125,6 +126,70 @@ class BibCandidateTrace(BaseModel):
             number=self.bib_number or "",
             confidence=self.ocr_confidence,
         )
+
+
+# =============================================================================
+# Face candidate trace (task-089)
+# =============================================================================
+
+
+class FaceCandidateTrace(BaseModel):
+    """Full trace of a single face candidate through the pipeline.
+
+    Records the candidate's journey: detection → threshold → fallback chain →
+    acceptance.  Coordinates are normalised [0, 1] image space.
+    """
+
+    # Normalised bounding box
+    x: float
+    y: float
+    w: float
+    h: float
+
+    # Detection confidence (None for Haar backend)
+    confidence: float | None = None
+
+    # Backend threshold verdict
+    passed: bool
+
+    # Rejection reason (set when passed=False)
+    rejection_reason: str | None = None
+
+    # Final verdict after fallback chain (may promote passed=False → accepted=True)
+    accepted: bool = False
+
+    # Pixel-space bounding box (x1, y1, x2, y2) for embedding/artifact use
+    pixel_bbox: tuple[int, int, int, int] | None = None
+
+    # Future fields (task-090, 091)
+    embedding: list[float] | None = None
+    cluster_id: int | None = None
+    cluster_distance: float | None = None
+    nearest_other_distance: float | None = None
+
+    def to_face_box(self) -> FaceBox:
+        """Convert an accepted trace to a FaceBox.
+
+        Raises:
+            ValueError: If this trace was not accepted.
+        """
+        if not self.accepted:
+            raise ValueError("Cannot convert unaccepted trace to FaceBox")
+        return FaceBox(
+            x=self.x, y=self.y, w=self.w, h=self.h,
+            confidence=self.confidence,
+        )
+
+    def to_pixel_quad(self) -> Bbox:
+        """Convert pixel_bbox (x1, y1, x2, y2) to a 4-point Bbox.
+
+        Raises:
+            ValueError: If pixel_bbox is not set.
+        """
+        if self.pixel_bbox is None:
+            raise ValueError("pixel_bbox not set on this trace")
+        x1, y1, x2, y2 = self.pixel_bbox
+        return rect_to_bbox(x1, y1, x2 - x1, y2 - y1)
 
 
 # =============================================================================

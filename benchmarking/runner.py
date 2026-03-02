@@ -36,7 +36,7 @@ from warnings_utils import suppress_torch_mps_pin_memory_warning
 from faces import FaceBackend, get_face_backend
 
 from pipeline import run_single_photo
-from pipeline.types import BibCandidateTrace, predict_links
+from pipeline.types import BibCandidateTrace, FaceCandidateTrace, predict_links
 
 from .ground_truth import (
     load_bib_ground_truth,
@@ -97,6 +97,8 @@ class PhotoResult(BaseModel):
     face_detection_time_ms: float | None = None
     # Bib candidate trace (task-088, replaces bib_candidates from task-062)
     bib_trace: list[BibCandidateTrace] | None = None
+    # Face candidate trace (task-089)
+    face_trace: list[FaceCandidateTrace] | None = None
 
     @model_validator(mode="before")
     @classmethod

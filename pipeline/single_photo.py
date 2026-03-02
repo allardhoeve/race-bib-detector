@@ -20,7 +20,7 @@ from detection import detect_bib_numbers
 from detection.types import DetectionResult
 from faces.types import FaceCandidate
 from geometry import Bbox, bbox_to_rect, rect_iou
-from pipeline.types import AutolinkResult, BibBox, BibCandidateTrace, FaceBox, predict_links
+from pipeline.types import AutolinkResult, BibBox, BibCandidateTrace, FaceCandidateTrace, FaceBox, predict_links
 
 if TYPE_CHECKING:
     import easyocr
@@ -41,9 +41,7 @@ class SinglePhotoResult:
     bib_detect_time_ms: float
 
     # Face detection
-    face_candidates_all: list[FaceCandidate]
-    face_boxes: list[FaceBox]
-    face_pixel_bboxes: list[Bbox]
+    face_trace: list[FaceCandidateTrace]
     face_detect_time_ms: float
 
     # Linking
@@ -55,10 +53,24 @@ class SinglePhotoResult:
     # Cached bib boxes (computed once, same instances used by autolink)
     _bib_boxes_cache: list[BibBox] = field(default_factory=list, repr=False)
 
+    # Cached face boxes/pixel bboxes (computed once, identity matters for autolink)
+    _face_boxes_cache: list[FaceBox] = field(default_factory=list, repr=False)
+    _face_pixel_bboxes_cache: list[Bbox] = field(default_factory=list, repr=False)
+
     @property
     def bib_boxes(self) -> list[BibBox]:
         """Normalised BibBox list derived from bib_trace (cached)."""
         return self._bib_boxes_cache
+
+    @property
+    def face_boxes(self) -> list[FaceBox]:
+        """Normalised FaceBox list for accepted traces (cached)."""
+        return self._face_boxes_cache
+
+    @property
+    def face_pixel_bboxes(self) -> list[Bbox]:
+        """Pixel-space Bbox list for accepted traces (cached)."""
+        return self._face_pixel_bboxes_cache
 
 
 def _build_bib_trace(
@@ -139,25 +151,55 @@ def _build_bib_trace(
     return traces, bib_boxes
 
 
-def _candidates_to_face_boxes(
-    candidates: list[FaceCandidate],
+def _build_face_trace(
+    all_candidates: list[FaceCandidate],
+    accepted_bboxes: set[int],
     img_w: int,
     img_h: int,
-) -> tuple[list[FaceBox], list[Bbox]]:
-    """Convert passed face candidates to normalised FaceBox list and pixel bboxes."""
+) -> tuple[list[FaceCandidateTrace], list[FaceBox], list[Bbox]]:
+    """Build face candidate trace, FaceBox list, and pixel bbox list.
+
+    ``accepted_bboxes`` is a set of ``id(bbox)`` for bboxes that survived
+    the fallback chain.  Every candidate gets a trace entry; accepted ones
+    also produce a FaceBox + pixel Bbox.
+
+    Returns:
+        (face_trace, face_boxes, face_pixel_bboxes) — the FaceBox and Bbox
+        lists are created once here and must be reused for autolink (object
+        identity matters for ``list.index()``).
+    """
+    traces: list[FaceCandidateTrace] = []
     face_boxes: list[FaceBox] = []
     pixel_bboxes: list[Bbox] = []
-    for cand in candidates:
-        if not cand.passed:
-            continue
+
+    for cand in all_candidates:
         x1, y1, x2, y2 = bbox_to_rect(cand.bbox)
-        face_boxes.append(FaceBox(
-            x=x1 / img_w, y=y1 / img_h,
-            w=(x2 - x1) / img_w, h=(y2 - y1) / img_h,
+        nx = x1 / img_w
+        ny = y1 / img_h
+        nw = (x2 - x1) / img_w
+        nh = (y2 - y1) / img_h
+
+        is_accepted = id(cand.bbox) in accepted_bboxes
+
+        trace = FaceCandidateTrace(
+            x=nx, y=ny, w=nw, h=nh,
             confidence=cand.confidence,
-        ))
-        pixel_bboxes.append(cand.bbox)
-    return face_boxes, pixel_bboxes
+            passed=cand.passed,
+            rejection_reason=cand.rejection_reason,
+            accepted=is_accepted,
+            pixel_bbox=(x1, y1, x2, y2),
+        )
+        traces.append(trace)
+
+        if is_accepted:
+            fb = FaceBox(
+                x=nx, y=ny, w=nw, h=nh,
+                confidence=cand.confidence,
+            )
+            face_boxes.append(fb)
+            pixel_bboxes.append(cand.bbox)
+
+    return traces, face_boxes, pixel_bboxes
 
 
 def _run_face_fallback_chain(
@@ -293,7 +335,7 @@ def run_single_photo(
         bib_trace, bib_boxes = _build_bib_trace(bib_result, bib_w, bib_h)
 
     # --- Face detection ---
-    face_candidates_all: list[FaceCandidate] = []
+    face_trace: list[FaceCandidateTrace] = []
     face_boxes: list[FaceBox] = []
     face_pixel_bboxes: list[Bbox] = []
     face_time_ms = 0.0
@@ -303,30 +345,20 @@ def run_single_photo(
         candidates = face_backend.detect_face_candidates(image_rgb)
         face_time_ms = (time.time() - start) * 1000
 
-        face_candidates_all = list(candidates)
+        all_candidates = list(candidates)
         passed_bboxes = [c.bbox for c in candidates if c.passed]
 
         # Apply fallback chain
-        face_candidates_all, passed_bboxes = _run_face_fallback_chain(
+        all_candidates, passed_bboxes = _run_face_fallback_chain(
             image_rgb, face_backend, fallback_face_backend,
-            face_candidates_all, passed_bboxes,
+            all_candidates, passed_bboxes,
         )
 
-        # Normalise to FaceBox
-        for bbox in passed_bboxes:
-            x1, y1, x2, y2 = bbox_to_rect(bbox)
-            face_boxes.append(FaceBox(
-                x=x1 / img_w, y=y1 / img_h,
-                w=(x2 - x1) / img_w, h=(y2 - y1) / img_h,
-                confidence=next(
-                    (c.confidence for c in face_candidates_all if c.bbox == bbox and c.passed),
-                    next(
-                        (c.confidence for c in face_candidates_all if c.bbox == bbox),
-                        None,
-                    ),
-                ),
-            ))
-            face_pixel_bboxes.append(bbox)
+        # Build trace + cached FaceBox/pixel_bbox lists
+        accepted_bbox_ids = {id(bbox) for bbox in passed_bboxes}
+        face_trace, face_boxes, face_pixel_bboxes = _build_face_trace(
+            all_candidates, accepted_bbox_ids, img_w, img_h,
+        )
 
     # --- Autolink ---
     autolink: AutolinkResult | None = None
@@ -338,11 +370,11 @@ def run_single_photo(
         bib_result=bib_result,
         bib_trace=bib_trace,
         bib_detect_time_ms=bib_time_ms,
-        face_candidates_all=face_candidates_all,
-        face_boxes=face_boxes,
-        face_pixel_bboxes=face_pixel_bboxes,
+        face_trace=face_trace,
         face_detect_time_ms=face_time_ms,
         autolink=autolink,
         image_rgb=image_rgb,
         _bib_boxes_cache=bib_boxes,
+        _face_boxes_cache=face_boxes,
+        _face_pixel_bboxes_cache=face_pixel_bboxes,
     )

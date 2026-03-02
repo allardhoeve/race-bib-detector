@@ -6,7 +6,7 @@ import cv2
 import numpy as np
 
 from faces.artifacts import save_face_snippet, save_face_boxed_preview, save_face_evidence_json
-from faces.types import FaceCandidate, FaceDetection, FaceModelInfo
+from faces.types import FaceDetection, FaceModelInfo
 
 
 def _make_image() -> np.ndarray:
@@ -57,13 +57,12 @@ def test_save_face_evidence_json(tmp_path: Path) -> None:
         )
     ]
     candidates = [
-        FaceCandidate(
-            bbox=[[1, 1], [2, 1], [2, 2], [1, 2]],
-            confidence=0.42,
-            passed=False,
-            rejection_reason="confidence",
-            model=model,
-        )
+        {
+            "x": 0.1, "y": 0.1, "w": 0.1, "h": 0.1,
+            "confidence": 0.42, "passed": False,
+            "rejection_reason": "confidence", "accepted": False,
+            "pixel_bbox": (1, 1, 2, 2),
+        }
     ]
     bibs = [{"bib_number": "123", "confidence": 0.9, "bbox": [[0, 0], [1, 0], [1, 1], [0, 1]]}]
 

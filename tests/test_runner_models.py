@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from pipeline.types import BibBox, BibCandidateTrace, BibFaceLink, FaceBox
+from pipeline.types import BibBox, BibCandidateTrace, BibFaceLink, FaceCandidateTrace, FaceBox
 from benchmarking.runner import FacePipelineConfig, PhotoResult, PipelineConfig, RunMetadata
 from benchmarking.scoring import BibScorecard, FaceScorecard, LinkScorecard
 
@@ -391,3 +391,119 @@ class TestPhotoResultBibTrace:
         assert len(pr.bib_trace) == 1
         assert pr.bib_trace[0].x == 0.1
         assert pr.bib_trace[0].passed_validation is True
+
+
+# =============================================================================
+# FaceCandidateTrace — round-trip and PhotoResult integration (task-089)
+# =============================================================================
+
+
+def _face_trace_dict(**overrides) -> dict:
+    base = {
+        "x": 0.10, "y": 0.15, "w": 0.30, "h": 0.40,
+        "confidence": 0.85, "passed": True,
+        "rejection_reason": None, "accepted": True,
+        "pixel_bbox": (10, 15, 40, 55),
+    }
+    return {**base, **overrides}
+
+
+class TestFaceCandidateTrace:
+    def test_round_trip(self):
+        ft = FaceCandidateTrace(**_face_trace_dict())
+        d = ft.model_dump()
+        reloaded = FaceCandidateTrace.model_validate(d)
+        assert reloaded.x == ft.x
+        assert reloaded.confidence == 0.85
+        assert reloaded.passed is True
+        assert reloaded.accepted is True
+        assert reloaded.pixel_bbox == (10, 15, 40, 55)
+
+    def test_rejected_candidate(self):
+        ft = FaceCandidateTrace(**_face_trace_dict(
+            confidence=0.05, passed=False, accepted=False,
+            rejection_reason="low_confidence",
+        ))
+        d = ft.model_dump()
+        reloaded = FaceCandidateTrace.model_validate(d)
+        assert reloaded.passed is False
+        assert reloaded.accepted is False
+        assert reloaded.rejection_reason == "low_confidence"
+
+    def test_haar_confidence_none(self):
+        ft = FaceCandidateTrace(**_face_trace_dict(confidence=None))
+        assert ft.confidence is None
+        d = ft.model_dump()
+        reloaded = FaceCandidateTrace.model_validate(d)
+        assert reloaded.confidence is None
+
+    def test_accepted_with_pixel_bbox(self):
+        ft = FaceCandidateTrace(**_face_trace_dict())
+        assert ft.accepted is True
+        assert ft.pixel_bbox == (10, 15, 40, 55)
+
+    def test_clustering_fields_default_none(self):
+        ft = FaceCandidateTrace(**_face_trace_dict())
+        assert ft.embedding is None
+        assert ft.cluster_id is None
+        assert ft.cluster_distance is None
+        assert ft.nearest_other_distance is None
+
+    def test_to_face_box(self):
+        ft = FaceCandidateTrace(**_face_trace_dict())
+        box = ft.to_face_box()
+        assert box.x == ft.x
+        assert box.y == ft.y
+        assert box.w == ft.w
+        assert box.h == ft.h
+        assert box.confidence == 0.85
+
+    def test_to_face_box_unaccepted_raises(self):
+        ft = FaceCandidateTrace(**_face_trace_dict(accepted=False))
+        with pytest.raises(ValueError):
+            ft.to_face_box()
+
+    def test_to_pixel_quad(self):
+        ft = FaceCandidateTrace(**_face_trace_dict(pixel_bbox=(10, 20, 50, 60)))
+        quad = ft.to_pixel_quad()
+        # rect_to_bbox(10, 20, 40, 40) → [[10,20],[50,20],[50,60],[10,60]]
+        assert quad[0] == [10, 20]
+        assert quad[1] == [50, 20]
+        assert quad[2] == [50, 60]
+        assert quad[3] == [10, 60]
+
+    def test_to_pixel_quad_no_bbox_raises(self):
+        ft = FaceCandidateTrace(**_face_trace_dict(pixel_bbox=None))
+        with pytest.raises(ValueError):
+            ft.to_pixel_quad()
+
+    def test_fallback_promotion(self):
+        """Fallback chain can promote passed=False → accepted=True."""
+        ft = FaceCandidateTrace(**_face_trace_dict(
+            passed=False, accepted=True,
+        ))
+        assert ft.passed is False
+        assert ft.accepted is True
+
+
+class TestPhotoResultFaceTrace:
+    def test_with_face_trace_round_trip(self):
+        traces = [
+            FaceCandidateTrace(**_face_trace_dict()),
+            FaceCandidateTrace(**_face_trace_dict(
+                passed=False, accepted=False,
+                rejection_reason="low_confidence",
+            )),
+        ]
+        pr = PhotoResult(**_photo_result_dict(face_trace=traces))
+        d = pr.model_dump()
+        reloaded = PhotoResult.model_validate(d)
+        assert len(reloaded.face_trace) == 2
+        assert reloaded.face_trace[0].accepted is True
+        assert reloaded.face_trace[1].rejection_reason == "low_confidence"
+
+    def test_without_face_trace_backward_compat(self):
+        old_dict = _photo_result_dict()
+        assert "face_trace" not in old_dict
+        pr = PhotoResult.model_validate(old_dict)
+        assert pr.face_trace is None
