@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 def add_album_subparser(subparsers: argparse._SubParsersAction) -> None:
     album_parser = subparsers.add_parser(
         "album",
-        help="Manage album metadata (list/forget)",
+        help="Album pipeline and management (ingest/rescan/list/forget)",
     )
     album_subparsers = album_parser.add_subparsers(
         dest="album_command",
@@ -39,7 +39,82 @@ def add_album_subparser(subparsers: argparse._SubParsersAction) -> None:
     )
     album_forget.set_defaults(_cmd=cmd_album_forget)
 
+    album_ingest = album_subparsers.add_parser(
+        "ingest",
+        help="Full pipeline: scan all photos + cluster faces",
+    )
+    album_ingest.add_argument("source", help="Local directory of photos")
+    album_ingest.add_argument(
+        "--limit", "-n",
+        type=int,
+        default=None,
+        help="Maximum number of photos to process (default: all)",
+    )
+    album_ingest.add_argument(
+        "--album-label",
+        help="Optional album label for grouping (used to derive album ID)",
+    )
+    album_ingest.add_argument(
+        "--album-id",
+        help="Optional explicit album ID (overrides derived ID)",
+    )
+    album_ingest.set_defaults(_cmd=cmd_album_ingest)
+
+    album_rescan = album_subparsers.add_parser(
+        "rescan",
+        help="Rescan one photo + re-cluster its album",
+    )
+    album_rescan.add_argument(
+        "identifier",
+        help="Photo hash (8 hex chars) or 1-based index",
+    )
+    album_rescan.set_defaults(_cmd=cmd_album_rescan)
+
     album_parser.set_defaults(_album_parser=album_parser)
+
+
+def _print_ingest_summary(stats: dict) -> None:
+    logger.info("%s", "=" * 50)
+    logger.info("Ingest Complete!")
+    logger.info("%s", "=" * 50)
+    logger.info("Photos found:     %s", stats.get("photos_found", 0))
+    logger.info("Photos scanned:   %s", stats.get("photos_scanned", 0))
+    logger.info("Photos skipped:   %s", stats.get("photos_skipped", 0))
+    logger.info("Bibs detected:    %s", stats.get("bibs_detected", 0))
+    logger.info("Faces detected:   %s", stats.get("faces_detected", 0))
+    if "clusters_created" in stats:
+        logger.info("Face clusters:    %s", stats["clusters_created"])
+
+
+def cmd_album_ingest(args: argparse.Namespace) -> int:
+    from scan.service import ingest_album
+
+    try:
+        stats = ingest_album(
+            args.source,
+            limit=args.limit,
+            album_label=args.album_label,
+            album_id=args.album_id,
+        )
+    except ValueError as exc:
+        logger.error("%s", exc)
+        return 1
+
+    _print_ingest_summary(stats)
+    return 0
+
+
+def cmd_album_rescan(args: argparse.Namespace) -> int:
+    from scan.service import rescan_and_cluster
+
+    try:
+        stats = rescan_and_cluster(args.identifier)
+    except ValueError as exc:
+        logger.error("%s", exc)
+        return 1
+
+    _print_ingest_summary(stats)
+    return 0
 
 
 def cmd_album_list(args: argparse.Namespace) -> int:

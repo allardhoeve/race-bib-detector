@@ -14,18 +14,6 @@ from .pipeline import ImageInfo, scan_images
 logger = logging.getLogger(__name__)
 
 
-def resolve_face_mode(
-    faces_only: bool,
-    no_faces: bool,
-) -> tuple[bool, bool]:
-    """Resolve bib/face mode flags into run_bib_detection/run_face_detection."""
-    if faces_only and no_faces:
-        raise ValueError("faces_only and no_faces cannot both be True")
-    run_bib_detection = not faces_only
-    run_face_detection = not no_faces
-    return run_bib_detection, run_face_detection
-
-
 def is_photo_identifier(source: str) -> bool:
     """Check if source looks like a photo hash or index."""
     if source.isdigit():
@@ -175,57 +163,87 @@ def rescan_single_photo(
     )
 
 
-def run_scan(
+def _resolve_album_id(
     source: str,
-    rescan: bool = False,
+    album_label: str | None,
+    album_id: str | None,
+) -> tuple[str, str | None]:
+    """Resolve album ID and label from explicit args or source path."""
+    resolved_id = album_id.strip() if album_id else None
+    resolved_label = album_label.strip() if album_label else None
+    if resolved_label == "":
+        resolved_label = None
+    if not resolved_id:
+        basis = resolved_label if resolved_label else str(Path(source).resolve())
+        resolved_id = db.compute_album_id(basis)
+    return resolved_id, resolved_label
+
+
+def ingest_album(
+    source: str,
     limit: int | None = None,
-    faces_only: bool = False,
-    no_faces: bool = False,
     album_label: str | None = None,
     album_id: str | None = None,
 ) -> dict:
-    """Run scan on a source (path or photo identifier)."""
+    """Full pipeline: scan all photos in a directory, then cluster faces."""
     if source.startswith(("http://", "https://")):
-        raise ValueError("Remote URLs are not supported. Use a local path or --rescan.")
-
-    if source.startswith("file://"):
-        source = source.replace("file://", "", 1)
-
-    run_bib_detection, run_face_detection = resolve_face_mode(faces_only, no_faces)
-    if not run_bib_detection and not run_face_detection:
-        raise ValueError("At least one of bib detection or face detection must be enabled.")
-
+        raise ValueError("Remote URLs are not supported. Use a local path.")
     if is_photo_identifier(source):
-        stats = rescan_single_photo(
-            source,
-            run_bib_detection=run_bib_detection,
-            run_face_detection=run_face_detection,
+        raise ValueError(
+            f"'{source}' looks like a photo identifier, not a directory. "
+            "Use 'album rescan' instead."
         )
-    elif Path(source).exists():
-        resolved_album_id = album_id.strip() if album_id else None
-        resolved_label = album_label.strip() if album_label else None
-        if resolved_label == "":
-            resolved_label = None
-        if not resolved_album_id:
-            basis = resolved_label if resolved_label else str(Path(source).resolve())
-            resolved_album_id = db.compute_album_id(basis)
 
-        stats = scan_local_directory(
-            source,
-            resolved_album_id,
-            resolved_label,
-            skip_existing=not rescan,
-            limit=limit,
-            run_bib_detection=run_bib_detection,
-            run_face_detection=run_face_detection,
-        )
-    elif len(source) <= 8:
-        stats = rescan_single_photo(
-            source,
-            run_bib_detection=run_bib_detection,
-            run_face_detection=run_face_detection,
-        )
-    else:
-        raise ValueError(f"'{source}' is not a valid path, photo hash, or index.")
+    resolved_id, resolved_label = _resolve_album_id(source, album_label, album_id)
+
+    stats = scan_local_directory(
+        source,
+        album_id=resolved_id,
+        album_label=resolved_label,
+        limit=limit,
+    )
+
+    if stats.get("faces_detected", 0) > 0:
+        from faces.clustering import cluster_album_faces
+
+        conn = db.get_connection()
+        try:
+            cluster_stats = cluster_album_faces(conn, resolved_id)
+        finally:
+            conn.close()
+        stats.update(cluster_stats)
 
     return stats
+
+
+def rescan_and_cluster(identifier: str) -> dict:
+    """Rescan a single photo and re-cluster faces for its album."""
+    conn = db.get_connection()
+    try:
+        if identifier.isdigit():
+            photo = db.get_photo_by_index(conn, int(identifier))
+        else:
+            photo = db.get_photo_by_hash(conn, identifier)
+    finally:
+        conn.close()
+
+    if not photo:
+        raise ValueError(f"Photo '{identifier}' not found in the database.")
+
+    album_id = photo["album_id"]
+
+    stats = rescan_single_photo(identifier)
+
+    if stats.get("faces_detected", 0) > 0:
+        from faces.clustering import cluster_album_faces
+
+        conn = db.get_connection()
+        try:
+            cluster_stats = cluster_album_faces(conn, album_id)
+        finally:
+            conn.close()
+        stats.update(cluster_stats)
+
+    return stats
+
+

@@ -28,16 +28,13 @@ Use red/green TDD. Write failing tests first, then make them pass. Do not write 
 
 Benchmark and production must use the same detection/embedding/clustering code. Do not create parallel implementations for the same operation. If the benchmark needs richer output (traces, diagnostics), extend the shared code with optional outputs — do not fork it into a separate function.
 
-## Rescanning Single Photos
-
-To rescan a single photo after making code changes, use:
+## Album pipeline
 
 ```bash
-# By photo hash (8 hex characters):
-venv/bin/python bnr.py scan --rescan 6dde41fd
+# Full pipeline: scan all photos in a directory + cluster faces
+venv/bin/python bnr.py album ingest /path/to/photos
 
-# By 1-based index (photo number in database order):
-venv/bin/python bnr.py scan --rescan 47
+# Rescan a single photo + re-cluster its album
+venv/bin/python bnr.py album rescan 6dde41fd   # by photo hash (8 hex chars)
+venv/bin/python bnr.py album rescan 47          # by 1-based index
 ```
-
-This is useful for testing detection changes on specific photos without rescanning the entire album.
