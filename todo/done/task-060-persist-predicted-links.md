@@ -1,6 +1,6 @@
 # Task 060: Persist predicted links in PhotoResult and show on overlay
 
-Independent of task-065.
+Independent of task-066.
 
 ## Goal
 

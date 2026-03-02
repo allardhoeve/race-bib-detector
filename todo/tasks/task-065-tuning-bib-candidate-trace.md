@@ -1,6 +1,8 @@
-# Task 064: Bib candidate trace — capture complete pipeline journey
+# Task 065: Bib candidate trace — capture complete pipeline journey
 
-Prerequisite for task-065 (auto-tuner).
+Second in the tuning series (064 → 065 → 066).
+
+**Depends on:** task-064 (remove full-image OCR)
 
 ## Goal
 
@@ -14,7 +16,7 @@ Task-062 added `BibCandidateSummary` to store candidate validation data (geometr
 2. OCR returned nothing
 3. OCR returned invalid text (not a bib number)
 
-The auto-tuner (task-065) needs all three to classify failures and replay threshold changes without re-running detection.
+The auto-tuner (task-066) needs all three to classify failures and replay threshold changes without re-running detection.
 
 ### Data flow today
 
@@ -43,7 +45,7 @@ PipelineResult
 | Where to capture OCR outcomes? | On `BibCandidate` in `detection/types.py` — the pipeline already has the data at runtime |
 | Model name | `BibCandidateTrace` — it records a journey, not a summary |
 | PhotoResult field name | `bib_trace` — clearly diagnostic, distinct from `pred_bib_boxes` |
-| Full-image OCR detections | Excluded from trace — they have no white-region candidate. Already in `pred_bib_boxes` for scoring. Removing full-image OCR entirely is a separate investigation. |
+| Full-image OCR detections | Removed by task-064. No longer a concern. |
 | Multiple OCR results per candidate | Store only the best (highest confidence). Sufficient for threshold replay. |
 | What counts as "best" OCR result? | Highest-confidence result with a valid bib number format. Non-bib text is noise, not diagnostic. |
 
@@ -51,7 +53,7 @@ PipelineResult
 
 - `detection/types.py:92` — `BibCandidate` dataclass: bbox, area, aspect_ratio, brightness, passed, rejection_reason
 - `detection/detector.py:128-150` — per-candidate OCR loop where sub-threshold results are discarded
-- `detection/detector.py:35-61` — `extract_bib_detections()` (full-image OCR path — not modified)
+- `detection/detector.py` — after task-064, only the white-region candidate path remains
 - `benchmarking/runner.py:73` — `BibCandidateSummary` (to be replaced)
 - `benchmarking/runner.py:114` — `PhotoResult.bib_candidates` (to be renamed)
 - `benchmarking/runner.py:430-457` — `_run_bib_detection()` where candidates are mapped to summaries
@@ -196,7 +198,7 @@ venv/bin/python -m pytest  # full suite
 - **Determining `accepted`**: A candidate's OCR result may pass the threshold but then get filtered by `filter_small_detections()` or `filter_overlapping_detections()`. The `accepted` flag should reflect the final outcome. Simplest approach: after all filtering, build a set of accepted candidates from `Detection.source_candidate` on the surviving detections, then check membership.
 - **`BibCandidate` field ordering**: It's a dataclass. New fields with defaults (`ocr_text=None`, `ocr_confidence=None`) must come after existing fields with defaults (`passed=True`, `rejection_reason=None`). This is already safe since those are at the end.
 - **Rename `passed` → `passed_validation`**: The `BibCandidateSummary` field was `passed` (mirroring `BibCandidate.passed`). Renaming to `passed_validation` in `BibCandidateTrace` clarifies that it's about the validation stage, not the final verdict. The backward compat validator should handle the old key name.
-- **Full-image detections**: These come from `extract_bib_detections()` on the whole image and produce their own `BibCandidate` objects that get appended to `all_candidates`. These full-image candidates don't have the same validation semantics (no white-region filtering). Either exclude them from the trace or mark them with a `source` field. Excluding is simpler — filter `all_candidates` to only white-region candidates when building the trace.
+- **Full-image detections**: Removed by task-064. All candidates in `all_candidates` are now white-region candidates with uniform semantics.
 
 ## Acceptance criteria
 
@@ -211,5 +213,5 @@ venv/bin/python -m pytest  # full suite
 ## Scope boundaries
 
 - **In scope**: trace model, OCR capture in detector, rename, backward compat, tests
-- **Out of scope**: consuming traces for tuning (task-065), removing full-image OCR, face pipeline traces
+- **Out of scope**: consuming traces for tuning (task-066), face pipeline traces
 - **Do not** change detection behavior — only capture data that was previously discarded

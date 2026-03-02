@@ -1,10 +1,10 @@
 # Task 062: Persist bib candidates in PhotoResult
 
-Independent of other open tasks. Prerequisite for task-065 (auto-tuner).
+Independent of other open tasks. Prerequisite for task-066 (auto-tuner).
 
 ## Goal
 
-Stop discarding `BibCandidate` data after bib detection in the benchmark runner. Store a serialisable summary of all candidates (passed and rejected) in `PhotoResult` so downstream consumers (task-059 auto-tuner) can diagnose failures without re-running detection.
+Stop discarding `BibCandidate` data after bib detection in the benchmark runner. Store a serialisable summary of all candidates (passed and rejected) in `PhotoResult` so downstream consumers (task-066 auto-tuner) can diagnose failures without re-running detection.
 
 ## Background
 
@@ -110,5 +110,5 @@ venv/bin/python -m pytest tests/test_runner_models.py -v
 ## Scope boundaries
 
 - **In scope**: new model, new field, populate in runner, tests
-- **Out of scope**: consuming the data (that's task-059), modifying `detection/types.py`, web UI changes
+- **Out of scope**: consuming the data (that's task-066), modifying `detection/types.py`, web UI changes
 - **Do not** modify existing benchmark result JSON files or storage format

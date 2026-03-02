@@ -1,8 +1,8 @@
-# Task 065: Auto-tuner — diagnose failures and suggest parameter changes
+# Task 066: Auto-tuner — diagnose failures and suggest parameter changes
 
-**Depends on:** task-064 (bib candidate trace)
+Third in the tuning series (064 → 065 → 066).
 
-Benefits from task-035 (split detection loop) but does not require it.
+**Depends on:** task-065 (bib candidate trace)
 
 ## Goal
 
@@ -35,7 +35,7 @@ Steps 1, 4, 5 are the **harness** — stable scaffolding. Steps 2 and 3 are the 
 
 ## Context
 
-- `benchmarking/runner.py` — `BenchmarkRun`, `PhotoResult` (has `bib_trace: list[BibCandidateTrace]` from task-064), `BenchmarkMetrics`, `PipelineConfig`
+- `benchmarking/runner.py` — `BenchmarkRun`, `PhotoResult` (has `bib_trace: list[BibCandidateTrace]` from task-065), `BenchmarkMetrics`, `PipelineConfig`
 - `benchmarking/scoring.py` — `BibScorecard`, `score_bibs()`, IoU matching
 - `benchmarking/tuners/grid.py` — existing grid sweep (GridTuner); reference for how sweeps work
 - `benchmarking/tuners/protocol.py` — `Tuner` Protocol + `TunerResult` BaseModel (task-063)
@@ -136,7 +136,7 @@ Rule-based diagnosis that classifies each failure into a bucket and maps buckets
 | `ocr_wrong_number` | OCR returned wrong digits | Not a parameter problem | — |
 | `ocr_no_result` | OCR returned nothing | Model limitation or preprocessing | re-run |
 
-The strategy reads `PhotoResult.bib_trace` (task-064) to classify failures — no re-running detection. Each `BibCandidateTrace` records validation outcome, OCR text/confidence, and whether the candidate was accepted as a final detection.
+The strategy reads `PhotoResult.bib_trace` (task-065) to classify failures — no re-running detection. Each `BibCandidateTrace` records validation outcome, OCR text/confidence, and whether the candidate was accepted as a final detection.
 
 For "replay" suggestions (confidence thresholds), the strategy replays the threshold change against stored `ocr_confidence` values from all photos — instant.
 
@@ -258,7 +258,7 @@ venv/bin/python bnr.py benchmark auto-tune
 
 ## Pitfalls
 
-- ~~`PipelineResult` and `BibCandidate` data is produced during detection but not currently stored.~~ Resolved by task-064: `PhotoResult.bib_trace` now stores `BibCandidateTrace` with OCR outcomes. The strategy reads traces directly — no re-running detection for the replay path.
+- ~~`PipelineResult` and `BibCandidate` data is produced during detection but not currently stored.~~ Resolved by task-065: `PhotoResult.bib_trace` now stores `BibCandidateTrace` with OCR outcomes. The strategy reads traces directly — no re-running detection for the replay path.
 - Confidence threshold replay assumes OCR results are deterministic for the same input — this is true for EasyOCR but verify.
 - The regression test for "re-run" suggestions is expensive. Consider making it opt-in (`--regression` flag) or sampling a subset of passing photos.
 
@@ -277,4 +277,4 @@ venv/bin/python bnr.py benchmark auto-tune
 
 - **In scope**: harness, rule-based strategy for bib detection, CLI command, report output
 - **Out of scope**: face detection auto-tuning (future strategy), web UI for suggestions, automatic application of suggestions to `config.py`
-- **Do not** modify `PhotoResult` or detection pipeline (that's task-064)
+- **Do not** modify `PhotoResult` or detection pipeline (that's task-065)
