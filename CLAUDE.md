@@ -20,6 +20,10 @@ TODOs are always written with `[ ]` syntax so it is clear what is done.
 
 Project-wide conventions live in `STANDARDS.md`. Do not duplicate those rules elsewhere; link to them instead.
 
+## Test-driven development
+
+Use red/green TDD. Write failing tests first, then make them pass. Do not write implementation code before its test exists. When a task specifies test cases, create the test file and verify the tests fail before touching production code.
+
 ## One pipeline principle
 
 Benchmark and production must use the same detection/embedding/clustering code. Do not create parallel implementations for the same operation. If the benchmark needs richer output (traces, diagnostics), extend the shared code with optional outputs — do not fork it into a separate function.

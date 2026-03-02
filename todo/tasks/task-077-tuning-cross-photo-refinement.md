@@ -128,11 +128,15 @@ This is pure set logic — no re-running detection. If cluster 7 has bibs [428, 
 
 ### Convergence
 
-The loop terminates when:
-- No refinement check produces corrections (stable), or
-- Maximum iterations reached (safety bound, default 3)
+The loop must terminate. Three independent guarantees, any one of which is sufficient:
 
-In practice, most corrections happen in iteration 1. Iteration 2 catches second-order effects (e.g., a rescued face changes a cluster composition, which changes a bib consistency verdict). Iteration 3 should almost always be a no-op.
+1. **No corrections** — no check produces corrections → stable, stop.
+2. **Max iterations** — hard cap (default 3), stop unconditionally.
+3. **Monotonic progress** — corrections are only allowed to *add* information (rescue a face, revise a bib reading), never to *undo* a previous correction. A face rescued in iteration 1 cannot be un-rescued in iteration 2. This prevents oscillation by construction.
+
+Implementation: each correction carries a unique key (e.g., `("rescue_face", photo_hash, face_idx)`). The loop maintains a set of applied correction keys. A correction whose key is already in the set is silently skipped. This makes the loop idempotent — even if a check re-proposes the same correction, it won't be applied twice.
+
+In practice, most corrections happen in iteration 1. Iteration 2 catches second-order effects (e.g., a rescued face changes cluster composition, which surfaces a new bib inconsistency). Iteration 3 should almost always be a no-op. If iteration 3 still produces novel corrections, the max-iterations cap stops it and the diagnostics log what was left unresolved.
 
 ### Diagnostics
 
