@@ -1,8 +1,8 @@
-# Task 069: Split embedding (single-photo) from clustering (cross-photo)
+# Task 074: Split embedding (single-photo) from clustering (cross-photo)
 
-Part of the tuning series. Structural prerequisite for task-068 (refinement loop) and task-070 (clustering trace).
+Part of the tuning series. Structural prerequisite for task-077 (refinement loop) and task-075 (clustering trace).
 
-**Depends on:** task-067 (face candidate trace)
+**Depends on:** task-073 (face candidate trace)
 
 ## Goal
 
@@ -77,7 +77,7 @@ Mark tests that need real embedder/images as `@pytest.mark.slow`.
 
 ```python
 class FaceCandidateTrace(BaseModel):
-    ...existing fields from task-067...
+    ...existing fields from task-073...
 
     # Embedding (None if rejected before embedding)
     embedding: list[float] | None = None
@@ -217,5 +217,5 @@ venv/bin/python -m pytest  # full suite
 ## Scope boundaries
 
 - **In scope**: move embedding, refactor clustering, shared core, trace field, tests
-- **Out of scope**: clustering trace fields on `FaceCandidateTrace` (task-070), refinement loop (task-068), scaling optimizations
+- **Out of scope**: clustering trace fields on `FaceCandidateTrace` (task-075), refinement loop (task-077), scaling optimizations
 - **Do not** change detection behavior or clustering algorithm

@@ -1,8 +1,8 @@
-# Task 068: Cross-photo refinement loop framework
+# Task 077: Cross-photo refinement loop framework
 
 Part of the tuning series. Architectural framework for iterative pipeline improvement.
 
-**Depends on:** task-065 (bib trace), task-067 (face trace), and prerequisites not yet tasked: embedding stored on face trace, clustering with diagnostics.
+**Depends on:** task-072 (bib trace), task-073 (face trace), task-074 (split embed from cluster), task-075 (clustering trace)
 
 ## Goal
 
@@ -144,15 +144,13 @@ Each iteration records:
 
 This feeds into the benchmark report so you can see exactly what the refinement loop contributed.
 
-## Prerequisites (not yet tasked)
+## Prerequisites
 
-This framework depends on infrastructure that needs its own tasks:
+All now tasked:
 
-1. **Embedding on face trace** — move face embedding from `_assign_face_clusters()` into the single-photo pipeline. Store embedding vector (or a hash/summary) on `FaceCandidateTrace`. This makes embeddings available without re-processing images.
-
-2. **Clustering with diagnostics** — refactor `_assign_face_clusters()` into a pure function that takes embeddings and returns cluster assignments + per-face distances + cluster cohesion metrics. No image access needed.
-
-3. **Image decode once** — share decoded image between bib and face detection in the single-photo pipeline, eliminating the current 3x decode.
+1. **Embedding on face trace** — task-074 (split embed from cluster)
+2. **Clustering with diagnostics** — task-075 (clustering trace)
+3. **Image decode once** — task-078 (shared image decode)
 
 ## Scope boundaries
 

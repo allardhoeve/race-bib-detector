@@ -1,8 +1,8 @@
-# Task 067: Face candidate trace — capture detection pipeline journey
+# Task 073: Face candidate trace — capture detection pipeline journey
 
-Part of the tuning series (064 → 065 → 066). Parallel to task-065 (bib candidate trace).
+Part of the tuning series (071–077). Parallel to task-072 (bib candidate trace).
 
-**Depends on:** task-065 (establishes the trace pattern)
+**Depends on:** task-072 (establishes the trace pattern)
 
 ## Goal
 
@@ -51,7 +51,7 @@ The fix is simple: store all candidates in a trace, mirroring the bib trace patt
 - `faces/types.py:98-115` — `FaceCandidate` (Pydantic BaseModel): bbox, confidence, passed, rejection_reason, model
 - `benchmarking/runner.py:461-493` — `_run_face_detection()` where rejected candidates are discarded
 - `benchmarking/runner.py:103` — `PhotoResult.pred_face_boxes` (only passed candidates today)
-- `benchmarking/runner.py:73-85` — `BibCandidateTrace` (task-065, the pattern to follow)
+- `benchmarking/runner.py:73-85` — `BibCandidateTrace` (task-072, the pattern to follow)
 
 ## Test-first approach
 
@@ -192,5 +192,5 @@ venv/bin/python -m pytest
 ## Scope boundaries
 
 - **In scope**: trace model, store all candidates, tests
-- **Out of scope**: clustering diagnostics (separate task), consuming traces for tuning (task-066), face fallback backend cleanup
+- **Out of scope**: clustering diagnostics (separate task), consuming traces for tuning (task-076), face fallback backend cleanup
 - **Do not** change backend behavior or detection logic

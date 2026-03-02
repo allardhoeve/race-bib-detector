@@ -1,8 +1,8 @@
-# Task 070: Clustering trace — per-face diagnostic distances
+# Task 075: Clustering trace — per-face diagnostic distances
 
-Part of the tuning series. Prerequisite for task-068 (refinement loop).
+Part of the tuning series. Prerequisite for task-077 (refinement loop).
 
-**Depends on:** task-069 (split embedding from clustering)
+**Depends on:** task-074 (split embedding from clustering)
 
 ## Goal
 
@@ -10,7 +10,7 @@ Write clustering diagnostic fields back onto `FaceCandidateTrace` so each face r
 
 ## Background
 
-After task-069, `cluster_with_diagnostics()` returns a `ClusterResult` with per-face `ClusterAssignment` (cluster_id, cluster_distance, nearest_other_distance). This task writes those values onto `FaceCandidateTrace` and stores them in the benchmark JSON.
+After task-074, `cluster_with_diagnostics()` returns a `ClusterResult` with per-face `ClusterAssignment` (cluster_id, cluster_distance, nearest_other_distance). This task writes those values onto `FaceCandidateTrace` and stores them in the benchmark JSON.
 
 This closes the diagnostic gap: you can now look at any face in a benchmark run and see its complete journey — detection confidence, filtering outcome, embedding, cluster assignment, and how confident that assignment was.
 
@@ -25,7 +25,7 @@ This closes the diagnostic gap: you can now look at any face in a benchmark run 
 
 ## Context
 
-- `faces/clustering.py` — `ClusterResult`, `ClusterAssignment` (from task-069)
+- `faces/clustering.py` — `ClusterResult`, `ClusterAssignment` (from task-074)
 - `benchmarking/runner.py` — `FaceCandidateTrace`, `_assign_face_clusters()`
 - `benchmarking/runner.py:675-677` — where `_assign_face_clusters()` is called in the detection loop
 
@@ -45,7 +45,7 @@ class TestFaceCandidateTraceClustering:
         """Rejected face trace has all cluster fields as None."""
 ```
 
-### Extend `tests/test_face_embedding_trace.py` (from task-069)
+### Extend `tests/test_face_embedding_trace.py` (from task-074)
 
 ```python
 def test_assign_clusters_writes_diagnostics_to_trace():
@@ -107,5 +107,5 @@ venv/bin/python -m pytest  # full suite
 ## Scope boundaries
 
 - **In scope**: trace fields, write-back from ClusterResult, tests
-- **Out of scope**: changing clustering algorithm, refinement loop (task-068), scaling
+- **Out of scope**: changing clustering algorithm, refinement loop (task-077), scaling
 - **Do not** change clustering behavior — only capture its output

@@ -1,6 +1,6 @@
-# Task 064: Remove full-image OCR fallback
+# Task 071: Remove full-image OCR fallback
 
-First in the tuning series (064 → 065 → 066).
+Part of the tuning series (071–077).
 
 ## Goal
 
