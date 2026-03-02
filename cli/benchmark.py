@@ -247,4 +247,17 @@ def add_benchmark_subparser(subparsers: argparse._SubParsersAction) -> None:
     )
     bench_inspect.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.benchmark", "cmd_benchmark_inspect"))
 
+    # ---- auto-tune ----
+    bench_auto_tune = benchmark_subparsers.add_parser(
+        "auto-tune",
+        help="Diagnose benchmark failures and suggest parameter changes",
+    )
+    bench_auto_tune.add_argument(
+        "run_id",
+        nargs="?",
+        default=None,
+        help="Run ID to analyze (defaults to latest)",
+    )
+    bench_auto_tune.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.auto_tune", "cmd_auto_tune"))
+
     benchmark_parser.set_defaults(_benchmark_parser=benchmark_parser)
