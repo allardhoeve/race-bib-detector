@@ -36,7 +36,7 @@ Steps 1, 4, 5 are the **harness** — stable scaffolding. Steps 2 and 3 are the 
 - `benchmarking/runner.py` — `BenchmarkRun`, `PhotoResult`, `BenchmarkMetrics`, `PipelineConfig`; detection loop stores pred/GT boxes per photo (task-049/050)
 - `benchmarking/scoring.py` — `BibScorecard`, `score_bibs()`, IoU matching
 - `benchmarking/tuners/grid.py` — existing grid sweep (GridTuner); reference for how sweeps work
-- `benchmarking/tuners/protocol.py` — `Tuner` Protocol + `TunerResult` BaseModel (task-060)
+- `benchmarking/tuners/protocol.py` — `Tuner` Protocol + `TunerResult` BaseModel (task-063)
 - `detection/detector.py` — bib detection pipeline, `PipelineResult`, `BibCandidate`
 - `detection/types.py` — `Detection` (has `confidence`, `source`), `BibCandidate` (has `passed`, `rejection_reason`, intermediate metrics)
 - `config.py` — all default parameter values
