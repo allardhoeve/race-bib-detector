@@ -67,9 +67,6 @@ MEAN_BRIGHTNESS_THRESHOLD = 100
 # Confidence threshold for OCR on white regions (lower because context helps)
 WHITE_REGION_CONFIDENCE_THRESHOLD = 0.4
 
-# Confidence threshold for full-image OCR fallback (higher to reduce noise)
-FULL_IMAGE_CONFIDENCE_THRESHOLD = 0.5
-
 # =============================================================================
 # DETECTION FILTERING
 # =============================================================================

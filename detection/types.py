@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 # Detection source types
-DetectionSource = Literal["white_region", "full_image"]
+DetectionSource = Literal["white_region"]
 
 
 class Detection(BaseModel):
@@ -33,8 +33,8 @@ class Detection(BaseModel):
         bib_number: The detected bib number as a string (e.g., "123", "42")
         confidence: OCR confidence score between 0 and 1
         bbox: Bounding box as list of 4 [x, y] points defining a quadrilateral
-        source: Detection method used ("white_region" or "full_image")
-        source_candidate: The BibCandidate this detection came from (None for full_image)
+        source: Detection method used ("white_region")
+        source_candidate: The BibCandidate this detection came from
     """
 
     model_config = ConfigDict(arbitrary_types_allowed=True)

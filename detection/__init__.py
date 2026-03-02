@@ -18,7 +18,7 @@ containing detections with full lineage tracking back to source candidates.
 """
 
 from .types import Detection, PipelineResult, DetectionResult, BibCandidate, Bbox
-from .detector import detect_bib_numbers, extract_bib_detections
+from .detector import detect_bib_numbers
 from .validation import is_valid_bib_number
 from .regions import find_bib_candidates, validate_detection_region
 from .bbox import bbox_area, bbox_iou, bbox_overlap_ratio, bbox_to_rect, scale_bbox, scale_bboxes
@@ -31,7 +31,7 @@ __all__ = [
     "BibCandidate",
     "Bbox",
     "detect_bib_numbers",
-    "extract_bib_detections",
+
     "is_valid_bib_number",
     "find_bib_candidates",
     "validate_detection_region",

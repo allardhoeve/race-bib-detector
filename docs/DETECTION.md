@@ -69,8 +69,6 @@ results = reader.readtext(region)
 # Returns: [(bbox, text, confidence), ...]
 ```
 
-A fallback full-image scan catches bibs missed by region detection.
-
 ### Stage 3: Validation
 
 Detected text is validated as a bib number:
@@ -169,21 +167,19 @@ Each `Detection` tracks its origin for debugging and transparency:
 for det in result.detections:
     print(f"Bib {det.bib_number}: source={det.source}")
 
-    if det.source == "white_region" and det.source_candidate:
+    if det.source_candidate:
         # Trace back to the candidate region
         candidate = det.source_candidate
         print(f"  From candidate at ({candidate.x}, {candidate.y})")
         print(f"  Candidate brightness: {candidate.median_brightness}")
-    elif det.source == "full_image":
-        print("  Found via full-image fallback scan")
 ```
 
 Detection attributes:
 - `bib_number`: The detected number (e.g., "123")
 - `confidence`: OCR confidence (0.0 to 1.0)
 - `bbox`: Bounding box as 4 [x,y] points
-- `source`: Detection method (`"white_region"` or `"full_image"`)
-- `source_candidate`: The `BibCandidate` this came from (None for full_image)
+- `source`: Detection method (`"white_region"`)
+- `source_candidate`: The `BibCandidate` this came from
 
 ## Configuration
 
@@ -203,11 +199,8 @@ Resizing to a fixed width ensures consistent kernel behavior for region detectio
 | Context | Threshold | Config Variable |
 |---------|-----------|-----------------|
 | White region OCR | 0.4 | `WHITE_REGION_CONFIDENCE_THRESHOLD` |
-| Full image OCR | 0.5 | `FULL_IMAGE_CONFIDENCE_THRESHOLD` |
 | Size ratio | 0.10 | `MIN_DETECTION_AREA_RATIO` |
 | IoU overlap | 0.3 | `IOU_OVERLAP_THRESHOLD` |
 | Coverage overlap | 0.7 | `COVERAGE_OVERLAP_THRESHOLD` |
-
-Higher thresholds for full-image scan reduce false positives where we lack the white region context.
 
 All configurable values are defined in `config.py` for easy tuning.

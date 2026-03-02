@@ -18,65 +18,13 @@ if TYPE_CHECKING:
 
 from config import (
     WHITE_REGION_CONFIDENCE_THRESHOLD,
-    FULL_IMAGE_CONFIDENCE_THRESHOLD,
 )
 from preprocessing import run_pipeline, PreprocessConfig
 
-from .types import Detection, PipelineResult, BibCandidate, DetectionSource
-from .regions import find_bib_candidates, validate_detection_region
+from .types import Detection, PipelineResult, BibCandidate
+from .regions import find_bib_candidates
 from .validation import is_valid_bib_number
 from .filtering import filter_small_detections, filter_overlapping_detections
-
-
-def extract_bib_detections(
-    reader: easyocr.Reader,
-    image: np.ndarray,
-    gray_image: np.ndarray,
-    confidence_threshold: float,
-    source: DetectionSource,
-) -> tuple[list[Detection], list[BibCandidate]]:
-    """Run OCR on an image and extract valid bib number detections.
-
-    Validates each detection against candidate filters (aspect ratio, brightness,
-    relative area) and returns both the detections and their candidate metadata.
-
-    Args:
-        reader: EasyOCR reader instance.
-        image: Image to run OCR on (RGB numpy array).
-        gray_image: Grayscale version for brightness validation.
-        confidence_threshold: Minimum OCR confidence to accept.
-        source: Detection source label ("white_region" or "full_image").
-
-    Returns:
-        Tuple of (detections, candidates) where candidates includes both
-        passed and rejected for visualization/debugging.
-    """
-    results = reader.readtext(image)
-    detections: list[Detection] = []
-    candidates: list[BibCandidate] = []
-
-    for bbox, text, confidence in results:
-        cleaned = text.strip().replace(" ", "")
-
-        if not is_valid_bib_number(cleaned) or confidence <= confidence_threshold:
-            continue
-
-        bbox_native = [[int(coord) for coord in point] for point in bbox]
-
-        # Validate using same criteria as white region candidates
-        candidate = validate_detection_region(bbox_native, gray_image)
-        candidates.append(candidate)
-
-        if candidate.passed:
-            detections.append(Detection(
-                bib_number=cleaned,
-                confidence=float(confidence),
-                bbox=bbox_native,
-                source=source,
-                source_candidate=candidate,
-            ))
-
-    return detections, candidates
 
 
 def detect_bib_numbers(
@@ -148,15 +96,6 @@ def detect_bib_numbers(
         # Filter out tiny detections relative to this candidate region
         filtered = filter_small_detections(region_detections, candidate.area)
         all_detections.extend(filtered)
-
-    # Also run OCR on full image as fallback (in case region detection missed something)
-    full_image_detections, full_image_candidates = extract_bib_detections(
-        reader, ocr_image, ocr_grayscale,
-        confidence_threshold=FULL_IMAGE_CONFIDENCE_THRESHOLD,
-        source="full_image",
-    )
-    all_detections.extend(full_image_detections)
-    all_candidates.extend(full_image_candidates)
 
     # Filter overlapping detections (e.g., "620" vs "6", "20")
     all_detections = filter_overlapping_detections(all_detections)

@@ -5,8 +5,7 @@ Bibs are typically white rectangles with dark numbers. This module finds
 candidate white regions that could contain bib numbers.
 
 Also provides `validate_detection_region()` to apply the same filtering
-logic to any detection bbox, ensuring consistent filtering across detection
-methods (white_region and full_image).
+logic to any detection bbox.
 """
 
 import cv2
@@ -34,7 +33,6 @@ def validate_detection_region(
 ) -> BibCandidate:
     """Validate a detection bounding box using the same criteria as white region candidates.
 
-    This ensures consistent filtering between white_region and full_image detection methods.
     Checks aspect ratio, relative area, and brightness thresholds.
 
     Args:

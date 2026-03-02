@@ -7,15 +7,6 @@ Each can be answered by running benchmark comparisons.
 
 ## Bib detection
 
-### Does the full-image OCR fallback help?
-
-The bib pipeline runs OCR twice: first on white-region candidates, then on the
-full image as a fallback (`detection/detector.py:155`). The fallback uses a
-higher confidence threshold (0.5 vs 0.4) but still adds processing time.
-
-**Experiment:** Run the benchmark with and without the full-image pass. Compare
-`BibScorecard` recall. If the delta is negligible, remove the pass.
-
 ### Are the white-region thresholds optimal?
 
 White region selection (`config.py:34–61`) uses fixed thresholds:
@@ -31,11 +22,11 @@ sweep bib detection parameters, and measure precision/recall across the grid.
 
 ### Does OCR confidence threshold tuning improve bib accuracy?
 
-`WHITE_REGION_CONFIDENCE_THRESHOLD=0.4` and `FULL_IMAGE_CONFIDENCE_THRESHOLD=0.5`
-(`config.py:68–71`) gate which EasyOCR detections are kept. Lower values recover
-more bibs but risk false positives (clothing text, sponsor logos).
+`WHITE_REGION_CONFIDENCE_THRESHOLD=0.4` (`config.py`) gates which EasyOCR
+detections are kept. Lower values recover more bibs but risk false positives
+(clothing text, sponsor logos).
 
-**Experiment:** Sweep both thresholds and measure the precision/recall curve.
+**Experiment:** Sweep the threshold and measure the precision/recall curve.
 
 ### Is substring deduplication correctly calibrated?
 
