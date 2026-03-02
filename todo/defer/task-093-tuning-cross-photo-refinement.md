@@ -2,7 +2,9 @@
 
 Part of the tuning series (085-094). Framework for iterative pipeline improvement.
 
-**Depends on:** task-091 (pipeline/cluster.py)
+**Depends on:** task-091 (pipeline/cluster.py), task-095 (trace-based autolink)
+
+**BLOCKED:** The bib consistency check needs to know which face traces are linked to which bib traces. Currently autolink operates on boxes (`BibBox`, `FaceBox`), and there is no explicit bridge between the box world and the trace world. Task-095 must resolve this first — either by moving autolink to traces, or by adding an explicit trace↔box mapping.
 
 ## Goal
 
