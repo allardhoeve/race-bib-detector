@@ -1,6 +1,8 @@
-# Task 059: Auto-tuner — diagnose failures and suggest parameter changes
+# Task 065: Auto-tuner — diagnose failures and suggest parameter changes
 
-Independent of other open tasks. Benefits from task-035 (split detection loop) but does not require it.
+**Depends on:** task-064 (bib candidate trace)
+
+Benefits from task-035 (split detection loop) but does not require it.
 
 ## Goal
 
@@ -33,7 +35,7 @@ Steps 1, 4, 5 are the **harness** — stable scaffolding. Steps 2 and 3 are the 
 
 ## Context
 
-- `benchmarking/runner.py` — `BenchmarkRun`, `PhotoResult`, `BenchmarkMetrics`, `PipelineConfig`; detection loop stores pred/GT boxes per photo (task-049/050)
+- `benchmarking/runner.py` — `BenchmarkRun`, `PhotoResult` (has `bib_trace: list[BibCandidateTrace]` from task-064), `BenchmarkMetrics`, `PipelineConfig`
 - `benchmarking/scoring.py` — `BibScorecard`, `score_bibs()`, IoU matching
 - `benchmarking/tuners/grid.py` — existing grid sweep (GridTuner); reference for how sweeps work
 - `benchmarking/tuners/protocol.py` — `Tuner` Protocol + `TunerResult` BaseModel (task-063)
@@ -134,18 +136,15 @@ Rule-based diagnosis that classifies each failure into a bucket and maps buckets
 | `ocr_wrong_number` | OCR returned wrong digits | Not a parameter problem | — |
 | `ocr_no_result` | OCR returned nothing | Model limitation or preprocessing | re-run |
 
-The strategy re-runs the detection pipeline on failing photos in diagnostic mode to collect the intermediate `BibCandidate` and `Detection` data needed for classification.
+The strategy reads `PhotoResult.bib_trace` (task-064) to classify failures — no re-running detection. Each `BibCandidateTrace` records validation outcome, OCR text/confidence, and whether the candidate was accepted as a final detection.
 
-For "replay" suggestions (confidence thresholds), the strategy can estimate impact by replaying the threshold change against existing detection data from all photos — no re-run needed.
+For "replay" suggestions (confidence thresholds), the strategy replays the threshold change against stored `ocr_confidence` values from all photos — instant.
 
 ```python
 class RuleBasedStrategy:
     def analyze(self, failures, benchmark_run):
-        # Re-run pipeline on failures in diagnostic mode
-        diagnostics = self._collect_diagnostics(failures)
-
-        # Classify each failure
-        buckets = self._classify(diagnostics)
+        # Classify each failure from stored trace data
+        buckets = self._classify(failures)
 
         # Aggregate buckets into suggestions
         suggestions = self._suggest(buckets, benchmark_run)
@@ -225,10 +224,6 @@ Re-exports.
 
 Add `auto-tune` subcommand (or `bnr benchmark auto-tune`) that loads a benchmark run and runs the auto-tuner.
 
-### Modified: `detection/detector.py`
-
-Ensure `detect_bib_numbers()` can be called in a diagnostic mode that returns full `PipelineResult` including all candidates (passed and rejected) with their intermediate metrics. This may already be the case — verify before changing.
-
 ## Tests
 
 Add `tests/test_auto_tuner.py`:
@@ -263,7 +258,7 @@ venv/bin/python bnr.py benchmark auto-tune
 
 ## Pitfalls
 
-- `PipelineResult` and `BibCandidate` data is produced during detection but not currently stored in `PhotoResult` or the benchmark run JSON. The strategy needs to either (a) re-run detection on failing photos to get this data, or (b) extend `PhotoResult` to store it. Option (a) is simpler for the first implementation — option (b) is an optimization for later.
+- ~~`PipelineResult` and `BibCandidate` data is produced during detection but not currently stored.~~ Resolved by task-064: `PhotoResult.bib_trace` now stores `BibCandidateTrace` with OCR outcomes. The strategy reads traces directly — no re-running detection for the replay path.
 - Confidence threshold replay assumes OCR results are deterministic for the same input — this is true for EasyOCR but verify.
 - The regression test for "re-run" suggestions is expensive. Consider making it opt-in (`--regression` flag) or sampling a subset of passing photos.
 
@@ -282,4 +277,4 @@ venv/bin/python bnr.py benchmark auto-tune
 
 - **In scope**: harness, rule-based strategy for bib detection, CLI command, report output
 - **Out of scope**: face detection auto-tuning (future strategy), web UI for suggestions, automatic application of suggestions to `config.py`
-- **Do not** modify existing benchmark run storage format
+- **Do not** modify `PhotoResult` or detection pipeline (that's task-064)

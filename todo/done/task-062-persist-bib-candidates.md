@@ -1,6 +1,6 @@
 # Task 062: Persist bib candidates in PhotoResult
 
-Independent of other open tasks. Prerequisite for task-059 (auto-tuner).
+Independent of other open tasks. Prerequisite for task-065 (auto-tuner).
 
 ## Goal
 

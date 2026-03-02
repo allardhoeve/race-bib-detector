@@ -4,7 +4,7 @@
 
 ## Goal
 
-Reorganise `benchmarking/tuner.py` into a `benchmarking/tuners/` package with a `Tuner` Protocol so that the grid sweep and future auto-tuner (task-059) share a common interface.
+Reorganise `benchmarking/tuner.py` into a `benchmarking/tuners/` package with a `Tuner` Protocol so that the grid sweep and future auto-tuner (task-065) share a common interface.
 
 ## What changed
 
@@ -17,7 +17,7 @@ Reorganise `benchmarking/tuner.py` into a `benchmarking/tuners/` package with a 
 | Modified | `benchmarking/cli/commands/tune.py` | Import from `benchmarking.tuners.grid` |
 | Moved | `tests/benchmarking/test_tuner.py` → `tests/benchmarking/test_tuners_grid.py` | Updated imports + patch paths |
 | New | `tests/benchmarking/test_tuners_protocol.py` | Protocol + TunerResult tests |
-| Modified | `todo/tasks/task-059-auto-tuner.md` | `auto_tuner.py` → `tuners/auto.py`, Tuner protocol conformance |
+| Modified | `todo/tasks/task-065-auto-tuner.md` | `auto_tuner.py` → `tuners/auto.py`, Tuner protocol conformance |
 
 ## Protocol
 
