@@ -2,7 +2,7 @@
 
 import pytest
 
-from benchmarking.ground_truth import BibBox
+from pipeline_types import BibBox
 from benchmarking.photo_index import save_photo_index
 from benchmarking.services import bib_service
 

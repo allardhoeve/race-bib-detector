@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query
 from starlette.responses import StreamingResponse
 
 from benchmarking.frozen_check import require_not_frozen
-from benchmarking.ground_truth import FaceBox
+from pipeline_types import FaceBox
 from benchmarking.label_utils import find_hash_by_prefix
 from benchmarking.photo_index import load_photo_index
 from benchmarking.schemas import (

@@ -29,14 +29,14 @@ from config import (
     FACE_FALLBACK_MAX,
     FACE_FALLBACK_MIN_FACE_COUNT,
 )
-from detection import detect_bib_numbers
 from geometry import bbox_to_rect
 from preprocessing import PreprocessConfig
 from warnings_utils import suppress_torch_mps_pin_memory_warning
 
 from faces import FaceBackend, get_face_backend
 
-from faces.autolink import predict_links
+from pipeline import run_single_photo
+from pipeline_types import predict_links
 
 from .ground_truth import (
     load_bib_ground_truth,
@@ -389,114 +389,6 @@ def _validate_inputs(gt, index: dict, photos: list, split: str) -> None:
         raise ValueError(f"No photos in split '{split}'")
 
 
-def _run_bib_detection(
-    reader,
-    image_data: bytes,
-    label: BibPhotoLabel,
-    artifact_dir: str,
-    tags: list[str] | None = None,
-    detect_fn=None,
-) -> tuple[PhotoResult, list[BibBox], tuple[int, int]]:
-    """Run bib OCR on one photo; return result, normalised bib boxes, and image dims.
-
-    Args:
-        reader: EasyOCR Reader instance.
-        image_data: Raw bytes of the image.
-        label: BibPhotoLabel carrying content_hash and expected boxes.
-        artifact_dir: Directory path for debug artifact images.
-        tags: Photo-level bib tags from PhotoMetadata.
-        detect_fn: Detection callable. Defaults to :func:`detect_bib_numbers`.
-
-    Returns:
-        photo_result: Per-photo status and TP/FP/FN counts.
-        pred_bib_boxes: Detected bib boxes in normalised [0, 1] coordinates.
-            Empty when image dimensions are zero (e.g. undecodable image).
-        image_dims: (width, height) of the original image; (0, 0) on failure.
-    """
-    if detect_fn is None:
-        detect_fn = detect_bib_numbers
-    detect_start = time.time()
-    result = detect_fn(reader, image_data, artifact_dir=artifact_dir)
-    detect_time_ms = (time.time() - detect_start) * 1000
-
-    detected_bibs = []
-    for det in result.detections:
-        try:
-            detected_bibs.append(int(det.bib_number))
-        except ValueError:
-            pass
-
-    photo_result = compute_photo_result(label, detected_bibs, detect_time_ms, tags=tags)
-    photo_result.artifact_paths = result.artifact_paths
-    photo_result.preprocess_metadata = result.preprocess_metadata
-
-    img_w, img_h = result.original_dimensions
-    pred_bib_boxes: list[BibBox] = []
-    if img_w > 0 and img_h > 0:
-        for det in result.detections:
-            x1, y1, x2, y2 = bbox_to_rect(det.bbox)
-            pred_bib_boxes.append(BibBox(
-                x=x1 / img_w, y=y1 / img_h,
-                w=(x2 - x1) / img_w, h=(y2 - y1) / img_h,
-                number=det.bib_number,
-                confidence=det.confidence,
-            ))
-        sf = result.scale_factor
-        photo_result.bib_candidates = [
-            BibCandidateSummary(
-                x=(c.x * sf) / img_w,
-                y=(c.y * sf) / img_h,
-                w=(c.w * sf) / img_w,
-                h=(c.h * sf) / img_h,
-                area=c.area,
-                aspect_ratio=c.aspect_ratio,
-                median_brightness=c.median_brightness,
-                mean_brightness=c.mean_brightness,
-                relative_area=c.relative_area,
-                passed=c.passed,
-                rejection_reason=c.rejection_reason,
-            )
-            for c in result.all_candidates
-        ]
-
-    return photo_result, pred_bib_boxes, (img_w, img_h)
-
-
-def _run_face_detection(face_backend: FaceBackend, image_data: bytes) -> tuple[list[FaceBox], float]:
-    """Decode image and run face detection; return normalised FaceBox list and timing.
-
-    Args:
-        face_backend: Face detection backend to use.
-        image_data: Raw bytes of the image.
-
-    Returns:
-        Tuple of (pred_face_boxes, detection_time_ms). Predicted face boxes are
-        in normalised [0, 1] coordinates, filtered to candidates that passed the
-        backend's threshold. Returns ([], 0.0) if the image cannot be decoded.
-    """
-    if not image_data:
-        return [], 0.0
-    img_array = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
-    if img_array is None:
-        return [], 0.0
-    image_rgb = cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB)
-    face_h, face_w = image_rgb.shape[:2]
-    start = time.time()
-    face_candidates = face_backend.detect_face_candidates(image_rgb)
-    elapsed_ms = (time.time() - start) * 1000
-    pred_face_boxes: list[FaceBox] = []
-    for cand in face_candidates:
-        if not cand.passed:
-            continue
-        x1, y1, x2, y2 = bbox_to_rect(cand.bbox)
-        pred_face_boxes.append(FaceBox(
-            x=x1 / face_w, y=y1 / face_h,
-            w=(x2 - x1) / face_w, h=(y2 - y1) / face_h,
-            confidence=cand.confidence,
-        ))
-    return pred_face_boxes, elapsed_ms
-
-
 def _assign_face_clusters(
     photo_results: list[PhotoResult],
     image_cache: dict[str, bytes],
@@ -566,18 +458,8 @@ def _run_detection_loop(
 ) -> tuple[list[PhotoResult], BibScorecard, FaceScorecard | None, LinkScorecard | None]:
     """Run detection on all photos; return results and aggregate IoU scorecards.
 
-    The loop has three phases per photo:
-
-    1. **Bib OCR** — calls _run_bib_detection to produce a PhotoResult and
-       a list of normalised BibBox predictions. IoU-based bib scoring is
-       accumulated across all photos into bib_tp/fp/fn/ocr counters.
-
-    2. **Face detection** (optional) — when face_backend and face_gt are both
-       provided, calls _run_face_detection and scores results against GT face
-       boxes. Skipped entirely when face_backend is None.
-
-    3. **Scorecard accumulation** — per-photo counters are summed, then wrapped
-       into BibScorecard and (optionally) FaceScorecard at the end.
+    Delegates per-photo detection to ``run_single_photo()`` (the unified
+    pipeline), then scores results against ground truth.
     """
     if photos_dir is None:
         photos_dir = PHOTOS_DIR
@@ -602,19 +484,64 @@ def _run_detection_loop(
             image_cache[label.content_hash] = image_data
         photo_artifact_dir = str(images_dir / label.content_hash[:16])
 
-        # Phase 1: Bib OCR
+        # --- Unified pipeline call ---
+        sp_result = run_single_photo(
+            image_data,
+            reader=reader,
+            detect_fn=detect_fn,
+            run_bibs=True,
+            face_backend=face_backend,
+            fallback_face_backend=None,  # benchmarking: no fallback chain
+            run_faces=face_backend is not None,
+            run_autolink=link_gt is not None and face_backend is not None and face_gt is not None,
+            artifact_dir=photo_artifact_dir,
+        )
+
+        pred_bib_boxes = sp_result.bib_boxes
+        img_w, img_h = sp_result.image_dims
+
+        # --- Build PhotoResult from pipeline output ---
+        detected_bibs: list[int] = []
+        for det in sp_result.bib_result.detections:
+            try:
+                detected_bibs.append(int(det.bib_number))
+            except ValueError:
+                pass
+
         photo_tags: list[str] = []
         if meta_store is not None:
             meta = meta_store.get(label.content_hash)
             if meta:
                 photo_tags = meta.bib_tags
-        photo_result, pred_bib_boxes, (img_w, img_h) = _run_bib_detection(
-            reader, image_data, label, photo_artifact_dir, tags=photo_tags,
-            detect_fn=detect_fn,
+
+        photo_result = compute_photo_result(
+            label, detected_bibs, sp_result.bib_detect_time_ms, tags=photo_tags,
         )
+        photo_result.artifact_paths = sp_result.bib_result.artifact_paths
+        photo_result.preprocess_metadata = sp_result.bib_result.preprocess_metadata
         photo_results.append(photo_result)
 
-        # Phase 2: Bib IoU scoring (only when original image dimensions are valid)
+        # Bib candidate diagnostics
+        if img_w > 0 and img_h > 0:
+            sf = sp_result.bib_result.scale_factor
+            photo_result.bib_candidates = [
+                BibCandidateSummary(
+                    x=(c.x * sf) / img_w,
+                    y=(c.y * sf) / img_h,
+                    w=(c.w * sf) / img_w,
+                    h=(c.h * sf) / img_h,
+                    area=c.area,
+                    aspect_ratio=c.aspect_ratio,
+                    median_brightness=c.median_brightness,
+                    mean_brightness=c.mean_brightness,
+                    relative_area=c.relative_area,
+                    passed=c.passed,
+                    rejection_reason=c.rejection_reason,
+                )
+                for c in sp_result.bib_result.all_candidates
+            ]
+
+        # --- Bib IoU scoring ---
         if img_w > 0 and img_h > 0:
             photo_sc = score_bibs(pred_bib_boxes, label.boxes)
             photo_result.bib_scorecard = photo_sc
@@ -624,38 +551,37 @@ def _run_detection_loop(
             bib_ocr_correct += photo_sc.ocr_correct
             bib_ocr_total += photo_sc.ocr_total
 
-        # Store prediction + GT bib boxes on result (task-050)
         photo_result.pred_bib_boxes = pred_bib_boxes
         photo_result.gt_bib_boxes = label.boxes
 
-        # Phase 3: Face detection + scoring (optional)
-        pred_face_boxes: list[FaceBox] = []
+        # --- Face scoring ---
+        pred_face_boxes = sp_result.face_boxes
         photo_face_label = None
         if face_backend is not None and face_gt is not None:
             photo_face_label = face_gt.get_photo(label.content_hash)
             gt_face_boxes = photo_face_label.boxes if photo_face_label else []
-            pred_face_boxes, face_time_ms = _run_face_detection(face_backend, image_data)
-            photo_result.face_detection_time_ms = face_time_ms
+            photo_result.face_detection_time_ms = sp_result.face_detect_time_ms
             photo_face_sc = score_faces(pred_face_boxes, gt_face_boxes)
             photo_result.face_scorecard = photo_face_sc
             face_tp += photo_face_sc.detection_tp
             face_fp += photo_face_sc.detection_fp
             face_fn += photo_face_sc.detection_fn
 
+        # --- Link scoring ---
         if link_gt is not None and photo_face_label is not None:
-            autolink = predict_links(pred_bib_boxes, pred_face_boxes)
-            # Persist predicted links as index pairs (task-060)
+            autolink = sp_result.autolink
+            predicted_pairs = autolink.pairs if autolink else []
             pred_link_list = []
-            for bib_box, face_box in autolink.pairs:
+            for bib_box, face_box in predicted_pairs:
                 try:
                     bi = pred_bib_boxes.index(bib_box)
                     fi = pred_face_boxes.index(face_box)
                     pred_link_list.append(BibFaceLink(bib_index=bi, face_index=fi))
                 except ValueError:
-                    pass  # box not in list (shouldn't happen)
+                    pass
             photo_result.pred_links = pred_link_list
             photo_link_sc = score_links(
-                predicted_pairs=autolink.pairs,
+                predicted_pairs=predicted_pairs,
                 gt_bib_boxes=label.boxes,
                 gt_face_boxes=photo_face_label.boxes,
                 gt_links=link_gt.get_links(label.content_hash),
@@ -665,7 +591,6 @@ def _run_detection_loop(
             link_fp += photo_link_sc.link_fp
             link_fn += photo_link_sc.link_fn
 
-        # Store prediction + GT face boxes on result (task-050)
         photo_result.pred_face_boxes = pred_face_boxes
         if photo_face_label is not None:
             photo_result.gt_face_boxes = photo_face_label.boxes

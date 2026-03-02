@@ -5,17 +5,13 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
+from typing import Iterator, TYPE_CHECKING
 
-import cv2
-import numpy as np
 from tqdm import tqdm
-from typing import TYPE_CHECKING
 
 import config
 import db
-from detection import detect_bib_numbers, Detection, DetectionResult
-from preprocessing import PreprocessConfig
+from detection import Detection, DetectionResult
 from faces import get_face_backend, get_face_backend_by_name, get_face_embedder
 from faces.artifacts import (
     save_face_candidates_preview,
@@ -24,8 +20,8 @@ from faces.artifacts import (
     save_face_evidence_json,
 )
 from faces.types import FaceDetection
-from geometry import bbox_to_rect, rect_iou
 from photo import compute_photo_hash, ImagePaths
+from pipeline import run_single_photo
 from sources import get_cache_path, cache_image, load_from_cache
 from utils import (
     get_gray_bbox_path,
@@ -148,6 +144,26 @@ def save_face_detections_to_db(
         )
 
 
+def _get_bib_detection_ids(conn, photo_id: int) -> list[int]:
+    """Get bib detection IDs for a photo, ordered by insertion."""
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id FROM bib_detections WHERE photo_id = ? ORDER BY id",
+        (photo_id,),
+    )
+    return [row[0] for row in cursor.fetchall()]
+
+
+def _get_face_detection_ids(conn, photo_id: int) -> list[int]:
+    """Get face detection IDs for a photo, ordered by face_index."""
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT id FROM face_detections WHERE photo_id = ? ORDER BY face_index",
+        (photo_id,),
+    )
+    return [row[0] for row in cursor.fetchall()]
+
+
 def process_image(
     reader: "easyocr.Reader | None",
     face_backend,
@@ -162,24 +178,30 @@ def process_image(
     run_bib_detection: bool,
     run_face_detection: bool,
 ) -> tuple[int, int]:
-    """Process a single image: detect bibs/faces, save artifacts, update database."""
-    result = DetectionResult(
-        detections=[],
-        all_candidates=[],
-        ocr_grayscale=np.empty((0, 0), dtype=np.uint8),
-        original_dimensions=(0, 0),
-        ocr_dimensions=(0, 0),
-        scale_factor=1.0,
+    """Process a single image: detect bibs/faces, save artifacts, update database.
+
+    Delegates detection to ``run_single_photo()`` (unified pipeline), then
+    persists artifacts and database records.
+    """
+    if run_bib_detection and reader is None:
+        raise ValueError("reader is required when run_bib_detection is True")
+
+    # --- Unified detection ---
+    sp = run_single_photo(
+        image_data,
+        reader=reader,
+        run_bibs=run_bib_detection,
+        face_backend=face_backend,
+        fallback_face_backend=fallback_face_backend,
+        run_faces=run_face_detection,
+        run_autolink=run_bib_detection and run_face_detection,
     )
 
-    if run_bib_detection:
-        if reader is None:
-            raise ValueError("reader is required when run_bib_detection is True")
-        preprocess_config = PreprocessConfig()
-        result = detect_bib_numbers(reader, image_data, preprocess_config)
+    result = sp.bib_result
 
-        if result.detections:
-            save_detection_artifacts(result, cache_path)
+    # --- Bib artifacts + DB ---
+    if run_bib_detection and result.detections:
+        save_detection_artifacts(result, cache_path)
 
     photo_id = ensure_photo_record(conn, photo_url, thumbnail_url, album_id, cache_path)
 
@@ -188,119 +210,77 @@ def process_image(
             conn, result.detections, photo_url, thumbnail_url, album_id, cache_path, skip_existing
         )
 
+    # --- Face embedding, artifacts + DB ---
     face_detections: list[FaceDetection] = []
-    if run_face_detection:
-        image_array = cv2.imdecode(np.frombuffer(image_data, np.uint8), cv2.IMREAD_COLOR)
-        if image_array is None:
-            logger.warning("Failed to decode image for face detection: %s", photo_url)
-        else:
-            image_rgb = cv2.cvtColor(image_array, cv2.COLOR_BGR2RGB)
-            candidates = face_backend.detect_face_candidates(image_rgb)
-            boxes = [candidate.bbox for candidate in candidates if candidate.passed]
-            photo_hash = compute_photo_hash(photo_url)
-            if not boxes:
-                fallback_candidates = [
-                    candidate
-                    for candidate in candidates
-                    if candidate.confidence is not None
-                    and candidate.confidence >= config.FACE_DNN_FALLBACK_CONFIDENCE_MIN
-                ]
-                if fallback_candidates:
-                    fallback_candidates.sort(
-                        key=lambda candidate: candidate.confidence or 0.0,
-                        reverse=True,
-                    )
-                    fallback_candidates = fallback_candidates[: config.FACE_DNN_FALLBACK_MAX]
-                    boxes = [candidate.bbox for candidate in fallback_candidates]
-                    logger.info(
-                        "Face fallback accepted %d candidates for %s (min_conf=%.2f).",
-                        len(boxes),
-                        photo_hash,
-                        config.FACE_DNN_FALLBACK_CONFIDENCE_MIN,
-                    )
-            all_candidates = list(candidates)
-            detections_by_backend: list[tuple[object, list]] = []
-            if boxes:
-                detections_by_backend.append((face_backend, boxes))
+    if run_face_detection and sp.face_pixel_bboxes and sp.image_rgb is not None:
+        image_rgb = sp.image_rgb
+        photo_hash = compute_photo_hash(photo_url)
 
-            if (
-                fallback_face_backend is not None
-                and len(boxes) < config.FACE_FALLBACK_MIN_FACE_COUNT
-            ):
-                fallback_candidates = fallback_face_backend.detect_face_candidates(image_rgb)
-                fallback_boxes = [candidate.bbox for candidate in fallback_candidates if candidate.passed]
-                if fallback_boxes:
-                    filtered_boxes: list = []
-                    for fallback_box in fallback_boxes:
-                        fallback_rect = bbox_to_rect(fallback_box)
-                        duplicate = False
-                        for existing_box in boxes:
-                            existing_rect = bbox_to_rect(existing_box)
-                            iou = rect_iou(fallback_rect, existing_rect)
-                            if iou >= config.FACE_FALLBACK_IOU_THRESHOLD:
-                                duplicate = True
-                                break
-                        if not duplicate:
-                            filtered_boxes.append(fallback_box)
-                    if filtered_boxes:
-                        filtered_boxes = filtered_boxes[: config.FACE_FALLBACK_MAX]
-                        detections_by_backend.append((fallback_face_backend, filtered_boxes))
-                        all_candidates.extend(fallback_candidates)
-                        logger.info(
-                            "Face backend fallback accepted %d candidates for %s via %s.",
-                            len(filtered_boxes),
-                            photo_hash,
-                            type(fallback_face_backend).__name__,
-                        )
+        embedder = get_face_embedder()
+        embedder_model_info = embedder.model_info()
+        embeddings = embedder.embed(image_rgb, sp.face_pixel_bboxes)
 
-            embedder = get_face_embedder()
-            embedder_model_info = embedder.model_info()
-            embeddings_by_backend: list[tuple[list, list, object]] = []
-            for backend, backend_boxes in detections_by_backend:
-                embeddings = embedder.embed(image_rgb, backend_boxes)
-                embeddings_by_backend.append((backend_boxes, embeddings, embedder_model_info))
+        paths = ImagePaths.for_cache_path(cache_path)
+        paths.ensure_dirs_exist()
 
-            paths = ImagePaths.for_cache_path(cache_path)
-            paths.ensure_dirs_exist()
+        for face_index, (bbox, embedding) in enumerate(zip(sp.face_pixel_bboxes, embeddings)):
+            snippet_path = paths.face_snippet_path(face_index)
+            preview_path = paths.face_boxed_path(face_index)
 
-            face_index = 0
-            for backend_boxes, embeddings, model_info in embeddings_by_backend:
-                for bbox, embedding in zip(backend_boxes, embeddings):
-                    snippet_path = paths.face_snippet_path(face_index)
-                    preview_path = paths.face_boxed_path(face_index)
+            snippet_saved = save_face_snippet(image_rgb, bbox, snippet_path)
+            preview_saved = save_face_boxed_preview(image_rgb, bbox, preview_path)
 
-                    snippet_saved = save_face_snippet(image_rgb, bbox, snippet_path)
-                    preview_saved = save_face_boxed_preview(image_rgb, bbox, preview_path)
-
-                    face_detections.append(
-                        FaceDetection(
-                            face_index=face_index,
-                            bbox=bbox,
-                            embedding=embedding,
-                            model=model_info,
-                            snippet_path=str(snippet_path) if snippet_saved else None,
-                            preview_path=str(preview_path) if preview_saved else None,
-                        )
-                    )
-                    face_index += 1
-
-            evidence_path = paths.face_evidence_path(photo_hash)
-            candidates_path = paths.face_candidates_path()
-            bib_evidence = [
-                {"bib_number": det.bib_number, "confidence": det.confidence, "bbox": det.bbox}
-                for det in result.detections
-            ]
-            if all_candidates:
-                save_face_candidates_preview(image_rgb, all_candidates, candidates_path)
-            save_face_evidence_json(
-                evidence_path,
-                photo_hash,
-                face_detections,
-                bib_evidence,
-                face_candidates=all_candidates,
+            face_detections.append(
+                FaceDetection(
+                    face_index=face_index,
+                    bbox=bbox,
+                    embedding=embedding,
+                    model=embedder_model_info,
+                    snippet_path=str(snippet_path) if snippet_saved else None,
+                    preview_path=str(preview_path) if preview_saved else None,
+                )
             )
 
+        evidence_path = paths.face_evidence_path(photo_hash)
+        candidates_path = paths.face_candidates_path()
+        bib_evidence = [
+            {"bib_number": det.bib_number, "confidence": det.confidence, "bbox": det.bbox}
+            for det in result.detections
+        ]
+        if sp.face_candidates_all:
+            save_face_candidates_preview(image_rgb, sp.face_candidates_all, candidates_path)
+        save_face_evidence_json(
+            evidence_path,
+            photo_hash,
+            face_detections,
+            bib_evidence,
+            face_candidates=sp.face_candidates_all,
+        )
+
+    if run_face_detection:
         save_face_detections_to_db(conn, face_detections, photo_id, skip_existing)
+
+    # --- Autolink persistence ---
+    if sp.autolink and sp.autolink.pairs and face_detections:
+        # Need to map autolink box pairs back to DB detection IDs.
+        # Bib detections are inserted in order → get their IDs
+        bib_det_ids = _get_bib_detection_ids(conn, photo_id)
+        face_det_ids = _get_face_detection_ids(conn, photo_id)
+
+        db.delete_bib_face_links(conn, photo_id)
+        for (bib_box, face_box), prov in zip(sp.autolink.pairs, sp.autolink.provenance):
+            try:
+                bib_idx = sp.bib_boxes.index(bib_box)
+                face_idx = sp.face_boxes.index(face_box)
+                if bib_idx < len(bib_det_ids) and face_idx < len(face_det_ids):
+                    db.insert_bib_face_link(
+                        conn, photo_id,
+                        bib_det_ids[bib_idx],
+                        face_det_ids[face_idx],
+                        prov,
+                    )
+            except ValueError:
+                pass  # box not found in list
 
     return len(result.detections), len(face_detections)
 

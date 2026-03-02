@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from benchmarking.ground_truth import BibBox, BibFaceLink, FaceBox
+from pipeline_types import BibBox, BibFaceLink, FaceBox
 from benchmarking.runner import BibCandidateSummary, FacePipelineConfig, PhotoResult, PipelineConfig, RunMetadata
 from benchmarking.scoring import BibScorecard, FaceScorecard, LinkScorecard
 

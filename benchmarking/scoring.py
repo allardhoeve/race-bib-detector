@@ -15,7 +15,7 @@ from typing import Sequence
 
 from pydantic import BaseModel, computed_field
 
-from .ground_truth import BibBox, BibFaceLink, FaceBox, _BIB_BOX_UNSCORED
+from pipeline_types import BibBox, BibFaceLink, FaceBox, _BIB_BOX_UNSCORED
 
 # Type alias for a box as (x, y, w, h) tuple
 Box = tuple[float, float, float, float]

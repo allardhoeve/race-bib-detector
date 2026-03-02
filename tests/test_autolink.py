@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from benchmarking.ground_truth import BibBox, FaceBox
-from faces.autolink import AutolinkResult, predict_links
+from pipeline_types import AutolinkResult, BibBox, FaceBox, predict_links
 
 
 def _bib(x=0.1, y=0.5, w=0.1, h=0.1, number="1"):

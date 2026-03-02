@@ -12,23 +12,23 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field
+
+# Re-export shared types from pipeline_types (canonical location).
+# All existing importers continue to work via these re-exports.
+from pipeline_types import (  # noqa: F401
+    BibBox,
+    FaceBox,
+    BibFaceLink,
+    BIB_BOX_SCOPES,
+    _BIB_BOX_UNSCORED,
+    FACE_SCOPE_TAGS,
+    _FACE_SCOPE_COMPAT,
+    FACE_BOX_TAGS,
+)
 
 # Schema version (bumped from 2 to 3 for the bib/face split)
 SCHEMA_VERSION = 3
-
-# --- Tag sets ----------------------------------------------------------------
-
-# Per-box bib scope (should this box be scored?)
-BIB_BOX_SCOPES = frozenset({"bib", "not_bib", "bib_obscured", "bib_clipped"})
-_BIB_BOX_UNSCORED = frozenset({"not_bib", "bib_obscured"})
-
-# Per-box face scope (should this face be recognized?)
-#   keep     — real participant face, scored during evaluation
-#   exclude  — visible but irrelevant (spectators, crowd), excluded from scoring
-#   uncertain — labeler unsure whether face matters, excluded until resolved
-FACE_SCOPE_TAGS = frozenset({"keep", "exclude", "uncertain"})
-_FACE_SCOPE_COMPAT = {"ignore": "exclude", "unknown": "uncertain"}
 
 # Photo-level bib condition descriptors
 BIB_PHOTO_TAGS = frozenset({
@@ -40,9 +40,6 @@ BIB_PHOTO_TAGS = frozenset({
     "light_bib",
     "other_banners",
 })
-
-# Per-box face condition descriptors (short names, context is obvious)
-FACE_BOX_TAGS = frozenset({"tiny", "blurry", "occluded", "profile", "looking_down"})
 
 # Photo-level face condition descriptors (scene-level only)
 FACE_PHOTO_TAGS = frozenset({
@@ -66,49 +63,6 @@ Split = Literal["iteration", "full"]
 # Backward-compat aliases used by web_app.py templates
 ALLOWED_TAGS = BIB_PHOTO_TAGS
 ALLOWED_FACE_TAGS = FACE_PHOTO_TAGS  # web_app.py uses this for photo-level checkboxes
-
-
-# =============================================================================
-# Bib schema
-# =============================================================================
-
-
-class BibBox(BaseModel):
-    """A single bib bounding box with number and scope.
-
-    Coordinates are in normalised [0, 1] image space.
-    Legacy migrated boxes have x=y=w=h=0 (see ``has_coords``).
-    """
-
-    x: float
-    y: float
-    w: float
-    h: float
-    number: str = ""
-    scope: str = "bib"
-    confidence: float | None = None  # OCR confidence (predictions only)
-
-    model_config = ConfigDict(extra="ignore")
-
-    @model_validator(mode="before")
-    @classmethod
-    def _migrate_tag_to_scope(cls, values: dict) -> dict:
-        """Backward compat: very old format used 'tag' instead of 'scope'."""
-        if isinstance(values, dict) and "scope" not in values and "tag" in values:
-            values = dict(values)
-            values["scope"] = values.pop("tag")
-        return values
-
-    @field_validator("scope")
-    @classmethod
-    def _validate_scope(cls, v: str) -> str:
-        if v not in BIB_BOX_SCOPES:
-            raise ValueError(f"Invalid bib box scope: {v!r}")
-        return v
-
-    @property
-    def has_coords(self) -> bool:
-        return self.w > 0 and self.h > 0
 
 
 class BibPhotoLabel(BaseModel):
@@ -193,59 +147,6 @@ class BibGroundTruth:
         return gt
 
 
-# =============================================================================
-# Face schema
-# =============================================================================
-
-
-class FaceBox(BaseModel):
-    """A single face bounding box with scope and optional identity.
-
-    Coordinates are in normalised [0, 1] image space.
-    Coords are None for legacy boxes that pre-date coordinate recording.
-    """
-
-    x: float | None = None
-    y: float | None = None
-    w: float | None = None
-    h: float | None = None
-    scope: str = "keep"
-    identity: str | None = None
-    tags: list[str] = Field(default_factory=list)
-    cluster_id: int | None = None
-    confidence: float | None = None  # detection confidence (predictions only)
-
-    model_config = ConfigDict(extra="ignore")
-
-    @model_validator(mode="before")
-    @classmethod
-    def _migrate_scope_compat(cls, values: dict) -> dict:
-        """Remap legacy scope names before validation."""
-        if isinstance(values, dict) and "scope" in values:
-            values = dict(values)
-            values["scope"] = _FACE_SCOPE_COMPAT.get(values["scope"], values["scope"])
-        return values
-
-    @field_validator("scope")
-    @classmethod
-    def _validate_scope(cls, v: str) -> str:
-        if v not in FACE_SCOPE_TAGS:
-            raise ValueError(f"Invalid face scope: {v!r}")
-        return v
-
-    @field_validator("tags")
-    @classmethod
-    def _validate_tags(cls, v: list[str]) -> list[str]:
-        invalid = set(v) - FACE_BOX_TAGS
-        if invalid:
-            raise ValueError(f"Invalid face box tags: {invalid}")
-        return v
-
-    @property
-    def has_coords(self) -> bool:
-        return self.w is not None and self.w > 0
-
-
 class FacePhotoLabel(BaseModel):
     """Ground truth face data for a single photo.
 
@@ -302,32 +203,6 @@ class FaceGroundTruth:
                 {"content_hash": content_hash, **photo_data}
             )
         return gt
-
-
-# =============================================================================
-# Bib-face link schema
-# =============================================================================
-
-
-class BibFaceLink(BaseModel):
-    """A directed association between a bib box and a face box in the same photo.
-
-    Indices reference positions in ``BibPhotoLabel.boxes`` and
-    ``FacePhotoLabel.boxes`` for the same content hash.
-
-    Note: links become stale if boxes are reordered or deleted after linking.
-    No automatic repair is done — re-label if the link list looks wrong.
-    """
-
-    bib_index: int    # index into BibPhotoLabel.boxes
-    face_index: int   # index into FacePhotoLabel.boxes
-
-    def to_pair(self) -> list[int]:
-        return [self.bib_index, self.face_index]
-
-    @classmethod
-    def from_pair(cls, pair: list[int]) -> BibFaceLink:
-        return cls(bib_index=pair[0], face_index=pair[1])
 
 
 @dataclass

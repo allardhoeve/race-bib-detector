@@ -196,12 +196,35 @@ def _migrate_album_urls(conn: sqlite3.Connection) -> None:
     )
 
 
+def _create_link_table(conn: sqlite3.Connection) -> None:
+    """Create the bib_face_links table for autolink persistence."""
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS bib_face_links (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            photo_id INTEGER NOT NULL,
+            bib_detection_id INTEGER NOT NULL,
+            face_detection_id INTEGER NOT NULL,
+            provenance TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (photo_id) REFERENCES photos(id),
+            FOREIGN KEY (bib_detection_id) REFERENCES bib_detections(id),
+            FOREIGN KEY (face_detection_id) REFERENCES face_detections(id),
+            UNIQUE(bib_detection_id, face_detection_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_bib_face_links_photo_id ON bib_face_links(photo_id);
+        """
+    )
+
+
 def ensure_face_tables(conn: sqlite3.Connection) -> None:
-    """Ensure face + album tables exist for legacy databases."""
+    """Ensure face + album + link tables exist for legacy databases."""
     _create_face_tables(conn)
     _ensure_album_columns(conn)
     _create_albums_table(conn)
     _migrate_album_urls(conn)
+    _create_link_table(conn)
     conn.commit()
 
 
@@ -694,3 +717,51 @@ def migrate_add_photo_hash(conn: sqlite3.Connection) -> int:
 
     conn.commit()
     return len(rows)
+
+
+# =============================================================================
+# Bib-face links
+# =============================================================================
+
+
+def insert_bib_face_link(
+    conn: sqlite3.Connection,
+    photo_id: int,
+    bib_detection_id: int,
+    face_detection_id: int,
+    provenance: str | None = None,
+) -> int:
+    """Insert a bib-face link and return its ID."""
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        INSERT INTO bib_face_links (photo_id, bib_detection_id, face_detection_id, provenance)
+        VALUES (?, ?, ?, ?)
+        """,
+        (photo_id, bib_detection_id, face_detection_id, provenance),
+    )
+    conn.commit()
+    return cursor.lastrowid
+
+
+def delete_bib_face_links(conn: sqlite3.Connection, photo_id: int) -> int:
+    """Delete all bib-face links for a photo. Returns count of deleted rows."""
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM bib_face_links WHERE photo_id = ?", (photo_id,))
+    conn.commit()
+    return cursor.rowcount
+
+
+def get_bib_face_links(conn: sqlite3.Connection, photo_id: int) -> list[dict]:
+    """Get all bib-face links for a photo."""
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, photo_id, bib_detection_id, face_detection_id, provenance, created_at
+        FROM bib_face_links
+        WHERE photo_id = ?
+        ORDER BY id
+        """,
+        (photo_id,),
+    )
+    return [dict(row) for row in cursor.fetchall()]

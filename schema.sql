@@ -101,3 +101,19 @@ CREATE TABLE bib_assignments (
 
 CREATE INDEX idx_bib_assignments_photo_id ON bib_assignments(photo_id);
 CREATE INDEX idx_bib_assignments_bib_number ON bib_assignments(bib_number);
+
+-- Bib-face links (autolink predictions persisted from pipeline)
+CREATE TABLE bib_face_links (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    photo_id INTEGER NOT NULL,
+    bib_detection_id INTEGER NOT NULL,
+    face_detection_id INTEGER NOT NULL,
+    provenance TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (photo_id) REFERENCES photos(id),
+    FOREIGN KEY (bib_detection_id) REFERENCES bib_detections(id),
+    FOREIGN KEY (face_detection_id) REFERENCES face_detections(id),
+    UNIQUE(bib_detection_id, face_detection_id)
+);
+
+CREATE INDEX idx_bib_face_links_photo_id ON bib_face_links(photo_id);

@@ -36,6 +36,13 @@ def _make_png_image(tmp_path: Path, name: str = "photo.png") -> Path:
     return path
 
 
+def _make_png_image_bytes(width: int = 100, height: int = 100) -> bytes:
+    """Return raw bytes for a minimal black PNG image."""
+    img = np.zeros((height, width, 3), dtype=np.uint8)
+    _, buf = cv2.imencode(".png", img)
+    return buf.tobytes()
+
+
 def _fake_bib_result(width: int = 100, height: int = 100):
     """Return a minimal DetectionResult with no detections."""
     from detection.types import DetectionResult
@@ -164,24 +171,19 @@ class TestFaceBackendFailureGraceful:
 
 
 # =============================================================================
-# _run_bib_detection (task-035 TDD — red until helper is extracted)
+# run_single_photo bib detection (replaces _run_bib_detection tests, task-035)
 # =============================================================================
 
 
-class TestRunBibDetection:
-    """Unit tests for the _run_bib_detection helper extracted from _run_detection_loop."""
+class TestRunSinglePhotoBibDetection:
+    """Test bib detection through the unified pipeline."""
 
-    def test_detection_returns_normalised_boxes_and_dims(self, tmp_path):
-        """Known detection -> correct PhotoResult, normalised BibBox, and dims."""
-        from benchmarking.runner import _run_bib_detection
-        from benchmarking.ground_truth import BibPhotoLabel, BibBox
+    def test_detection_returns_normalised_boxes_and_dims(self):
+        """Known detection -> normalised BibBox and correct dims."""
+        from pipeline import run_single_photo
         from detection.types import DetectionResult, Detection
         from geometry import rect_to_bbox as _rtb
 
-        label = BibPhotoLabel(
-            content_hash="e" * 64,
-            boxes=[BibBox(x=0.0, y=0.0, w=0.1, h=0.1, number="42")],
-        )
         fake_det = Detection(
             bib_number="42",
             bbox=_rtb(10, 10, 20, 20),  # pixel rect [10,10->30,30]
@@ -197,92 +199,110 @@ class TestRunBibDetection:
             scale_factor=1.0,
         )
 
-        photo_result, pred_boxes, dims = _run_bib_detection(
-            reader=None, image_data=b"fake", label=label, artifact_dir="/tmp/art",
+        sp = run_single_photo(
+            _make_png_image_bytes(),
             detect_fn=lambda reader, image_data, artifact_dir=None: fake_result,
+            run_faces=False,
+            run_autolink=False,
         )
 
-        assert 42 in photo_result.detected_bibs
-        assert dims == (100, 100)
-        assert len(pred_boxes) == 1
+        assert sp.image_dims == (100, 100)
+        assert len(sp.bib_boxes) == 1
         # [10,10->30,30] in 100x100 -> x=0.1, y=0.1, w=0.2, h=0.2
-        assert abs(pred_boxes[0].x - 0.1) < 1e-6
-        assert abs(pred_boxes[0].w - 0.2) < 1e-6
+        assert abs(sp.bib_boxes[0].x - 0.1) < 1e-6
+        assert abs(sp.bib_boxes[0].w - 0.2) < 1e-6
 
-    def test_no_detections_on_labeled_photo_is_miss(self):
-        """No detections on a photo with expected bibs -> status MISS."""
-        from benchmarking.runner import _run_bib_detection
-        from benchmarking.ground_truth import BibPhotoLabel, BibBox
+    def test_no_detections_returns_empty_boxes(self):
+        """No detections -> empty bib_boxes list."""
+        from pipeline import run_single_photo
 
-        label = BibPhotoLabel(
-            content_hash="f" * 64,
-            boxes=[BibBox(x=0.1, y=0.1, w=0.2, h=0.2, number="7")],
-        )
-
-        photo_result, pred_boxes, _ = _run_bib_detection(
-            reader=None, image_data=b"fake", label=label, artifact_dir="/tmp/art",
+        sp = run_single_photo(
+            _make_png_image_bytes(),
             detect_fn=_noop_detect,
+            run_faces=False,
+            run_autolink=False,
         )
 
-        assert photo_result.status == "MISS"
-        assert pred_boxes == []
+        assert sp.bib_boxes == []
 
 
 # =============================================================================
-# _run_face_detection (task-035 TDD — red until helper is extracted)
+# run_single_photo face detection (replaces _run_face_detection tests, task-035)
 # =============================================================================
 
 
-class TestRunFaceDetection:
-    """Unit tests for the _run_face_detection helper extracted from _run_detection_loop."""
+class TestRunSinglePhotoFaceDetection:
+    """Test face detection through the unified pipeline."""
 
-    def test_passed_candidates_normalised_correctly(self, tmp_path):
+    def test_passed_candidates_normalised_correctly(self):
         """Passed face candidate -> FaceBox with correct normalised coords."""
-        from benchmarking.runner import _run_face_detection
+        from pipeline import run_single_photo
 
-        image_data = _make_png_image(tmp_path).read_bytes()
-        pred_boxes, elapsed_ms = _run_face_detection(FakeFaceBackend(), image_data)
+        sp = run_single_photo(
+            _make_png_image_bytes(),
+            run_bibs=False,
+            face_backend=FakeFaceBackend(),
+            run_autolink=False,
+        )
 
-        assert len(pred_boxes) == 1
+        assert len(sp.face_boxes) == 1
         # FakeFaceBackend: rect_to_bbox(10,10,40,40) -> [10,10->50,50] in 100x100
-        assert abs(pred_boxes[0].x - 0.1) < 1e-6
-        assert abs(pred_boxes[0].y - 0.1) < 1e-6
-        assert abs(pred_boxes[0].w - 0.4) < 1e-6
-        assert abs(pred_boxes[0].h - 0.4) < 1e-6
-        assert elapsed_ms >= 0
+        assert abs(sp.face_boxes[0].x - 0.1) < 1e-6
+        assert abs(sp.face_boxes[0].y - 0.1) < 1e-6
+        assert abs(sp.face_boxes[0].w - 0.4) < 1e-6
+        assert abs(sp.face_boxes[0].h - 0.4) < 1e-6
+        assert sp.face_detect_time_ms >= 0
 
-    def test_face_box_has_confidence(self, tmp_path):
+    def test_face_box_has_confidence(self):
         """Predicted FaceBox carries confidence from FaceCandidate."""
-        from benchmarking.runner import _run_face_detection
+        from pipeline import run_single_photo
 
-        image_data = _make_png_image(tmp_path).read_bytes()
-        pred_boxes, _ = _run_face_detection(FakeFaceBackend(), image_data)
-        assert pred_boxes[0].confidence == 0.9
+        sp = run_single_photo(
+            _make_png_image_bytes(),
+            run_bibs=False,
+            face_backend=FakeFaceBackend(),
+            run_autolink=False,
+        )
+        assert sp.face_boxes[0].confidence == 0.9
 
     def test_corrupt_image_returns_empty_list(self):
-        """Undecodable bytes -> returns ([], 0.0) without raising."""
-        from benchmarking.runner import _run_face_detection
-        boxes, elapsed = _run_face_detection(FakeFaceBackend(), b"")
-        assert boxes == []
-        assert elapsed == 0.0
+        """Undecodable bytes -> empty face list."""
+        from pipeline import run_single_photo
 
-    def test_failed_candidates_excluded(self, tmp_path):
-        """Candidates with passed=False are not included."""
-        from benchmarking.runner import _run_face_detection
+        sp = run_single_photo(
+            b"",
+            run_bibs=False,
+            face_backend=FakeFaceBackend(),
+            run_autolink=False,
+        )
+        assert sp.face_boxes == []
+
+    def test_failed_candidates_excluded(self):
+        """Candidates with passed=False and very low confidence are excluded.
+
+        The unified pipeline includes a DNN low-confidence fallback that can
+        promote rejected candidates above FACE_DNN_FALLBACK_CONFIDENCE_MIN.
+        Use confidence below that threshold to verify true exclusion.
+        """
+        from pipeline import run_single_photo
 
         class FailingBackend:
             def detect_face_candidates(self, image):
                 return [FaceCandidate(
                     bbox=rect_to_bbox(10, 10, 40, 40),
-                    confidence=0.3,
+                    confidence=0.01,  # below FACE_DNN_FALLBACK_CONFIDENCE_MIN (0.15)
                     passed=False,
                     rejection_reason="low_confidence",
                     model=_FAKE_MODEL,
                 )]
 
-        image_data = _make_png_image(tmp_path).read_bytes()
-        boxes, _ = _run_face_detection(FailingBackend(), image_data)
-        assert boxes == []
+        sp = run_single_photo(
+            _make_png_image_bytes(),
+            run_bibs=False,
+            face_backend=FailingBackend(),
+            run_autolink=False,
+        )
+        assert sp.face_boxes == []
 
 
 # =============================================================================
@@ -545,15 +565,11 @@ class TestPredLinks:
 class TestScorecardAndConfidence:
     """Per-photo scorecards and confidence fields are populated (task-061)."""
 
-    def test_bib_box_has_confidence(self, tmp_path):
+    def test_bib_box_has_confidence(self):
         """Predicted bib boxes carry confidence from Detection."""
+        from pipeline import run_single_photo
         from detection.types import Detection, DetectionResult
-        from benchmarking.runner import _run_bib_detection
 
-        label = BibPhotoLabel(
-            content_hash="e" * 64,
-            boxes=[BibBox(x=0.1, y=0.1, w=0.2, h=0.2, number="42")],
-        )
         fake_det = Detection(
             bib_number="42",
             bbox=rect_to_bbox(10, 10, 20, 20),
@@ -569,13 +585,15 @@ class TestScorecardAndConfidence:
             scale_factor=1.0,
         )
 
-        _, pred_boxes, _ = _run_bib_detection(
-            reader=None, image_data=b"fake", label=label, artifact_dir="/tmp/art",
+        sp = run_single_photo(
+            _make_png_image_bytes(),
             detect_fn=lambda reader, image_data, artifact_dir=None: fake_result,
+            run_faces=False,
+            run_autolink=False,
         )
 
-        assert len(pred_boxes) == 1
-        assert pred_boxes[0].confidence == 0.85
+        assert len(sp.bib_boxes) == 1
+        assert sp.bib_boxes[0].confidence == 0.85
 
     def test_photo_result_has_scorecards(self, tmp_path):
         """bib_scorecard, face_scorecard, and face_detection_time_ms are populated."""

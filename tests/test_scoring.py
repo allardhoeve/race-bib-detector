@@ -13,7 +13,7 @@ from benchmarking.scoring import (
     score_faces,
     format_scorecard,
 )
-from benchmarking.ground_truth import BibBox, FaceBox
+from pipeline_types import BibBox, FaceBox
 
 
 # =============================================================================
