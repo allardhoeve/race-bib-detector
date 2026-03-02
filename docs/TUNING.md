@@ -66,6 +66,28 @@ because optimising only precision or only recall produces degenerate solutions
 
 ---
 
+## Optimization priorities
+
+The system is a **photo retrieval product**. The risk hierarchy, from worst to cheapest:
+
+1. **False match** (runner gets someone else's photos) — visible, trust-destroying.
+   Controlled at the **embedding match threshold**, not at the detector.
+2. **Missed photo** (runner doesn't get a photo they're in) — silent quality loss.
+   The runner doesn't know the photo exists, so they won't complain, but coverage suffers.
+3. **Wasted compute** (ghost faces get embedded, stored, never matched) — costs disk
+   and CPU, nobody notices.
+
+This means: **be permissive early, strict late.** The face detector should cast a wide
+net (favour recall over precision). False-positive faces are harmless — they get embedded
+but never match anyone's selfie. The expensive mistakes (false matches) are controlled
+at the last mile, where embedding similarity scores give the most information.
+
+When tuning, optimise for **recall** unless precision has dropped so far that compute
+costs become a problem. A face the detector misses is gone forever; a ghost face is
+silently ignored at match time.
+
+---
+
 ## Primary backend: OpenCV DNN SSD
 
 Config key | Default | Location
