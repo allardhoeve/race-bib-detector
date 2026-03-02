@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import cv2
 import numpy as np
 import pytest
@@ -44,6 +42,11 @@ def _fake_bib_result(width: int = 100, height: int = 100):
     )
 
 
+def _noop_detect(reader, image_data, artifact_dir=None):
+    """Stub detect_fn that returns an empty DetectionResult."""
+    return _fake_bib_result()
+
+
 class FakeFaceBackend:
     """Detects one face covering pixel rect [10, 10, 50, 50] in a 100×100 image."""
 
@@ -82,19 +85,18 @@ class TestLinkScorecard:
         link_gt = LinkGroundTruth()
         link_gt.set_links(content_hash, [BibFaceLink(bib_index=0, face_index=0)])
 
-        with patch("benchmarking.runner.detect_bib_numbers") as mock_det, \
-             patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
-            mock_det.return_value = _fake_bib_result()
-            _, _, _, link_sc = _run_detection_loop(
-                reader=None,
-                photos=[bib_label],
-                index=index,
-                images_dir=tmp_path / "images",
-                verbose=False,
-                face_backend=FakeFaceBackend(),
-                face_gt=face_gt,
-                link_gt=link_gt,
-            )
+        _, _, _, link_sc = _run_detection_loop(
+            reader=None,
+            photos=[bib_label],
+            index=index,
+            images_dir=tmp_path / "images",
+            verbose=False,
+            face_backend=FakeFaceBackend(),
+            face_gt=face_gt,
+            link_gt=link_gt,
+            photos_dir=tmp_path,
+            detect_fn=_noop_detect,
+        )
 
         assert link_sc is not None
         assert link_sc.gt_link_count > 0
@@ -113,19 +115,18 @@ class TestLinkScorecard:
         ))
         link_gt = LinkGroundTruth()  # no links for this hash
 
-        with patch("benchmarking.runner.detect_bib_numbers") as mock_det, \
-             patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
-            mock_det.return_value = _fake_bib_result()
-            _, _, _, link_sc = _run_detection_loop(
-                reader=None,
-                photos=[BibPhotoLabel(content_hash=content_hash)],
-                index=index,
-                images_dir=tmp_path / "images",
-                verbose=False,
-                face_backend=FakeFaceBackend(),
-                face_gt=face_gt,
-                link_gt=link_gt,
-            )
+        _, _, _, link_sc = _run_detection_loop(
+            reader=None,
+            photos=[BibPhotoLabel(content_hash=content_hash)],
+            index=index,
+            images_dir=tmp_path / "images",
+            verbose=False,
+            face_backend=FakeFaceBackend(),
+            face_gt=face_gt,
+            link_gt=link_gt,
+            photos_dir=tmp_path,
+            detect_fn=_noop_detect,
+        )
 
         assert link_sc is not None
         assert link_sc.gt_link_count == 0
@@ -136,18 +137,17 @@ class TestLinkScorecard:
         _make_png_image(tmp_path)
         index = {content_hash: ["photo.png"]}
 
-        with patch("benchmarking.runner.detect_bib_numbers") as mock_det, \
-             patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
-            mock_det.return_value = _fake_bib_result()
-            _, _, _, link_sc = _run_detection_loop(
-                reader=None,
-                photos=[BibPhotoLabel(content_hash=content_hash)],
-                index=index,
-                images_dir=tmp_path / "images",
-                verbose=False,
-                face_backend=None,
-                face_gt=FaceGroundTruth(),
-                link_gt=None,
-            )
+        _, _, _, link_sc = _run_detection_loop(
+            reader=None,
+            photos=[BibPhotoLabel(content_hash=content_hash)],
+            index=index,
+            images_dir=tmp_path / "images",
+            verbose=False,
+            face_backend=None,
+            face_gt=FaceGroundTruth(),
+            link_gt=None,
+            photos_dir=tmp_path,
+            detect_fn=_noop_detect,
+        )
 
         assert link_sc is None

@@ -43,8 +43,8 @@ Can be done independently but is easier alongside that refactor.
 
 ## Acceptance criteria
 
-- [ ] `_run_bib_detection` (or detection loop) accepts `detect_fn` parameter
-- [ ] `run_benchmark` accepts `photos_dir` parameter
-- [ ] `test_runner.py` tests call functions directly without patching detect/paths
-- [ ] No `patch("benchmarking.runner.detect_bib_numbers")` remains in tests
-- [ ] All tests pass (`venv/bin/python -m pytest`)
+- [x] `_run_bib_detection` (or detection loop) accepts `detect_fn` parameter
+- [x] `_run_detection_loop` accepts `photos_dir` parameter
+- [x] `test_runner.py` tests call functions directly without patching detect/paths
+- [x] No `patch("benchmarking.runner.detect_bib_numbers")` remains in tests
+- [x] All tests pass (`venv/bin/python -m pytest`)

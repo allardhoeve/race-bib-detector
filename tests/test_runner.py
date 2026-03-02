@@ -49,6 +49,11 @@ def _fake_bib_result(width: int = 100, height: int = 100):
     )
 
 
+def _noop_detect(reader, image_data, artifact_dir=None):
+    """Stub detect_fn that returns an empty DetectionResult."""
+    return _fake_bib_result()
+
+
 _FAKE_MODEL = FaceModelInfo(name="fake", version="0", embedding_dim=128)
 
 
@@ -79,13 +84,10 @@ class TestFaceScorecardPopulated:
     def test_face_scorecard_non_none_with_backend(self, tmp_path):
         """face_scorecard is populated (not None) when a face backend is provided."""
         content_hash = "a" * 64
-        img_path = _make_png_image(tmp_path)
+        _make_png_image(tmp_path)
 
-        # Index: relative path from PHOTOS_DIR — but we pass tmp_path as photos_dir via index
-        # get_path_for_hash returns photos_dir / paths[0], so use relative name
         index = {content_hash: ["photo.png"]}
 
-        # Face GT: one keep-scoped box matching [10,10,50,50] in 100×100 image
         face_gt = FaceGroundTruth()
         face_gt.add_photo(FacePhotoLabel(
             content_hash=content_hash,
@@ -94,18 +96,17 @@ class TestFaceScorecardPopulated:
 
         bib_label = BibPhotoLabel(content_hash=content_hash)
 
-        with patch("benchmarking.runner.detect_bib_numbers") as mock_det, \
-             patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
-            mock_det.return_value = _fake_bib_result()
-            _, bib_sc, face_sc, _ = _run_detection_loop(
-                reader=None,
-                photos=[bib_label],
-                index=index,
-                images_dir=tmp_path / "images",
-                verbose=False,
-                face_backend=FakeFaceBackend(),
-                face_gt=face_gt,
-            )
+        _, bib_sc, face_sc, _ = _run_detection_loop(
+            reader=None,
+            photos=[bib_label],
+            index=index,
+            images_dir=tmp_path / "images",
+            verbose=False,
+            face_backend=FakeFaceBackend(),
+            face_gt=face_gt,
+            photos_dir=tmp_path,
+            detect_fn=_noop_detect,
+        )
 
         assert face_sc is not None
         assert face_sc.detection_tp >= 0
@@ -123,18 +124,17 @@ class TestFaceScorecardPopulated:
         index = {content_hash: ["photo.png"]}
         face_gt = FaceGroundTruth()
 
-        with patch("benchmarking.runner.detect_bib_numbers") as mock_det, \
-             patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
-            mock_det.return_value = _fake_bib_result()
-            _, bib_sc, face_sc, _ = _run_detection_loop(
-                reader=None,
-                photos=[BibPhotoLabel(content_hash=content_hash)],
-                index=index,
-                images_dir=tmp_path / "images",
-                verbose=False,
-                face_backend=FakeFaceBackend(),
-                face_gt=face_gt,
-            )
+        _, bib_sc, face_sc, _ = _run_detection_loop(
+            reader=None,
+            photos=[BibPhotoLabel(content_hash=content_hash)],
+            index=index,
+            images_dir=tmp_path / "images",
+            verbose=False,
+            face_backend=FakeFaceBackend(),
+            face_gt=face_gt,
+            photos_dir=tmp_path,
+            detect_fn=_noop_detect,
+        )
 
         assert bib_sc is not None
         assert face_sc is not None
@@ -147,18 +147,17 @@ class TestFaceBackendFailureGraceful:
         _make_png_image(tmp_path)
         index = {content_hash: ["photo.png"]}
 
-        with patch("benchmarking.runner.detect_bib_numbers") as mock_det, \
-             patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
-            mock_det.return_value = _fake_bib_result()
-            _, bib_sc, face_sc, _ = _run_detection_loop(
-                reader=None,
-                photos=[BibPhotoLabel(content_hash=content_hash)],
-                index=index,
-                images_dir=tmp_path / "images",
-                verbose=False,
-                face_backend=None,
-                face_gt=FaceGroundTruth(),
-            )
+        _, bib_sc, face_sc, _ = _run_detection_loop(
+            reader=None,
+            photos=[BibPhotoLabel(content_hash=content_hash)],
+            index=index,
+            images_dir=tmp_path / "images",
+            verbose=False,
+            face_backend=None,
+            face_gt=FaceGroundTruth(),
+            photos_dir=tmp_path,
+            detect_fn=_noop_detect,
+        )
 
         assert face_sc is None
         assert bib_sc is not None
@@ -198,10 +197,10 @@ class TestRunBibDetection:
             scale_factor=1.0,
         )
 
-        with patch("benchmarking.runner.detect_bib_numbers", return_value=fake_result):
-            photo_result, pred_boxes, dims = _run_bib_detection(
-                reader=None, image_data=b"fake", label=label, artifact_dir="/tmp/art"
-            )
+        photo_result, pred_boxes, dims = _run_bib_detection(
+            reader=None, image_data=b"fake", label=label, artifact_dir="/tmp/art",
+            detect_fn=lambda reader, image_data, artifact_dir=None: fake_result,
+        )
 
         assert 42 in photo_result.detected_bibs
         assert dims == (100, 100)
@@ -220,10 +219,10 @@ class TestRunBibDetection:
             boxes=[BibBox(x=0.1, y=0.1, w=0.2, h=0.2, number="7")],
         )
 
-        with patch("benchmarking.runner.detect_bib_numbers", return_value=_fake_bib_result()):
-            photo_result, pred_boxes, _ = _run_bib_detection(
-                reader=None, image_data=b"fake", label=label, artifact_dir="/tmp/art"
-            )
+        photo_result, pred_boxes, _ = _run_bib_detection(
+            reader=None, image_data=b"fake", label=label, artifact_dir="/tmp/art",
+            detect_fn=_noop_detect,
+        )
 
         assert photo_result.status == "MISS"
         assert pred_boxes == []
@@ -436,18 +435,17 @@ class TestDetectionLoopStoresBoxes:
             boxes=gt_bib_boxes,
         )
 
-        with patch("benchmarking.runner.detect_bib_numbers") as mock_det, \
-             patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
-            mock_det.return_value = _fake_bib_result()
-            results, _, _, _ = _run_detection_loop(
-                reader=None,
-                photos=[bib_label],
-                index=index,
-                images_dir=tmp_path / "images",
-                verbose=False,
-                face_backend=face_backend,
-                face_gt=face_gt,
-            )
+        results, _, _, _ = _run_detection_loop(
+            reader=None,
+            photos=[bib_label],
+            index=index,
+            images_dir=tmp_path / "images",
+            verbose=False,
+            face_backend=face_backend,
+            face_gt=face_gt,
+            photos_dir=tmp_path,
+            detect_fn=_noop_detect,
+        )
         return results[0], gt_bib_boxes
 
     def test_stores_pred_bib_boxes(self, tmp_path):
@@ -490,7 +488,7 @@ class TestPredLinks:
         from detection.types import Detection, DetectionResult
 
         content_hash = "d" * 64
-        img_path = _make_png_image(tmp_path)
+        _make_png_image(tmp_path)
 
         # Bib detection returning one bib at [10,50,30,20] in 100x100 image
         fake_det = Detection(
@@ -523,18 +521,18 @@ class TestPredLinks:
         link_gt = LinkGroundTruth()
         link_gt.set_links(content_hash, [BibFaceLink(bib_index=0, face_index=0)])
 
-        with patch("benchmarking.runner.detect_bib_numbers", return_value=fake_result), \
-             patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
-            results, _, _, _ = _run_detection_loop(
-                reader=None,
-                photos=[bib_label],
-                index=index,
-                images_dir=tmp_path / "images",
-                verbose=False,
-                face_backend=FakeFaceBackend(),
-                face_gt=face_gt,
-                link_gt=link_gt,
-            )
+        results, _, _, _ = _run_detection_loop(
+            reader=None,
+            photos=[bib_label],
+            index=index,
+            images_dir=tmp_path / "images",
+            verbose=False,
+            face_backend=FakeFaceBackend(),
+            face_gt=face_gt,
+            link_gt=link_gt,
+            photos_dir=tmp_path,
+            detect_fn=lambda reader, image_data, artifact_dir=None: fake_result,
+        )
 
         pr = results[0]
         assert pr.pred_links is not None
@@ -571,10 +569,10 @@ class TestScorecardAndConfidence:
             scale_factor=1.0,
         )
 
-        with patch("benchmarking.runner.detect_bib_numbers", return_value=fake_result):
-            _, pred_boxes, _ = _run_bib_detection(
-                reader=None, image_data=b"fake", label=label, artifact_dir="/tmp/art"
-            )
+        _, pred_boxes, _ = _run_bib_detection(
+            reader=None, image_data=b"fake", label=label, artifact_dir="/tmp/art",
+            detect_fn=lambda reader, image_data, artifact_dir=None: fake_result,
+        )
 
         assert len(pred_boxes) == 1
         assert pred_boxes[0].confidence == 0.85
@@ -612,17 +610,17 @@ class TestScorecardAndConfidence:
             boxes=[FaceBox(x=0.1, y=0.1, w=0.4, h=0.4, scope="keep")],
         ))
 
-        with patch("benchmarking.runner.detect_bib_numbers", return_value=fake_result), \
-             patch("benchmarking.runner.PHOTOS_DIR", tmp_path):
-            results, _, _, _ = _run_detection_loop(
-                reader=None,
-                photos=[bib_label],
-                index=index,
-                images_dir=tmp_path / "images",
-                verbose=False,
-                face_backend=FakeFaceBackend(),
-                face_gt=face_gt,
-            )
+        results, _, _, _ = _run_detection_loop(
+            reader=None,
+            photos=[bib_label],
+            index=index,
+            images_dir=tmp_path / "images",
+            verbose=False,
+            face_backend=FakeFaceBackend(),
+            face_gt=face_gt,
+            photos_dir=tmp_path,
+            detect_fn=lambda reader, image_data, artifact_dir=None: fake_result,
+        )
 
         pr = results[0]
         assert pr.bib_scorecard is not None

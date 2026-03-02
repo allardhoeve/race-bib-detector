@@ -395,6 +395,7 @@ def _run_bib_detection(
     label: BibPhotoLabel,
     artifact_dir: str,
     tags: list[str] | None = None,
+    detect_fn=None,
 ) -> tuple[PhotoResult, list[BibBox], tuple[int, int]]:
     """Run bib OCR on one photo; return result, normalised bib boxes, and image dims.
 
@@ -404,6 +405,7 @@ def _run_bib_detection(
         label: BibPhotoLabel carrying content_hash and expected boxes.
         artifact_dir: Directory path for debug artifact images.
         tags: Photo-level bib tags from PhotoMetadata.
+        detect_fn: Detection callable. Defaults to :func:`detect_bib_numbers`.
 
     Returns:
         photo_result: Per-photo status and TP/FP/FN counts.
@@ -411,8 +413,10 @@ def _run_bib_detection(
             Empty when image dimensions are zero (e.g. undecodable image).
         image_dims: (width, height) of the original image; (0, 0) on failure.
     """
+    if detect_fn is None:
+        detect_fn = detect_bib_numbers
     detect_start = time.time()
-    result = detect_bib_numbers(reader, image_data, artifact_dir=artifact_dir)
+    result = detect_fn(reader, image_data, artifact_dir=artifact_dir)
     detect_time_ms = (time.time() - detect_start) * 1000
 
     detected_bibs = []
@@ -557,6 +561,8 @@ def _run_detection_loop(
     face_gt: FaceGroundTruth | None = None,
     link_gt: LinkGroundTruth | None = None,
     meta_store: PhotoMetadataStore | None = None,
+    photos_dir: Path | None = None,
+    detect_fn=None,
 ) -> tuple[list[PhotoResult], BibScorecard, FaceScorecard | None, LinkScorecard | None]:
     """Run detection on all photos; return results and aggregate IoU scorecards.
 
@@ -573,6 +579,8 @@ def _run_detection_loop(
     3. **Scorecard accumulation** — per-photo counters are summed, then wrapped
        into BibScorecard and (optionally) FaceScorecard at the end.
     """
+    if photos_dir is None:
+        photos_dir = PHOTOS_DIR
     photo_results: list[PhotoResult] = []
     bib_tp = bib_fp = bib_fn = bib_ocr_correct = bib_ocr_total = 0
     face_tp = face_fp = face_fn = 0
@@ -580,7 +588,7 @@ def _run_detection_loop(
     image_cache: dict[str, bytes] = {}
 
     for i, label in enumerate(photos):
-        path = get_path_for_hash(label.content_hash, PHOTOS_DIR, index)
+        path = get_path_for_hash(label.content_hash, photos_dir, index)
         if not path or not path.exists():
             if verbose:
                 logger.info(
@@ -601,7 +609,8 @@ def _run_detection_loop(
             if meta:
                 photo_tags = meta.bib_tags
         photo_result, pred_bib_boxes, (img_w, img_h) = _run_bib_detection(
-            reader, image_data, label, photo_artifact_dir, tags=photo_tags
+            reader, image_data, label, photo_artifact_dir, tags=photo_tags,
+            detect_fn=detect_fn,
         )
         photo_results.append(photo_result)
 
