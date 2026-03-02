@@ -23,3 +23,34 @@ filterwarnings = [
   "ignore:torch\\.ao\\.quantization is deprecated and will be removed in 2\\.10\\.:DeprecationWarning",
   "ignore:'pin_memory' argument is set as true but not supported on MPS now, device pinned memory won't be used\\.:UserWarning",
 ]
+
+[tool.coverage.run]
+source = [
+  "benchmarking",
+  "cli",
+  "detection",
+  "faces",
+  "pipeline",
+  "preprocessing",
+  "scan",
+  "sources",
+  "web",
+  ".",
+]
+omit = [
+  "tests/*",
+  "venv/*",
+  "todo/*",
+  "docs/*",
+  "photos/*",
+  "cache/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+exclude_lines = [
+  "if __name__",
+  "if TYPE_CHECKING",
+  "pragma: no cover",
+]
