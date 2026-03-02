@@ -5,18 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from pipeline.types import FaceCandidateTrace
-
-
-def _make_trace(embedding: list[float] | None = None) -> FaceCandidateTrace:
-    return FaceCandidateTrace(
-        x=0.1, y=0.1, w=0.2, h=0.2,
-        confidence=0.9,
-        passed=True,
-        accepted=True,
-        pixel_bbox=(10, 10, 30, 30),
-        embedding=embedding,
-    )
+from tests.helpers import make_face_trace as _make_trace
 
 
 class TestCluster:

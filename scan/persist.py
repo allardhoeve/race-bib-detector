@@ -223,7 +223,8 @@ def process_image(
 
     # --- Face artifacts + DB ---
     face_detections: list[FaceDetection] = []
-    if run_face_detection and sp.face_pixel_bboxes and sp.image_rgb is not None:
+    accepted_traces = [t for t in sp.face_trace if t.accepted] if run_face_detection else []
+    if accepted_traces and sp.image_rgb is not None:
         image_rgb = sp.image_rgb
         photo_hash = compute_photo_hash(photo_url)
 
@@ -231,8 +232,6 @@ def process_image(
 
         paths = ImagePaths.for_cache_path(cache_path)
         paths.ensure_dirs_exist()
-
-        accepted_traces = [t for t in sp.face_trace if t.accepted]
         for face_index, trace in enumerate(accepted_traces):
             bbox = trace.to_pixel_quad()
             embedding = np.array(trace.embedding, dtype=np.float32) if trace.embedding else None

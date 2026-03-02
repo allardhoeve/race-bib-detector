@@ -102,6 +102,16 @@ class FallbackFaceBackend:
         ]
 
 
+class FakeEmbedder:
+    """Returns a fixed embedding vector for each face box."""
+
+    def embed(self, image, boxes):
+        return [np.ones(4, dtype=np.float32) for _ in boxes]
+
+    def model_info(self):
+        return _FAKE_MODEL
+
+
 # =============================================================================
 # Tests
 # =============================================================================
@@ -528,13 +538,6 @@ class TestFaceTrace:
         """Accepted traces have embedding when face_embedder is provided."""
         from pipeline import run_single_photo
 
-        class FakeEmbedder:
-            def embed(self, image, boxes):
-                return [np.ones(4, dtype=np.float32) for _ in boxes]
-
-            def model_info(self):
-                return _FAKE_MODEL
-
         result = run_single_photo(
             _make_png_bytes(),
             run_bibs=False,
@@ -551,13 +554,6 @@ class TestFaceTrace:
     def test_rejected_face_has_no_embedding(self):
         """Rejected traces still have embedding=None even with embedder."""
         from pipeline import run_single_photo
-
-        class FakeEmbedder:
-            def embed(self, image, boxes):
-                return [np.ones(4, dtype=np.float32) for _ in boxes]
-
-            def model_info(self):
-                return _FAKE_MODEL
 
         result = run_single_photo(
             _make_png_bytes(),

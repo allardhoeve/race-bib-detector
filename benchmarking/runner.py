@@ -559,6 +559,18 @@ def _run_detection_loop(
                 all_face_traces.extend(result.face_trace)
         cluster_faces(all_face_traces)
 
+        # Back-propagate cluster_id from traces to pred_face_boxes
+        for result in photo_results:
+            if not result.face_trace or not result.pred_face_boxes:
+                continue
+            accepted_idx = 0
+            for trace in result.face_trace:
+                if not trace.accepted:
+                    continue
+                if accepted_idx < len(result.pred_face_boxes):
+                    result.pred_face_boxes[accepted_idx].cluster_id = trace.cluster_id
+                accepted_idx += 1
+
     bib_scorecard = BibScorecard(
         detection_tp=bib_tp,
         detection_fp=bib_fp,

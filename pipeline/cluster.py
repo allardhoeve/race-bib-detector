@@ -60,9 +60,9 @@ def _normalize_embeddings(embeddings: np.ndarray) -> np.ndarray:
 def _cluster_embeddings(
     embeddings: np.ndarray,
     distance_threshold: float,
-) -> list[list[int]]:
+) -> tuple[list[list[int]], np.ndarray]:
     if embeddings.size == 0:
-        return []
+        return [], embeddings
     normed = _normalize_embeddings(embeddings)
     similarity = normed @ normed.T
     distance = 1.0 - similarity
@@ -76,7 +76,7 @@ def _cluster_embeddings(
     clusters: dict[int, list[int]] = defaultdict(list)
     for idx in range(normed.shape[0]):
         clusters[uf.find(idx)].append(idx)
-    return list(clusters.values())
+    return list(clusters.values()), normed
 
 
 def cluster(
@@ -100,8 +100,7 @@ def cluster(
     indices, traces = zip(*embedded)
     embeddings = np.stack([np.array(t.embedding, dtype=np.float32) for t in traces])
 
-    clusters = _cluster_embeddings(embeddings, threshold)
-    normed = _normalize_embeddings(embeddings)
+    clusters, normed = _cluster_embeddings(embeddings, threshold)
 
     # Compute centroids
     centroids: list[np.ndarray] = []

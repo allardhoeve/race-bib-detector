@@ -8,6 +8,7 @@ import pytest
 from pipeline.types import FaceBox, FaceCandidateTrace
 from benchmarking.runner import PhotoResult
 from pipeline.cluster import cluster
+from tests.helpers import make_face_trace as _make_accepted_trace
 
 
 def _photo_result(
@@ -24,17 +25,6 @@ def _photo_result(
         detection_time_ms=1.0,
         pred_face_boxes=face_boxes,
         face_trace=face_trace,
-    )
-
-
-def _make_accepted_trace(embedding: list[float] | None = None) -> FaceCandidateTrace:
-    return FaceCandidateTrace(
-        x=0.1, y=0.1, w=0.2, h=0.2,
-        confidence=0.9,
-        passed=True,
-        accepted=True,
-        pixel_bbox=(10, 10, 30, 30),
-        embedding=embedding,
     )
 
 
