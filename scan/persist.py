@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     import easyocr
+    from config import BibPipelineConfig
 
 
 @dataclass
@@ -187,7 +188,7 @@ def process_image(
     run_bib_detection: bool,
     run_face_detection: bool,
     face_embedder=None,
-    bib_config=None,
+    bib_config: "BibPipelineConfig | None" = None,
 ) -> tuple[int, int]:
     """Process a single image: detect bibs/faces, save artifacts, update database.
 

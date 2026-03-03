@@ -16,7 +16,10 @@ import json
 import logging
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Sequence
+from typing import TYPE_CHECKING, Sequence
+
+if TYPE_CHECKING:
+    from config import BibPipelineConfig
 
 from pydantic import BaseModel
 
@@ -239,7 +242,7 @@ def run_ghost_labeling(
     *,
     store_path: Path | None = None,
     verbose: bool = True,
-    bib_config=None,
+    bib_config: BibPipelineConfig | None = None,
 ) -> SuggestionStore:
     """Run bib and face detection on the given photos, storing suggestions.
 

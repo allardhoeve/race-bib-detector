@@ -34,6 +34,22 @@ from geometry import Bbox, bbox_to_rect
 logger = logging.getLogger(__name__)
 
 
+def _check_candidate_filters(
+    aspect_ratio: float,
+    relative_area: float,
+    median_brightness: float,
+    mean_brightness: float,
+) -> str | None:
+    """Check candidate against standard filters. Returns rejection reason or None."""
+    if aspect_ratio < MIN_ASPECT_RATIO or aspect_ratio > MAX_ASPECT_RATIO:
+        return f"aspect_ratio {aspect_ratio:.2f} outside [{MIN_ASPECT_RATIO}, {MAX_ASPECT_RATIO}]"
+    if relative_area < MIN_RELATIVE_AREA or relative_area > MAX_RELATIVE_AREA:
+        return f"relative_area {relative_area:.4f} outside [{MIN_RELATIVE_AREA}, {MAX_RELATIVE_AREA}]"
+    if median_brightness < MEDIAN_BRIGHTNESS_THRESHOLD or mean_brightness < MEAN_BRIGHTNESS_THRESHOLD:
+        return f"brightness (median={median_brightness:.0f}, mean={mean_brightness:.0f}) below threshold"
+    return None
+
+
 def validate_detection_region(
     bbox: Bbox,
     gray_image: np.ndarray,
@@ -82,16 +98,9 @@ def validate_detection_region(
     median_brightness = float(np.median(region))
     mean_brightness = float(np.mean(region))
 
-    # Apply same filters as find_bib_candidates
-    rejection_reason = None
-
-    if aspect_ratio < MIN_ASPECT_RATIO or aspect_ratio > MAX_ASPECT_RATIO:
-        rejection_reason = f"aspect_ratio {aspect_ratio:.2f} outside [{MIN_ASPECT_RATIO}, {MAX_ASPECT_RATIO}]"
-    elif relative_area < MIN_RELATIVE_AREA or relative_area > MAX_RELATIVE_AREA:
-        rejection_reason = f"relative_area {relative_area:.4f} outside [{MIN_RELATIVE_AREA}, {MAX_RELATIVE_AREA}]"
-    elif median_brightness < MEDIAN_BRIGHTNESS_THRESHOLD or mean_brightness < MEAN_BRIGHTNESS_THRESHOLD:
-        rejection_reason = f"brightness (median={median_brightness:.0f}, mean={mean_brightness:.0f}) below threshold"
-
+    rejection_reason = _check_candidate_filters(
+        aspect_ratio, relative_area, median_brightness, mean_brightness,
+    )
     passed = rejection_reason is None
 
     return BibCandidate(
@@ -137,14 +146,9 @@ def _validate_contours(
         median_brightness = float(np.median(region))
         mean_brightness = float(np.mean(region))
 
-        rejection_reason = None
-        if aspect_ratio < MIN_ASPECT_RATIO or aspect_ratio > MAX_ASPECT_RATIO:
-            rejection_reason = f"aspect_ratio {aspect_ratio:.2f} outside [{MIN_ASPECT_RATIO}, {MAX_ASPECT_RATIO}]"
-        elif relative_area < MIN_RELATIVE_AREA or relative_area > MAX_RELATIVE_AREA:
-            rejection_reason = f"relative_area {relative_area:.4f} outside [{MIN_RELATIVE_AREA}, {MAX_RELATIVE_AREA}]"
-        elif median_brightness < MEDIAN_BRIGHTNESS_THRESHOLD or mean_brightness < MEAN_BRIGHTNESS_THRESHOLD:
-            rejection_reason = f"brightness (median={median_brightness:.0f}, mean={mean_brightness:.0f}) below threshold"
-
+        rejection_reason = _check_candidate_filters(
+            aspect_ratio, relative_area, median_brightness, mean_brightness,
+        )
         passed = rejection_reason is None
 
         if passed:
@@ -203,12 +207,6 @@ def find_bib_candidates(
 
     img_height, img_width = image_array.shape[:2]
 
-    # Get grayscale for brightness metrics (used by all methods)
-    if image_array.ndim == 3:
-        gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
-    else:
-        gray = image_array
-
     if method == CandidateFindMethod.HSV_WHITE:
         if image_array.ndim != 3:
             logger.warning(
@@ -216,6 +214,12 @@ def find_bib_candidates(
                 "falling back to GRAYSCALE_THRESHOLD"
             )
             method = CandidateFindMethod.GRAYSCALE_THRESHOLD
+
+    # Grayscale: needed for thresholding (GRAYSCALE_THRESHOLD) and brightness metrics
+    if image_array.ndim == 3:
+        gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = image_array
 
     if method == CandidateFindMethod.HSV_WHITE:
         # HSV-based: high value (bright) AND low saturation (white, not colorful)

@@ -139,16 +139,12 @@ def detect_bib_numbers(
     ocr_grayscale = preprocess_result.processed
     scale_factor = preprocess_result.scale_factor
 
-    # For COLOR mode, also produce a color-resized image at the same dimensions
-    color_resized: np.ndarray | None = None
-    if bib_config.image_prep == ImagePrepMethod.COLOR:
-        ocr_h, ocr_w = ocr_image.shape[:2]
-        color_resized = cv2.resize(image_array, (ocr_w, ocr_h))
-
     # --- Candidate finding axis ---
-    # Choose the right image for candidate finding
-    if bib_config.candidate_find == CandidateFindMethod.HSV_WHITE and color_resized is not None:
-        candidate_image = color_resized
+    # HSV_WHITE needs a color image at OCR dimensions for coordinate alignment
+    if (bib_config.image_prep == ImagePrepMethod.COLOR
+            and bib_config.candidate_find == CandidateFindMethod.HSV_WHITE):
+        ocr_h, ocr_w = ocr_image.shape[:2]
+        candidate_image = cv2.resize(image_array, (ocr_w, ocr_h))
     else:
         candidate_image = ocr_image
 
