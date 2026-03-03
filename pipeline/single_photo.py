@@ -17,7 +17,7 @@ import numpy as np
 
 import config
 from detection import detect_bib_numbers
-from detection.types import DetectionResult
+from detection.types import Detection, DetectionResult
 from faces.types import FaceCandidate
 from geometry import Bbox, bbox_to_rect, rect_iou
 from pipeline.types import BibCandidateTrace, FaceCandidateTrace, TraceLink, predict_links
@@ -68,11 +68,11 @@ def _build_bib_trace(
     sf = result.scale_factor  # OCR→original scale
 
     # Map each accepted detection back to its source candidate
-    accepted_by_candidate: dict[int, tuple[str, float]] = {}
+    accepted_by_candidate: dict[int, Detection] = {}
     for det in result.detections:
         if det.source_candidate is not None:
             cand_id = id(det.source_candidate)
-            accepted_by_candidate[cand_id] = (det.bib_number, det.confidence)
+            accepted_by_candidate[cand_id] = det
 
     traces: list[BibCandidateTrace] = []
 
@@ -84,11 +84,19 @@ def _build_bib_trace(
         nh = (cand.h * sf) / img_h
 
         cand_id = id(cand)
-        is_accepted = cand_id in accepted_by_candidate
+        det = accepted_by_candidate.get(cand_id)
+        is_accepted = det is not None
         bib_number: str | None = None
         det_confidence: float | None = None
-        if is_accepted:
-            bib_number, det_confidence = accepted_by_candidate[cand_id]
+        if det is not None:
+            bib_number = det.bib_number
+            det_confidence = det.confidence
+            # Use the tight OCR detection bbox (already in original coords)
+            dx1, dy1, dx2, dy2 = bbox_to_rect(det.bbox)
+            nx = dx1 / img_w
+            ny = dy1 / img_h
+            nw = (dx2 - dx1) / img_w
+            nh = (dy2 - dy1) / img_h
 
         trace = BibCandidateTrace(
             x=nx, y=ny, w=nw, h=nh,
