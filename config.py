@@ -35,7 +35,7 @@ MIN_CONTOUR_AREA = 1000
 
 # Threshold for binary thresholding to find white regions (0-255)
 # Higher = stricter white detection
-WHITE_THRESHOLD = 200
+WHITE_THRESHOLD = 180
 
 # Aspect ratio range for candidate regions (width/height)
 # Bibs are roughly square, so we allow 0.5 to 4.0
