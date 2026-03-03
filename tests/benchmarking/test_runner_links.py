@@ -42,7 +42,7 @@ def _fake_bib_result(width: int = 100, height: int = 100):
     )
 
 
-def _noop_detect(reader, image_data, artifact_dir=None):
+def _noop_detect(reader, image_data, artifact_dir=None, **kwargs):
     """Stub detect_fn that returns an empty DetectionResult."""
     return _fake_bib_result()
 

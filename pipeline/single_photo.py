@@ -16,6 +16,7 @@ import cv2
 import numpy as np
 
 import config
+from config import BibPipelineConfig
 from detection import detect_bib_numbers
 from detection.types import Detection, DetectionResult
 from faces.types import FaceCandidate
@@ -245,6 +246,7 @@ def run_single_photo(
     run_faces: bool = True,
     run_autolink: bool = True,
     artifact_dir: str | None = None,
+    bib_config: BibPipelineConfig | None = None,
 ) -> SinglePhotoResult:
     """Run bib + face detection on a single photo.
 
@@ -296,7 +298,7 @@ def run_single_photo(
         if detect_fn is None:
             detect_fn = detect_bib_numbers
         start = time.time()
-        bib_result = detect_fn(reader, image_data, artifact_dir=artifact_dir)
+        bib_result = detect_fn(reader, image_data, artifact_dir=artifact_dir, bib_config=bib_config)
         bib_time_ms = (time.time() - start) * 1000
         bib_w, bib_h = bib_result.original_dimensions
         bib_trace = _build_bib_trace(bib_result, bib_w, bib_h)

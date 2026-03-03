@@ -56,7 +56,7 @@ def _fake_bib_result(width: int = 100, height: int = 100):
     )
 
 
-def _noop_detect(reader, image_data, artifact_dir=None):
+def _noop_detect(reader, image_data, artifact_dir=None, **kwargs):
     """Stub detect_fn that returns an empty DetectionResult."""
     return _fake_bib_result()
 
@@ -201,7 +201,7 @@ class TestRunSinglePhotoBibDetection:
 
         sp = run_single_photo(
             _make_png_image_bytes(),
-            detect_fn=lambda reader, image_data, artifact_dir=None: fake_result,
+            detect_fn=lambda reader, image_data, artifact_dir=None, **kwargs: fake_result,
             run_faces=False,
             run_autolink=False,
         )
@@ -554,7 +554,7 @@ class TestPredLinks:
             face_gt=face_gt,
             link_gt=link_gt,
             photos_dir=tmp_path,
-            detect_fn=lambda reader, image_data, artifact_dir=None: fake_result,
+            detect_fn=lambda reader, image_data, artifact_dir=None, **kwargs: fake_result,
         )
 
         pr = results[0]
@@ -590,7 +590,7 @@ class TestScorecardAndConfidence:
 
         sp = run_single_photo(
             _make_png_image_bytes(),
-            detect_fn=lambda reader, image_data, artifact_dir=None: fake_result,
+            detect_fn=lambda reader, image_data, artifact_dir=None, **kwargs: fake_result,
             run_faces=False,
             run_autolink=False,
         )
@@ -641,7 +641,7 @@ class TestScorecardAndConfidence:
             face_backend=FakeFaceBackend(),
             face_gt=face_gt,
             photos_dir=tmp_path,
-            detect_fn=lambda reader, image_data, artifact_dir=None: fake_result,
+            detect_fn=lambda reader, image_data, artifact_dir=None, **kwargs: fake_result,
         )
 
         pr = results[0]

@@ -27,7 +27,7 @@ def _make_png_bytes(width: int = 100, height: int = 100) -> bytes:
     return buf.tobytes()
 
 
-def _fake_detect_fn(reader, image_data, artifact_dir=None):
+def _fake_detect_fn(reader, image_data, artifact_dir=None, **kwargs):
     """Stub detect_fn returning one bib detection in a 100x100 image."""
     det = Detection(
         bib_number="42",
@@ -45,7 +45,7 @@ def _fake_detect_fn(reader, image_data, artifact_dir=None):
     )
 
 
-def _noop_detect_fn(reader, image_data, artifact_dir=None):
+def _noop_detect_fn(reader, image_data, artifact_dir=None, **kwargs):
     """Stub detect_fn returning no detections."""
     return DetectionResult(
         detections=[],
@@ -208,7 +208,7 @@ class TestBibsAndFacesWithAutolink:
             ocr_dimensions=(100, 100),
             scale_factor=1.0,
         )
-        detect_fn = lambda reader, image_data, artifact_dir=None: fake_result
+        detect_fn = lambda reader, image_data, artifact_dir=None, **kwargs: fake_result
 
         result = run_single_photo(
             _make_png_bytes(),
@@ -278,7 +278,7 @@ class TestDetectFnInjection:
 
         called = []
 
-        def tracking_detect_fn(reader, image_data, artifact_dir=None):
+        def tracking_detect_fn(reader, image_data, artifact_dir=None, **kwargs):
             called.append(True)
             return _noop_detect_fn(reader, image_data, artifact_dir=artifact_dir)
 
@@ -346,7 +346,7 @@ class TestBibTrace:
 
         result = run_single_photo(
             _make_png_bytes(),
-            detect_fn=lambda reader, image_data, artifact_dir=None: fake_result,
+            detect_fn=lambda reader, image_data, artifact_dir=None, **kwargs: fake_result,
             face_backend=FakeFaceBackend(),
             run_autolink=True,
         )
@@ -440,7 +440,7 @@ class TestFaceTrace:
 
         result = run_single_photo(
             _make_png_bytes(),
-            detect_fn=lambda reader, image_data, artifact_dir=None: fake_result,
+            detect_fn=lambda reader, image_data, artifact_dir=None, **kwargs: fake_result,
             face_backend=FakeFaceBackend(),
             run_autolink=True,
         )
@@ -528,3 +528,47 @@ class TestFaceTrace:
 
         for trace in result.face_trace:
             assert trace.embedding is None
+
+
+class TestBibPipelineConfig:
+    """Tests for bib_config threading (task-100)."""
+
+    def test_run_single_photo_accepts_bib_config(self):
+        from config import BibPipelineConfig
+        from pipeline import run_single_photo
+
+        config = BibPipelineConfig()  # default = crop-based
+        result = run_single_photo(
+            _make_png_bytes(),
+            detect_fn=_fake_detect_fn,
+            run_faces=False,
+            run_autolink=False,
+            bib_config=config,
+        )
+
+        assert result.image_dims == (100, 100)
+        accepted = [t for t in result.bib_trace if t.accepted]
+        assert len(accepted) == 1
+
+    def test_bib_config_passed_to_detect_fn(self):
+        """Verify bib_config is forwarded to the detect function."""
+        from config import BibPipelineConfig, OCRMethod
+        from pipeline import run_single_photo
+
+        received_config = []
+
+        def tracking_detect_fn(reader, image_data, artifact_dir=None, **kwargs):
+            received_config.append(kwargs.get("bib_config"))
+            return _noop_detect_fn(reader, image_data, artifact_dir=artifact_dir)
+
+        config = BibPipelineConfig(ocr_method=OCRMethod.FULL_IMAGE)
+        run_single_photo(
+            _make_png_bytes(),
+            detect_fn=tracking_detect_fn,
+            run_faces=False,
+            run_autolink=False,
+            bib_config=config,
+        )
+
+        assert len(received_config) == 1
+        assert received_config[0] is config

@@ -239,6 +239,7 @@ def run_ghost_labeling(
     *,
     store_path: Path | None = None,
     verbose: bool = True,
+    bib_config=None,
 ) -> SuggestionStore:
     """Run bib and face detection on the given photos, storing suggestions.
 
@@ -300,7 +301,7 @@ def run_ghost_labeling(
 
         try:
             # --- Bib detection ---
-            bib_result = detect_bib_numbers(reader, image_data)
+            bib_result = detect_bib_numbers(reader, image_data, bib_config=bib_config)
             img_w, img_h = bib_result.original_dimensions
 
             bib_suggestions: list[BibSuggestion] = []

@@ -187,6 +187,7 @@ def process_image(
     run_bib_detection: bool,
     run_face_detection: bool,
     face_embedder=None,
+    bib_config=None,
 ) -> tuple[int, int]:
     """Process a single image: detect bibs/faces, save artifacts, update database.
 
@@ -206,6 +207,7 @@ def process_image(
         face_embedder=face_embedder,
         run_faces=run_face_detection,
         run_autolink=run_bib_detection and run_face_detection,
+        bib_config=bib_config,
     )
 
     result = sp.bib_result

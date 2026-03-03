@@ -48,7 +48,7 @@ class FakeEmbedder:
         return [np.zeros(128, dtype=np.float32) for _ in bboxes]
 
 
-def _bib_detect_fn(reader, image_data, artifact_dir=None):
+def _bib_detect_fn(reader, image_data, artifact_dir=None, **kwargs):
     """Detect one bib at [10,50,30,20]."""
     det = Detection(
         bib_number="42",

@@ -81,6 +81,27 @@ def add_benchmark_subparser(subparsers: argparse._SubParsersAction) -> None:
         dest="note",
         help="Optional note to attach to the benchmark run",
     )
+    bench_run.add_argument(
+        "--image-prep",
+        choices=["grayscale", "color"],
+        default=None,
+        dest="image_prep",
+        help="Image preparation strategy (default: grayscale)",
+    )
+    bench_run.add_argument(
+        "--candidate-find",
+        choices=["grayscale_threshold", "hsv_white", "none"],
+        default=None,
+        dest="candidate_find",
+        help="Candidate finding strategy (default: grayscale_threshold)",
+    )
+    bench_run.add_argument(
+        "--ocr-method",
+        choices=["crop", "full_image"],
+        default=None,
+        dest="ocr_method",
+        help="OCR strategy (default: crop)",
+    )
     bench_run.set_defaults(_cmd=_lazy_cmd("benchmarking.cli.commands.benchmark", "cmd_benchmark"))
 
     # ---- ui ----

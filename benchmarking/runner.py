@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field, field_serializer, field_validator, model_
 import config
 from config import (
     BENCHMARK_REGRESSION_TOLERANCE,
+    BibPipelineConfig,
     FACE_BACKEND,
     FACE_DNN_CONFIDENCE_MIN,
     FACE_DNN_FALLBACK_CONFIDENCE_MIN,
@@ -206,6 +207,26 @@ class FacePipelineConfig(BaseModel):
         return f"faces: {', '.join(passes)}"
 
 
+class BibPipelineConfigModel(BaseModel):
+    """Pydantic mirror of ``BibPipelineConfig`` for serialization in run metadata."""
+    image_prep: str
+    candidate_find: str
+    ocr_method: str
+
+    def summary(self) -> str:
+        """Short human-readable summary."""
+        parts = [self.image_prep, self.candidate_find, self.ocr_method]
+        return "bib: " + "+".join(parts)
+
+    @classmethod
+    def from_dataclass(cls, cfg: BibPipelineConfig) -> "BibPipelineConfigModel":
+        return cls(
+            image_prep=cfg.image_prep.value,
+            candidate_find=cfg.candidate_find.value,
+            ocr_method=cfg.ocr_method.value,
+        )
+
+
 class RunMetadata(BaseModel):
     """Metadata about a benchmark run."""
     run_id: str
@@ -220,6 +241,7 @@ class RunMetadata(BaseModel):
     total_runtime_seconds: float
     pipeline_config: PipelineConfig | None = None
     face_pipeline_config: FacePipelineConfig | None = None
+    bib_pipeline_config: BibPipelineConfigModel | None = None
     frozen_set: str | None = None
     note: str | None = None
 
@@ -410,6 +432,7 @@ def _run_detection_loop(
     meta_store: PhotoMetadataStore | None = None,
     photos_dir: Path | None = None,
     detect_fn=None,
+    bib_config: BibPipelineConfig | None = None,
 ) -> tuple[list[PhotoResult], BibScorecard, FaceScorecard | None, LinkScorecard | None]:
     """Run detection on all photos; return results and aggregate IoU scorecards.
 
@@ -454,6 +477,7 @@ def _run_detection_loop(
             run_faces=face_backend is not None,
             run_autolink=link_gt is not None and face_backend is not None and face_gt is not None,
             artifact_dir=photo_artifact_dir,
+            bib_config=bib_config,
         )
 
         img_w, img_h = sp_result.image_dims
@@ -613,6 +637,7 @@ def _build_run_metadata(
     note: str | None,
     start_time: float,
     frozen_set: str | None = None,
+    bib_config: BibPipelineConfig | None = None,
 ) -> RunMetadata:
     """Capture environment and pipeline configuration into RunMetadata.
 
@@ -647,6 +672,10 @@ def _build_run_metadata(
         fallback_iou_threshold=FACE_FALLBACK_IOU_THRESHOLD,
     )
 
+    bib_pipeline_config_model = None
+    if bib_config is not None:
+        bib_pipeline_config_model = BibPipelineConfigModel.from_dataclass(bib_config)
+
     return RunMetadata(
         run_id=run_id,
         timestamp=datetime.now().isoformat(),
@@ -660,6 +689,7 @@ def _build_run_metadata(
         total_runtime_seconds=total_runtime,
         pipeline_config=pipeline_config,
         face_pipeline_config=face_pipeline_config,
+        bib_pipeline_config=bib_pipeline_config_model,
         frozen_set=frozen_set,
         note=note,
     )
@@ -696,6 +726,7 @@ def run_benchmark(
     verbose: bool = True,
     note: str | None = None,
     frozen_set: str | None = None,
+    bib_config: BibPipelineConfig | None = None,
 ) -> BenchmarkRun:
     """Run benchmark on the specified split.
 
@@ -750,10 +781,11 @@ def run_benchmark(
         logger.warning("Face backend unavailable — face scoring skipped: %s", exc)
 
     photo_results, bib_scorecard, face_scorecard, link_scorecard = _run_detection_loop(
-        reader, photos, index, images_dir, verbose, face_backend, face_gt, link_gt, meta_store
+        reader, photos, index, images_dir, verbose, face_backend, face_gt, link_gt, meta_store,
+        bib_config=bib_config,
     )
     metrics = compute_metrics(photo_results)
-    metadata = _build_run_metadata(run_id, split, note, start_time, frozen_set=frozen_set)
+    metadata = _build_run_metadata(run_id, split, note, start_time, frozen_set=frozen_set, bib_config=bib_config)
 
     benchmark_run = BenchmarkRun(
         metadata=metadata,
@@ -886,6 +918,10 @@ def list_runs() -> list[dict]:
                 run_info["passes"] = run.metadata.face_pipeline_config.summary_passes()
             else:
                 run_info["passes"] = "unknown"
+            if run.metadata.bib_pipeline_config:
+                run_info["bib_pipeline"] = run.metadata.bib_pipeline_config.summary()
+            else:
+                run_info["bib_pipeline"] = "default"
             run_info["frozen_set"] = run.metadata.frozen_set
             run_info["note"] = run.metadata.note
             runs.append(run_info)

@@ -6,6 +6,9 @@ These values can be adjusted to fine-tune detection performance.
 See DETECTION.md for documentation on how these values affect detection.
 """
 
+from dataclasses import dataclass
+from enum import Enum
+
 # =============================================================================
 # IMAGE PREPROCESSING
 # =============================================================================
@@ -49,6 +52,50 @@ MAX_RELATIVE_AREA = 0.3    # 30% of image
 
 # Padding ratio around detected regions (fraction of min(width, height))
 REGION_PADDING_RATIO = 0.1
+
+# HSV saturation ceiling for white-region detection (0-255)
+# Used by CandidateFindMethod.HSV_WHITE: V > WHITE_THRESHOLD AND S < WHITE_MAX_SATURATION
+WHITE_MAX_SATURATION = 50
+
+
+# =============================================================================
+# BIB PIPELINE COMPOSABILITY (task-100)
+# =============================================================================
+
+
+class ImagePrepMethod(str, Enum):
+    """Image preparation strategy for bib detection."""
+    GRAYSCALE = "grayscale"   # RGB → grayscale → CLAHE → resize
+    COLOR = "color"           # RGB → resize (keep color for candidate finding)
+
+
+class CandidateFindMethod(str, Enum):
+    """Candidate bib region finding strategy."""
+    GRAYSCALE_THRESHOLD = "grayscale_threshold"  # brightness threshold on grayscale
+    HSV_WHITE = "hsv_white"                      # V > threshold AND S < max_saturation
+    NONE = "none"                                # no candidate finding
+
+
+class OCRMethod(str, Enum):
+    """OCR strategy for bib number reading."""
+    CROP = "crop"              # OCR per candidate crop
+    FULL_IMAGE = "full_image"  # OCR on entire image
+
+
+@dataclass(frozen=True)
+class BibPipelineConfig:
+    """Configuration for the composable bib detection pipeline.
+
+    Three independent axes that can be mixed freely:
+    - image_prep: how the image is prepared
+    - candidate_find: how candidate bib regions are found
+    - ocr_method: how OCR is applied (per-crop or full-image)
+
+    Default values reproduce the committed crop-based behavior.
+    """
+    image_prep: ImagePrepMethod = ImagePrepMethod.GRAYSCALE
+    candidate_find: CandidateFindMethod = CandidateFindMethod.GRAYSCALE_THRESHOLD
+    ocr_method: OCRMethod = OCRMethod.CROP
 
 # =============================================================================
 # BRIGHTNESS VALIDATION

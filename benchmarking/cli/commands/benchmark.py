@@ -6,6 +6,27 @@ import argparse
 from benchmarking.photo_index import load_photo_index
 
 
+def _build_bib_config(args: argparse.Namespace):
+    """Construct BibPipelineConfig from CLI args (returns None if all defaults)."""
+    from config import BibPipelineConfig, ImagePrepMethod, CandidateFindMethod, OCRMethod
+
+    image_prep = getattr(args, "image_prep", None)
+    candidate_find = getattr(args, "candidate_find", None)
+    ocr_method = getattr(args, "ocr_method", None)
+
+    if image_prep is None and candidate_find is None and ocr_method is None:
+        return None
+
+    kwargs = {}
+    if image_prep is not None:
+        kwargs["image_prep"] = ImagePrepMethod(image_prep)
+    if candidate_find is not None:
+        kwargs["candidate_find"] = CandidateFindMethod(candidate_find)
+    if ocr_method is not None:
+        kwargs["ocr_method"] = OCRMethod(ocr_method)
+    return BibPipelineConfig(**kwargs)
+
+
 def cmd_benchmark(args: argparse.Namespace) -> int:
     """Run benchmark and report results."""
     from benchmarking.runner import (
@@ -19,9 +40,10 @@ def cmd_benchmark(args: argparse.Namespace) -> int:
     verbose = not args.quiet
 
     frozen_set = getattr(args, "frozen_set", None)
+    bib_config = _build_bib_config(args)
 
     try:
-        run = run_benchmark(split=split, verbose=verbose, note=args.note, frozen_set=frozen_set)
+        run = run_benchmark(split=split, verbose=verbose, note=args.note, frozen_set=frozen_set, bib_config=bib_config)
     except ValueError as e:
         print(f"Error: {e}")
         return 1

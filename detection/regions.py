@@ -8,12 +8,17 @@ Also provides `validate_detection_region()` to apply the same filtering
 logic to any detection bbox.
 """
 
+from __future__ import annotations
+
+import logging
 import cv2
 import numpy as np
 
 from config import (
+    CandidateFindMethod,
     MIN_CONTOUR_AREA,
     WHITE_THRESHOLD,
+    WHITE_MAX_SATURATION,
     MIN_ASPECT_RATIO,
     MAX_ASPECT_RATIO,
     MIN_RELATIVE_AREA,
@@ -25,6 +30,8 @@ from config import (
 
 from .types import BibCandidate
 from geometry import Bbox, bbox_to_rect
+
+logger = logging.getLogger(__name__)
 
 
 def validate_detection_region(
@@ -99,67 +106,38 @@ def validate_detection_region(
     )
 
 
-def find_bib_candidates(
-    image_array: np.ndarray,
-    min_area: int | None = None,
-    include_rejected: bool = False,
+def _validate_contours(
+    contours,
+    gray: np.ndarray,
+    img_width: int,
+    img_height: int,
+    min_area: int,
+    include_rejected: bool,
 ) -> list[BibCandidate]:
-    """Find white rectangular regions that could be bib numbers.
+    """Validate contours against size, aspect ratio, and brightness filters.
 
-    Returns structured BibCandidate objects with metadata for debugging.
-
-    Args:
-        image_array: Grayscale or RGB image as numpy array. If RGB, will be
-                    converted to grayscale. Prefer passing grayscale directly
-                    for efficiency.
-        min_area: Minimum contour area to consider (defaults to MIN_CONTOUR_AREA).
-        include_rejected: If True, include candidates that failed filters
-                         (with rejection_reason set).
-
-    Returns:
-        List of BibCandidate objects. If include_rejected=False, only
-        candidates that passed all filters are returned.
+    Shared by both GRAYSCALE_THRESHOLD and HSV_WHITE candidate finders.
     """
-    if min_area is None:
-        min_area = MIN_CONTOUR_AREA
-
-    # Convert to grayscale if needed (prefer passing grayscale directly)
-    if image_array.ndim == 3:
-        gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
-    else:
-        gray = image_array
-
-    # Threshold to find white regions (bibs are white/light colored)
-    _, thresh = cv2.threshold(gray, WHITE_THRESHOLD, 255, cv2.THRESH_BINARY)
-
-    # Find contours
-    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-    candidates = []
-    img_height, img_width = image_array.shape[:2]
     total_image_area = img_width * img_height
+    candidates = []
 
     for contour in contours:
         contour_area = cv2.contourArea(contour)
         if contour_area < min_area:
             continue
 
-        # Get bounding rectangle
         x, y, w, h = cv2.boundingRect(contour)
         bbox_area = w * h
 
-        # Calculate metrics for this candidate
         aspect_ratio = w / h if h > 0 else 0
         relative_area = bbox_area / total_image_area
 
-        # Get brightness metrics
+        # Brightness metrics always on grayscale (backward compat)
         region = gray[y:y+h, x:x+w]
         median_brightness = float(np.median(region))
         mean_brightness = float(np.mean(region))
 
-        # Check filters and determine if passed
         rejection_reason = None
-
         if aspect_ratio < MIN_ASPECT_RATIO or aspect_ratio > MAX_ASPECT_RATIO:
             rejection_reason = f"aspect_ratio {aspect_ratio:.2f} outside [{MIN_ASPECT_RATIO}, {MAX_ASPECT_RATIO}]"
         elif relative_area < MIN_RELATIVE_AREA or relative_area > MAX_RELATIVE_AREA:
@@ -169,7 +147,6 @@ def find_bib_candidates(
 
         passed = rejection_reason is None
 
-        # Apply padding for passed candidates
         if passed:
             padding = int(min(w, h) * REGION_PADDING_RATIO)
             x = max(0, x - padding)
@@ -192,3 +169,67 @@ def find_bib_candidates(
             candidates.append(candidate)
 
     return candidates
+
+
+def find_bib_candidates(
+    image_array: np.ndarray,
+    min_area: int | None = None,
+    include_rejected: bool = False,
+    method: CandidateFindMethod | None = None,
+) -> list[BibCandidate]:
+    """Find white rectangular regions that could be bib numbers.
+
+    Returns structured BibCandidate objects with metadata for debugging.
+
+    Args:
+        image_array: Grayscale or RGB image as numpy array.
+        min_area: Minimum contour area to consider (defaults to MIN_CONTOUR_AREA).
+        include_rejected: If True, include candidates that failed filters
+                         (with rejection_reason set).
+        method: Candidate finding strategy. None defaults to GRAYSCALE_THRESHOLD.
+
+    Returns:
+        List of BibCandidate objects. If include_rejected=False, only
+        candidates that passed all filters are returned.
+    """
+    if method is None:
+        method = CandidateFindMethod.GRAYSCALE_THRESHOLD
+
+    if method == CandidateFindMethod.NONE:
+        return []
+
+    if min_area is None:
+        min_area = MIN_CONTOUR_AREA
+
+    img_height, img_width = image_array.shape[:2]
+
+    # Get grayscale for brightness metrics (used by all methods)
+    if image_array.ndim == 3:
+        gray = cv2.cvtColor(image_array, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = image_array
+
+    if method == CandidateFindMethod.HSV_WHITE:
+        if image_array.ndim != 3:
+            logger.warning(
+                "HSV_WHITE requires RGB input but got grayscale; "
+                "falling back to GRAYSCALE_THRESHOLD"
+            )
+            method = CandidateFindMethod.GRAYSCALE_THRESHOLD
+
+    if method == CandidateFindMethod.HSV_WHITE:
+        # HSV-based: high value (bright) AND low saturation (white, not colorful)
+        hsv = cv2.cvtColor(image_array, cv2.COLOR_RGB2HSV)
+        v_channel = hsv[:, :, 2]
+        s_channel = hsv[:, :, 1]
+        mask = (v_channel > WHITE_THRESHOLD) & (s_channel < WHITE_MAX_SATURATION)
+        thresh = mask.astype(np.uint8) * 255
+    else:
+        # GRAYSCALE_THRESHOLD: original brightness threshold
+        _, thresh = cv2.threshold(gray, WHITE_THRESHOLD, 255, cv2.THRESH_BINARY)
+
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    return _validate_contours(
+        contours, gray, img_width, img_height, min_area, include_rejected,
+    )

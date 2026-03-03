@@ -1,13 +1,17 @@
-"""TDD tests for task-087: verify full-image OCR fallback is removed."""
+"""TDD tests for task-087: verify full-image OCR fallback is removed.
+
+Updated by task-100: full_image is now a composable OCR method (not a
+hardcoded fallback), so DetectionSource includes both values.
+"""
 
 
-def test_detection_source_type_is_white_region_only():
-    """DetectionSource should only allow 'white_region'."""
+def test_detection_source_type_includes_both():
+    """DetectionSource allows both 'white_region' and 'full_image' (task-100)."""
     from detection.types import DetectionSource
     import typing
     args = typing.get_args(DetectionSource)
-    assert "full_image" not in args
     assert "white_region" in args
+    assert "full_image" in args
 
 
 def test_full_image_confidence_threshold_removed():

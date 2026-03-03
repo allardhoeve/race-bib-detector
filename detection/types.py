@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 
 # Detection source types
-DetectionSource = Literal["white_region"]
+DetectionSource = Literal["white_region", "full_image"]
 
 
 class Detection(BaseModel):
